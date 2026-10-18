@@ -1,0 +1,409 @@
+using System;
+using System.Collections.Generic;
+
+namespace Game.Core
+{
+    /// <summary>Chronological, continuous contacts after MovementSystem.AdvanceKinematics.</summary>
+    public static class CombatSystem
+    {
+        private const double FractionEpsilon = 1e-10;
+        private const double SeparationEpsilon = 1e-8;
+        private const int MaximumContactsPerTick = 2048;
+
+        private enum ContactKind { Fighter, WallX, WallY, Body }
+        private enum DefenseKind { Parry, Guard, Invulnerable, Lethal }
+
+        private readonly struct Contact
+        {
+            public readonly double Fraction;
+            public readonly ContactKind Kind;
+            public readonly ProjectileState Projectile;
+            public readonly int FighterId;
+            public readonly Vec2 Normal;
+            public readonly BodyContact Body;
+
+            public Contact(double fraction, ContactKind kind, ProjectileState projectile,
+                int fighterId, Vec2 normal, BodyContact body = default)
+            {
+                Fraction = fraction;
+                Kind = kind;
+                Projectile = projectile;
+                FighterId = fighterId;
+                Normal = normal;
+                Body = body;
+            }
+        }
+
+        public static void Advance(SimulationState state, SimulationInput input, CombatTuning tuning,
+            SimulationConfig config, IList<SimulationEvent> events)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            if (tuning == null) throw new ArgumentNullException(nameof(tuning));
+            if (config == null) throw new ArgumentNullException(nameof(config));
+            if (events == null) throw new ArgumentNullException(nameof(events));
+
+            int[] breakTicksAtStart =
+            {
+                state.Fighter(0).GuardBreakTicksRemaining,
+                state.Fighter(1).GuardBreakTicksRemaining
+            };
+            DefenseSystem.BeginTick(state, input, tuning, config);
+            foreach (ProjectileState projectile in state.Projectiles)
+            {
+                projectile.PreviousPosition = projectile.Position;
+                DecayPower(projectile, tuning, config);
+            }
+
+            double now = 0;
+            int contactsResolved = 0;
+            var suppressedPairs = new HashSet<long>();
+            var candidates = new List<Contact>(state.Projectiles.Count * 4 + 1);
+            while (now < 1 - FractionEpsilon)
+            {
+                candidates.Clear();
+                if (BodySystem.TryFindNextContact(state, now, tuning, out BodyContact body))
+                    candidates.Add(new Contact(body.Fraction, ContactKind.Body, null!, -1, body.Normal, body));
+
+                foreach (ProjectileState projectile in state.Projectiles)
+                {
+                    AddWallContacts(candidates, projectile, now, tuning, config);
+                    for (int fighterId = 0; fighterId < 2; fighterId++)
+                        AddFighterContact(candidates, projectile, state.Fighter(fighterId), now,
+                            state, tuning, config, suppressedPairs);
+                }
+
+                if (candidates.Count == 0)
+                {
+                    AdvanceProjectiles(state.Projectiles, 1 - now, config);
+                    now = 1;
+                    break;
+                }
+
+                double next = 1;
+                foreach (Contact candidate in candidates)
+                    if (candidate.Fraction < next) next = candidate.Fraction;
+                if (next < now - FractionEpsilon || next > 1 + FractionEpsilon)
+                    throw new InvalidOperationException("Contact time escaped the current tick.");
+                next = SimMath.Clamp(next, now, 1);
+                AdvanceProjectiles(state.Projectiles, next - now, config);
+                now = next;
+
+                var batch = new List<Contact>();
+                foreach (Contact candidate in candidates)
+                    if (Math.Abs(candidate.Fraction - next) <= FractionEpsilon) batch.Add(candidate);
+                batch.Sort(CompareContacts);
+                contactsResolved += batch.Count;
+                if (contactsResolved > MaximumContactsPerTick)
+                    throw new InvalidOperationException("Contact budget exceeded; simulation refuses to lose contacts silently.");
+
+                // Classify the entire contact-time group before any block can cause guard break.
+                var defenses = new DefenseKind[batch.Count];
+                for (int index = 0; index < batch.Count; index++)
+                {
+                    if (batch[index].Kind != ContactKind.Fighter) continue;
+                    FighterState fighter = state.Fighter(batch[index].FighterId);
+                    FighterInput controls = input.ForFighter(fighter.Id);
+                    defenses[index] = DefenseSystem.CanParry(fighter) ? DefenseKind.Parry :
+                        DefenseSystem.CanGuard(fighter, controls, tuning, config) ? DefenseKind.Guard :
+                        fighter.DashInvulnerabilityTicksRemaining > 0 ? DefenseKind.Invulnerable : DefenseKind.Lethal;
+                }
+
+                for (int index = 0; index < batch.Count; index++)
+                {
+                    Contact contact = batch[index];
+                    if (contact.Kind == ContactKind.Fighter)
+                    {
+                        ResolveFighterContact(state, input, tuning, config, events,
+                            contact, defenses[index], suppressedPairs);
+                    }
+                    else if (contact.Kind == ContactKind.WallX || contact.Kind == ContactKind.WallY)
+                    {
+                        ResolveWallContact(state, tuning, events, contact);
+                    }
+                    else
+                    {
+                        BodySystem.ApplyContact(state, contact.Body, tuning, config, events);
+                    }
+                }
+                ResolveCompoundBoundaryContacts(batch, defenses);
+            }
+
+            if (now < 1) AdvanceProjectiles(state.Projectiles, 1 - now, config);
+            ValidateProjectileBounds(state.Projectiles, tuning);
+            RefreshReflectedContactMasks(state, tuning);
+            DefenseSystem.EndTick(state, input, tuning, config, breakTicksAtStart);
+            for (int id = 0; id < 2; id++)
+            {
+                FighterState fighter = state.Fighter(id);
+                if (fighter.DashInvulnerabilityTicksRemaining > 0)
+                    fighter.DashInvulnerabilityTicksRemaining--;
+            }
+        }
+
+        private static int CompareContacts(Contact left, Contact right)
+        {
+            int leftId = left.Kind == ContactKind.Body ? int.MaxValue : left.Projectile.Id;
+            int rightId = right.Kind == ContactKind.Body ? int.MaxValue : right.Projectile.Id;
+            int byId = leftId.CompareTo(rightId);
+            if (byId != 0) return byId;
+            int byKind = left.Kind.CompareTo(right.Kind);
+            return byKind != 0 ? byKind : left.FighterId.CompareTo(right.FighterId);
+        }
+
+        private static void DecayPower(ProjectileState projectile, CombatTuning tuning, SimulationConfig config)
+        {
+            if (projectile.PowerLevel <= 0)
+            {
+                projectile.PowerLevel = 0;
+                projectile.DecayTicksRemaining = 0;
+                return;
+            }
+            if (--projectile.DecayTicksRemaining > 0) return;
+            projectile.PowerLevel--;
+            projectile.DecayTicksRemaining = projectile.PowerLevel == 0 ? 0 :
+                Math.Max(1, SimMath.SecondsToTicks(tuning.Projectile.PowerDecaySecondsPerLevel, config.TickRateHz));
+            SetProjectileSpeed(projectile, tuning);
+        }
+
+        private static void SetProjectileSpeed(ProjectileState projectile, CombatTuning tuning)
+        {
+            double speed = tuning.Projectile.BaseSpeedUnitsPerSecond *
+                tuning.Projectile.SpeedMultiplierAtLevel(projectile.PowerLevel);
+            projectile.Velocity = projectile.Velocity.NormalizedOr(new Vec2(1, 0)) * speed;
+        }
+
+        private static void AdvanceProjectiles(List<ProjectileState> projectiles, double fraction, SimulationConfig config)
+        {
+            if (fraction <= 0) return;
+            double seconds = fraction * config.TickDurationSeconds;
+            foreach (ProjectileState projectile in projectiles)
+                projectile.Position += projectile.Velocity * seconds;
+        }
+
+        private static void AddFighterContact(List<Contact> contacts, ProjectileState projectile,
+            FighterState fighter, double now, SimulationState state, CombatTuning tuning,
+            SimulationConfig config, HashSet<long> suppressedPairs)
+        {
+            if (fighter.Eliminated) return;
+            long pair = ((long)projectile.Id << 32) | (uint)fighter.Id;
+            int fighterBit = 1 << fighter.Id;
+            double radius = tuning.Arena.ProjectileRadiusUnits + tuning.Arena.FighterRadiusUnits;
+            Vec2 fighterStart = SimMath.FighterPositionAt(fighter, now);
+            double separationSquared = (projectile.Position - fighterStart).LengthSquared;
+            double clearRadiusSquared = (radius + SeparationEpsilon) * (radius + SeparationEpsilon);
+            if ((projectile.ReflectedContactMask & fighterBit) != 0)
+            {
+                if (separationSquared <= clearRadiusSquared) return;
+                projectile.ReflectedContactMask &= ~fighterBit;
+            }
+            if (suppressedPairs.Contains(pair))
+            {
+                if (separationSquared <= clearRadiusSquared) return;
+                suppressedPairs.Remove(pair);
+            }
+            double remaining = 1 - now;
+            if (remaining <= FractionEpsilon) return;
+            Vec2 projectileDelta = projectile.Velocity * (remaining * config.TickDurationSeconds);
+            Vec2 fighterDelta = SimMath.FighterPositionAt(fighter, 1) - fighterStart;
+            if (!SimMath.SweepCircles(projectile.Position, projectileDelta, tuning.Arena.ProjectileRadiusUnits,
+                fighterStart, fighterDelta, tuning.Arena.FighterRadiusUnits, out double local, out Vec2 normal)) return;
+            contacts.Add(new Contact(now + local * remaining, ContactKind.Fighter, projectile, fighter.Id, normal));
+        }
+
+        private static void AddWallContacts(List<Contact> contacts, ProjectileState projectile,
+            double now, CombatTuning tuning, SimulationConfig config)
+        {
+            double remaining = 1 - now;
+            if (remaining <= FractionEpsilon) return;
+            double radius = tuning.Arena.ProjectileRadiusUnits;
+            double maxX = tuning.Arena.WidthUnits - radius;
+            double maxY = tuning.Arena.HeightUnits - radius;
+            AddAxisWall(contacts, projectile, now, remaining, config.TickDurationSeconds,
+                projectile.Position.X, projectile.Velocity.X, radius, maxX, ContactKind.WallX);
+            AddAxisWall(contacts, projectile, now, remaining, config.TickDurationSeconds,
+                projectile.Position.Y, projectile.Velocity.Y, radius, maxY, ContactKind.WallY);
+        }
+
+        private static void AddAxisWall(List<Contact> contacts, ProjectileState projectile,
+            double now, double remaining, double tickSeconds, double position, double velocity,
+            double minimum, double maximum, ContactKind kind)
+        {
+            if (Math.Abs(velocity) < 1e-12) return;
+            double target = velocity < 0 ? minimum : maximum;
+            double seconds = (target - position) / velocity;
+            if (seconds < -FractionEpsilon || seconds > remaining * tickSeconds + FractionEpsilon) return;
+            double fraction = now + Math.Max(0, seconds / tickSeconds);
+            Vec2 normal = kind == ContactKind.WallX
+                ? new Vec2(velocity < 0 ? 1 : -1, 0)
+                : new Vec2(0, velocity < 0 ? 1 : -1);
+            contacts.Add(new Contact(fraction, kind, projectile, -1, normal));
+        }
+
+        private static void ResolveFighterContact(SimulationState state, SimulationInput input,
+            CombatTuning tuning, SimulationConfig config, IList<SimulationEvent> events,
+            Contact contact, DefenseKind defense, HashSet<long> suppressedPairs)
+        {
+            ProjectileState projectile = contact.Projectile;
+            FighterState fighter = state.Fighter(contact.FighterId);
+            suppressedPairs.Add(((long)projectile.Id << 32) | (uint)fighter.Id);
+            projectile.LastContactTick = state.Tick;
+            projectile.LastContactFighterId = fighter.Id;
+            Vec2 impact = projectile.Position;
+            if (defense == DefenseKind.Parry)
+            {
+                projectile.ReflectedContactMask |= 1 << fighter.Id;
+                fighter.PostureTouchedTick = state.Tick;
+                projectile.PowerLevel = Math.Min(ProjectileTuning.MaximumPowerLevel, projectile.PowerLevel + 1);
+                projectile.DecayTicksRemaining = Math.Max(1,
+                    SimMath.SecondsToTicks(tuning.Projectile.PowerDecaySecondsPerLevel, config.TickRateHz));
+                ReflectFromFighter(projectile, contact.Normal, input.ForFighter(fighter.Id).Move,
+                    tuning.Projectile.MaximumParrySteeringDegrees);
+                SetProjectileSpeed(projectile, tuning);
+                fighter.DashCharges = Math.Min(MovementTuning.MaximumDashCharges, fighter.DashCharges + 1);
+                events.Add(new SimulationEvent(state.Tick, SimulationEventType.PerfectParry,
+                    projectile.Id, fighter.Id, impact, projectile.PowerLevel));
+            }
+            else if (defense == DefenseKind.Guard)
+            {
+                projectile.ReflectedContactMask |= 1 << fighter.Id;
+                bool activeDash = fighter.DashTicksRemaining > 0;
+                DefenseSystem.ApplyPostureDamage(state, fighter,
+                    tuning.GetBlockPostureDamage(projectile.PowerLevel), tuning, config, events);
+                if (activeDash && fighter.GuardBreakTicksRemaining > 0)
+                    CancelDashPath(fighter, contact.Fraction, config);
+                ReflectFromFighter(projectile, contact.Normal, Vec2.Zero, 0);
+                events.Add(new SimulationEvent(state.Tick, SimulationEventType.GuardBlocked,
+                    projectile.Id, fighter.Id, impact, fighter.Posture));
+            }
+            else if (defense == DefenseKind.Lethal)
+            {
+                if (!fighter.Eliminated)
+                {
+                    fighter.Eliminated = true;
+                    events.Add(new SimulationEvent(state.Tick, SimulationEventType.FighterEliminated,
+                        fighter.Id, projectile.Id, impact));
+                }
+            }
+        }
+
+        private static void ReflectFromFighter(ProjectileState projectile, Vec2 normal,
+            Vec2 steering, double maximumDegrees)
+        {
+            Vec2 unitNormal = normal.NormalizedOr(new Vec2(1, 0));
+            Vec2 natural = Vec2.Dot(projectile.Velocity, unitNormal) < 0
+                ? Vec2.Reflect(projectile.Velocity, unitNormal)
+                : unitNormal * projectile.Velocity.Length;
+            natural = natural.NormalizedOr(unitNormal);
+            if (steering.LengthSquared > 1e-12 && maximumDegrees > 0)
+            {
+                Vec2 desired = steering.NormalizedOr(natural);
+                double cross = natural.X * desired.Y - natural.Y * desired.X;
+                double angle = Math.Atan2(cross, Vec2.Dot(natural, desired));
+                double cap = maximumDegrees * Math.PI / 180.0;
+                angle = SimMath.Clamp(angle, -cap, cap);
+                double cosine = Math.Cos(angle);
+                double sine = Math.Sin(angle);
+                Vec2 steered = new Vec2(natural.X * cosine - natural.Y * sine,
+                    natural.X * sine + natural.Y * cosine);
+                if (Vec2.Dot(steered, unitNormal) > 1e-10) natural = steered;
+            }
+            projectile.Velocity = natural * projectile.Velocity.Length;
+        }
+
+        private static void CancelDashPath(FighterState fighter, double fraction, SimulationConfig config)
+        {
+            Vec2 atContact = SimMath.FighterPositionAt(fighter, fraction);
+            fighter.PreviousPosition = atContact;
+            fighter.MotionStartFraction = fraction;
+            fighter.Velocity = new Vec2(0, fighter.Velocity.Y);
+            fighter.Position = atContact + fighter.Velocity * ((1 - fraction) * config.TickDurationSeconds);
+        }
+
+        private static void ResolveWallContact(SimulationState state, CombatTuning tuning,
+            IList<SimulationEvent> events, Contact contact)
+        {
+            ProjectileState projectile = contact.Projectile;
+            if (contact.Kind == ContactKind.WallX)
+            {
+                double edge = contact.Normal.X > 0 ? tuning.Arena.ProjectileRadiusUnits :
+                    tuning.Arena.WidthUnits - tuning.Arena.ProjectileRadiusUnits;
+                projectile.Position = new Vec2(edge, projectile.Position.Y);
+                projectile.Velocity = new Vec2(-projectile.Velocity.X, projectile.Velocity.Y);
+            }
+            else
+            {
+                double edge = contact.Normal.Y > 0 ? tuning.Arena.ProjectileRadiusUnits :
+                    tuning.Arena.HeightUnits - tuning.Arena.ProjectileRadiusUnits;
+                projectile.Position = new Vec2(projectile.Position.X, edge);
+                projectile.Velocity = new Vec2(projectile.Velocity.X, -projectile.Velocity.Y);
+            }
+            events.Add(new SimulationEvent(state.Tick, SimulationEventType.ProjectileBounced,
+                projectile.Id, position: projectile.Position));
+        }
+
+        private static void ResolveCompoundBoundaryContacts(List<Contact> batch, DefenseKind[] defenses)
+        {
+            for (int fighterIndex = 0; fighterIndex < batch.Count; fighterIndex++)
+            {
+                Contact fighterContact = batch[fighterIndex];
+                if (fighterContact.Kind != ContactKind.Fighter ||
+                    (defenses[fighterIndex] != DefenseKind.Parry && defenses[fighterIndex] != DefenseKind.Guard))
+                    continue;
+
+                ProjectileState projectile = fighterContact.Projectile;
+                if (Vec2.Dot(projectile.Velocity, fighterContact.Normal) > 1e-10) continue;
+                for (int wallIndex = 0; wallIndex < batch.Count; wallIndex++)
+                {
+                    Contact wall = batch[wallIndex];
+                    if (wall.Projectile != projectile) continue;
+                    double speed = projectile.Velocity.Length;
+                    if (wall.Kind == ContactKind.WallX)
+                    {
+                        double sign = fighterContact.Normal.Y >= 0 ? 1 : -1;
+                        projectile.Velocity = new Vec2(0, sign * speed);
+                        break;
+                    }
+                    if (wall.Kind == ContactKind.WallY)
+                    {
+                        double sign = fighterContact.Normal.X >= 0 ? 1 : -1;
+                        projectile.Velocity = new Vec2(sign * speed, 0);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private static void ValidateProjectileBounds(List<ProjectileState> projectiles, CombatTuning tuning)
+        {
+            double radius = tuning.Arena.ProjectileRadiusUnits;
+            foreach (ProjectileState projectile in projectiles)
+            {
+                Vec2 point = projectile.Position;
+                if (!TuningValidation.IsFinite(point.X) || !TuningValidation.IsFinite(point.Y) ||
+                    point.X < radius - 1e-7 || point.X > tuning.Arena.WidthUnits - radius + 1e-7 ||
+                    point.Y < radius - 1e-7 || point.Y > tuning.Arena.HeightUnits - radius + 1e-7)
+                    throw new InvalidOperationException("Projectile left the arena after continuous collision resolution.");
+                projectile.Position = new Vec2(
+                    SimMath.Clamp(point.X, radius, tuning.Arena.WidthUnits - radius),
+                    SimMath.Clamp(point.Y, radius, tuning.Arena.HeightUnits - radius));
+            }
+        }
+
+        private static void RefreshReflectedContactMasks(SimulationState state, CombatTuning tuning)
+        {
+            double clearRadius = tuning.Arena.ProjectileRadiusUnits +
+                tuning.Arena.FighterRadiusUnits + SeparationEpsilon;
+            double clearRadiusSquared = clearRadius * clearRadius;
+            foreach (ProjectileState projectile in state.Projectiles)
+            {
+                for (int fighterId = 0; fighterId < 2; fighterId++)
+                {
+                    int bit = 1 << fighterId;
+                    if ((projectile.ReflectedContactMask & bit) == 0) continue;
+                    if ((projectile.Position - state.Fighter(fighterId).Position).LengthSquared > clearRadiusSquared)
+                        projectile.ReflectedContactMask &= ~bit;
+                }
+            }
+        }
+    }
+}
