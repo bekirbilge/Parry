@@ -1,0 +1,43 @@
+# Unity generated files
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+MemoryCaptures/
+Recordings/
+*.csproj.user
+*.sln
+*.suo
+*.user
+*.pidb
+*.booproj
+*.svclog
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# .NET generated files
+bin/
+obj/
+artifacts/
+TestResults/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.key
+secrets.json
+credentials.json
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
