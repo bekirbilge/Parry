@@ -10,6 +10,7 @@ namespace Game.Core
         public DefenseTuning Defense { get; }
         public DividerTuning Divider { get; }
         public ArenaTuning Arena { get; }
+        public MatchTuning Match { get; }
 
         public static CombatTuning Default { get; } = new CombatTuning(
             new MovementTuning(), new ProjectileTuning(), new DefenseTuning(),
@@ -20,13 +21,15 @@ namespace Game.Core
             ProjectileTuning projectile,
             DefenseTuning defense,
             DividerTuning divider,
-            ArenaTuning arena)
+            ArenaTuning arena,
+            MatchTuning? match = null)
         {
             Movement = movement ?? throw new ArgumentNullException(nameof(movement));
             Projectile = projectile ?? throw new ArgumentNullException(nameof(projectile));
             Defense = defense ?? throw new ArgumentNullException(nameof(defense));
             Divider = divider ?? throw new ArgumentNullException(nameof(divider));
             Arena = arena ?? throw new ArgumentNullException(nameof(arena));
+            Match = match ?? new MatchTuning();
 
             if (Divider.MaximumDeflectionUnits > Arena.WidthUnits / 2.0 - Arena.FighterRadiusUnits)
             {
@@ -36,6 +39,11 @@ namespace Game.Core
             if (Projectile.MaximumActiveCount < ProjectileTuning.InitialProjectileCount)
             {
                 throw new ArgumentOutOfRangeException(nameof(projectile), "Projectile cap must allow the round's initial projectile.");
+            }
+
+            if (Match.RoundCountdownSeconds < Projectile.SpawnWarningSeconds)
+            {
+                throw new ArgumentOutOfRangeException(nameof(match), "Round countdown must permit the initial projectile warning.");
             }
 
         }
@@ -66,6 +74,15 @@ namespace Game.Core
         public double DashInvulnerabilitySeconds { get; }
         public double DashRechargeSeconds { get; }
         public double PerfectParryWindowSeconds { get; }
+        public double GravityUnitsPerSecondSquared { get; }
+        public double GroundAccelerationUnitsPerSecondSquared { get; }
+        public double AirAccelerationUnitsPerSecondSquared { get; }
+        public double GroundFrictionUnitsPerSecondSquared { get; }
+        public double DashSpeedUnitsPerSecond { get; }
+        public double JumpReleaseGravityMultiplier { get; }
+        public double CoyoteTimeSeconds { get; }
+        public double JumpBufferSeconds { get; }
+        public double DashCancelAfterSeconds { get; }
 
         public MovementTuning(
             double runSpeedUnitsPerSecond = 12.0,
@@ -73,7 +90,16 @@ namespace Game.Core
             double dashDurationSeconds = 0.15,
             double dashInvulnerabilitySeconds = 0.08,
             double dashRechargeSeconds = 1.0,
-            double perfectParryWindowSeconds = 0.10)
+            double perfectParryWindowSeconds = 0.10,
+            double gravityUnitsPerSecondSquared = 60.0,
+            double groundAccelerationUnitsPerSecondSquared = 120.0,
+            double airAccelerationUnitsPerSecondSquared = 70.0,
+            double groundFrictionUnitsPerSecondSquared = 150.0,
+            double dashSpeedUnitsPerSecond = 50.0,
+            double jumpReleaseGravityMultiplier = 2.0,
+            double coyoteTimeSeconds = 0.08,
+            double jumpBufferSeconds = 0.10,
+            double dashCancelAfterSeconds = 0.08)
         {
             RunSpeedUnitsPerSecond = TuningValidation.InRange(runSpeedUnitsPerSecond, nameof(runSpeedUnitsPerSecond), 0.1, 100.0);
             JumpSpeedUnitsPerSecond = TuningValidation.InRange(jumpSpeedUnitsPerSecond, nameof(jumpSpeedUnitsPerSecond), 0.1, 100.0);
@@ -86,6 +112,15 @@ namespace Game.Core
 
             DashRechargeSeconds = TuningValidation.InRange(dashRechargeSeconds, nameof(dashRechargeSeconds), 0.05, 60.0);
             PerfectParryWindowSeconds = TuningValidation.InRange(perfectParryWindowSeconds, nameof(perfectParryWindowSeconds), 0.01, 1.0);
+            GravityUnitsPerSecondSquared = TuningValidation.InRange(gravityUnitsPerSecondSquared, nameof(gravityUnitsPerSecondSquared), 0.1, 1000.0);
+            GroundAccelerationUnitsPerSecondSquared = TuningValidation.InRange(groundAccelerationUnitsPerSecondSquared, nameof(groundAccelerationUnitsPerSecondSquared), 0.1, 1000.0);
+            AirAccelerationUnitsPerSecondSquared = TuningValidation.InRange(airAccelerationUnitsPerSecondSquared, nameof(airAccelerationUnitsPerSecondSquared), 0.1, 1000.0);
+            GroundFrictionUnitsPerSecondSquared = TuningValidation.InRange(groundFrictionUnitsPerSecondSquared, nameof(groundFrictionUnitsPerSecondSquared), 0.1, 1000.0);
+            DashSpeedUnitsPerSecond = TuningValidation.InRange(dashSpeedUnitsPerSecond, nameof(dashSpeedUnitsPerSecond), 0.1, 1000.0);
+            JumpReleaseGravityMultiplier = TuningValidation.InRange(jumpReleaseGravityMultiplier, nameof(jumpReleaseGravityMultiplier), 1.0, 10.0);
+            CoyoteTimeSeconds = TuningValidation.InRange(coyoteTimeSeconds, nameof(coyoteTimeSeconds), 0.0, 1.0);
+            JumpBufferSeconds = TuningValidation.InRange(jumpBufferSeconds, nameof(jumpBufferSeconds), 0.0, 1.0);
+            DashCancelAfterSeconds = TuningValidation.InRange(dashCancelAfterSeconds, nameof(dashCancelAfterSeconds), 0.0, DashDurationSeconds);
         }
     }
 
@@ -100,6 +135,8 @@ namespace Game.Core
         public double BaseSpeedUnitsPerSecond { get; }
         public double PowerDecaySecondsPerLevel { get; }
         public double MaximumParrySteeringDegrees { get; }
+        public double SpawnAngleDegrees { get; }
+        public double SpawnPortalInsetUnits { get; }
 
         public double Level1SpeedMultiplier { get; }
         public double Level2SpeedMultiplier { get; }
@@ -120,7 +157,9 @@ namespace Game.Core
             double level3SpeedMultiplier = 1.45,
             double level1BlockPostureMultiplier = 1.25,
             double level2BlockPostureMultiplier = 1.50,
-            double level3BlockPostureMultiplier = 2.0)
+            double level3BlockPostureMultiplier = 2.0,
+            double spawnAngleDegrees = 45.0,
+            double spawnPortalInsetUnits = 2.0)
         {
             if (maximumActiveCount < InitialProjectileCount || maximumActiveCount > 64)
             {
@@ -133,6 +172,8 @@ namespace Game.Core
             BaseSpeedUnitsPerSecond = TuningValidation.InRange(baseSpeedUnitsPerSecond, nameof(baseSpeedUnitsPerSecond), 0.1, 1000.0);
             PowerDecaySecondsPerLevel = TuningValidation.InRange(powerDecaySecondsPerLevel, nameof(powerDecaySecondsPerLevel), 0.01, 60.0);
             MaximumParrySteeringDegrees = TuningValidation.InRange(maximumParrySteeringDegrees, nameof(maximumParrySteeringDegrees), 0.0, 180.0);
+            SpawnAngleDegrees = TuningValidation.InRange(spawnAngleDegrees, nameof(spawnAngleDegrees), 1.0, 89.0);
+            SpawnPortalInsetUnits = TuningValidation.InRange(spawnPortalInsetUnits, nameof(spawnPortalInsetUnits), 0.1, 10.0);
 
             Level1SpeedMultiplier = TuningValidation.InRange(level1SpeedMultiplier, nameof(level1SpeedMultiplier), 1.0, 10.0);
             Level2SpeedMultiplier = TuningValidation.InRange(level2SpeedMultiplier, nameof(level2SpeedMultiplier), Level1SpeedMultiplier, 10.0);
@@ -177,6 +218,10 @@ namespace Game.Core
         public double GuardBreakDurationSeconds { get; }
         public int JumpBodyPostureDamage { get; }
         public int DashBodyPostureDamage { get; }
+        public double GuardHoldThresholdSeconds { get; }
+        public double WalkingBodyPushUnitsPerSecond { get; }
+        public double JumpBodyKnockbackUnitsPerSecond { get; }
+        public double DashBodyKnockbackUnitsPerSecond { get; }
 
         public DefenseTuning(
             double maximumPosture = 100.0,
@@ -186,7 +231,11 @@ namespace Game.Core
             double hitRecoveryDelaySeconds = 0.25,
             double guardBreakDurationSeconds = 0.6,
             int jumpBodyPostureDamage = 15,
-            int dashBodyPostureDamage = 25)
+            int dashBodyPostureDamage = 25,
+            double guardHoldThresholdSeconds = 0.10,
+            double walkingBodyPushUnitsPerSecond = 3.0,
+            double jumpBodyKnockbackUnitsPerSecond = 14.0,
+            double dashBodyKnockbackUnitsPerSecond = 26.0)
         {
             MaximumPosture = TuningValidation.InRange(maximumPosture, nameof(maximumPosture), 1.0, 10000.0);
             if (baseBlockPostureDamage < 1 || baseBlockPostureDamage > 10000)
@@ -216,6 +265,10 @@ namespace Game.Core
 
             JumpBodyPostureDamage = jumpBodyPostureDamage;
             DashBodyPostureDamage = dashBodyPostureDamage;
+            GuardHoldThresholdSeconds = TuningValidation.InRange(guardHoldThresholdSeconds, nameof(guardHoldThresholdSeconds), 0.0, 1.0);
+            WalkingBodyPushUnitsPerSecond = TuningValidation.InRange(walkingBodyPushUnitsPerSecond, nameof(walkingBodyPushUnitsPerSecond), 0.0, 100.0);
+            JumpBodyKnockbackUnitsPerSecond = TuningValidation.InRange(jumpBodyKnockbackUnitsPerSecond, nameof(jumpBodyKnockbackUnitsPerSecond), 0.0, 100.0);
+            DashBodyKnockbackUnitsPerSecond = TuningValidation.InRange(dashBodyKnockbackUnitsPerSecond, nameof(dashBodyKnockbackUnitsPerSecond), 0.0, 100.0);
         }
     }
 
@@ -228,6 +281,7 @@ namespace Game.Core
         public double DashReboundDistanceUnits { get; }
         public double SpringStrength { get; }
         public double Damping { get; }
+        public double DashReboundSpeedUnitsPerSecond { get; }
 
         public DividerTuning(
             double maximumDeflectionUnits = 8.0,
@@ -236,7 +290,8 @@ namespace Game.Core
             double dashingDeflectionUnits = 8.0,
             double dashReboundDistanceUnits = 18.0,
             double springStrength = 24.0,
-            double damping = 8.0)
+            double damping = 8.0,
+            double dashReboundSpeedUnitsPerSecond = 45.0)
         {
             MaximumDeflectionUnits = TuningValidation.InRange(maximumDeflectionUnits, nameof(maximumDeflectionUnits), 0.0, 100.0);
             WalkingDeflectionUnits = TuningValidation.InRange(walkingDeflectionUnits, nameof(walkingDeflectionUnits), 0.0, MaximumDeflectionUnits);
@@ -245,6 +300,7 @@ namespace Game.Core
             DashReboundDistanceUnits = TuningValidation.InRange(dashReboundDistanceUnits, nameof(dashReboundDistanceUnits), 0.0, 1000.0);
             SpringStrength = TuningValidation.InRange(springStrength, nameof(springStrength), 0.0, 10000.0);
             Damping = TuningValidation.InRange(damping, nameof(damping), 0.0, 10000.0);
+            DashReboundSpeedUnitsPerSecond = TuningValidation.InRange(dashReboundSpeedUnitsPerSecond, nameof(dashReboundSpeedUnitsPerSecond), 0.0, 1000.0);
         }
     }
 
@@ -265,6 +321,19 @@ namespace Game.Core
             HeightUnits = TuningValidation.InRange(heightUnits, nameof(heightUnits), 10.0, 1000.0);
             FighterRadiusUnits = TuningValidation.InRange(fighterRadiusUnits, nameof(fighterRadiusUnits), 0.1, Math.Min(WidthUnits, HeightUnits) / 4.0);
             ProjectileRadiusUnits = TuningValidation.InRange(projectileRadiusUnits, nameof(projectileRadiusUnits), 0.01, FighterRadiusUnits);
+        }
+    }
+
+    public sealed class MatchTuning
+    {
+        public const int RoundWinsRequired = 2;
+        public double RoundCountdownSeconds { get; }
+        public double RoundResultSeconds { get; }
+
+        public MatchTuning(double roundCountdownSeconds = 3.0, double roundResultSeconds = 1.0)
+        {
+            RoundCountdownSeconds = TuningValidation.InRange(roundCountdownSeconds, nameof(roundCountdownSeconds), 0.0, 10.0);
+            RoundResultSeconds = TuningValidation.InRange(roundResultSeconds, nameof(roundResultSeconds), 0.0, 10.0);
         }
     }
 
