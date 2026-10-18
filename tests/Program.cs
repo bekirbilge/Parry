@@ -10,6 +10,13 @@ internal static class Program
         ProgressesOnlyAtFixedTicks();
         BoundsCatchUpAfterStall();
         TuningTests.Run();
+        ContractTests.Run();
+        MovementTests.Run();
+        DividerBodyTests.Run();
+        CombatTests.Run();
+        ProjectileTests.Run();
+        MatchTests.Run();
+        ReplayFuzzTests.Run();
         Console.WriteLine("Core smoke tests passed.");
         return 0;
     }
