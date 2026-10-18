@@ -1,11 +1,14 @@
 # Test status
 
-P0 validation (2026-10-18):
+P0 and P1 verified on 2026-10-18 with Unity 6000.3.26f1 LTS and .NET 10.0.101.
 
-- `bash tools/test-core.sh`: PASS, offline source-linked C# 9 smoke suite; config validation, invalid elapsed time, fixed tick numbering, fractional accumulation, deferred catch-up without lost ticks, bounded interpolation, GDD tuning baselines/posture rounding, and invalid tuning relationships.
-- Separate `Game.Core.csproj` Release build targeting `netstandard2.1`: PASS, zero warnings/errors. Reference package restored from NuGet into `/private/tmp/parry-nuget-verify`; the .NET SDK lacks this targeting pack out of the box.
-- Shell syntax and assembly-definition JSON: PASS.
-- Independent reviews: caught stale checkpoint text, interpolation backlog semantics, missing Unity scaffold, and an unsupported tuning restriction; fixed. Final P0 audit found no material scaffold blocker. Unity stdout is captured and logs sanitized after the CLI echoed a transient session credential; sanitizer synthetic checks pass.
-- `bash tools/test-unity.sh`: PASS, exit 0 using Unity 6000.3.26f1. Editor import and bootstrap-scene validation succeeded; macOS player build succeeded at `artifacts/build/ElasticArena.app` (102 MiB). Source compiled without C# warnings/errors in editor/build logs.
+- `bash tools/test-core.sh`: PASS. C# 9 offline source-linked suite covers configuration/math/snapshots; movement, variable jump, coyote/buffer, dash consumption/recharge; divider spring/bounds/symmetric and diagonal rebound; one body hit per dash, body-only guard break and shove-into-projectile; ricochet/continuous sweeps/persistence/ignored pair and divider collisions; parry steering/power/decay/one-charge restoration/zero healing; guard recovery/break and same-time contact legality; spawn warnings/schedule/cap; draw/reset/first-to-two.
+- Replay/fuzz: PASS, 18,000 repeated-input comparisons, 60,000 fuzzy-input ticks, 240 completed deterministic bot rounds in 332,295 ticks. No NaNs, bounds/crossing failures, or replay mismatch found. Same-runtime repeatability only.
+- Separate netstandard2.1 core Release build: PASS, zero warnings/errors. SDK reference pack was restored from NuGet into a temporary cache; offline smoke runner has no external package prerequisite.
+- `bash tools/test-unity.sh`: PASS after final P1 fixes; editor import, bootstrap scene validation, local macOS player build. Logs under ignored `artifacts/logs/` are captured and sanitized.
+- `python3 -m unittest discover -s tests -p 'test_*.py'`: PASS, 5 credential-log redaction regressions.
+- Independent P1 audit: PASS after fixes for active dash/iframe surviving guard break and repeated guard/parry benefits from continuous overlapping contact. Regressions include fresh recontact and invulnerability expiry while overlapping.
 
-An initial clock boundary test failed because repeated subtraction emitted 59 ticks for one second at 60 Hz. A small rounding tolerance fixed the boundary; the final smoke suite passes. No gameplay mechanics, fuzz/replay, device performance, or human playtests have passed yet. The bootstrap build contains only the clock scaffold and is not a playable game.
+Earlier boundary failures fixed: 60 Hz clock rounding, symmetric divider recoil, same-time wall/parry escape. Shell syntax/JSON checks pass; no separate static-analysis framework configured.
+
+Not yet verified: playable Unity runtime/input/touch/gamepad, safe areas/aspect ratios, real-device frame pacing/thermals, human feel/readability, cross-platform deterministic equivalence. P2 must address feasible runtime checks before the human gate.
