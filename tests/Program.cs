@@ -9,6 +9,7 @@ internal static class Program
         RejectInvalidElapsedTime();
         ProgressesOnlyAtFixedTicks();
         BoundsCatchUpAfterStall();
+        TuningTests.Run();
         Console.WriteLine("Core smoke tests passed.");
         return 0;
     }
