@@ -1,8 +1,8 @@
 # Project status
 
 Date: 2026-10-18 (Europe/Istanbul)
-Milestone: P0 repository/toolchain bootstrap — in progress
-Last verified milestone: none
+Milestone: P0 repository/toolchain bootstrap — passed; P1 pure combat simulation next
+Last verified milestone: P0
 
 Baseline: three planning/instruction documents, no code, packages, tests, or Unity project. Local Git initialized with preserved originals on main; active branch `bootstrap/p0`. No remote exists, so pulling main is unavailable. No issue number supplied.
 
@@ -15,10 +15,13 @@ P0 plan:
 4. Run headless smoke test, editor import/build, and independent review.
 5. Continue to plan P1 pure combat simulation only when P0 passes.
 
-Current: LTS installation downloading (5.2 GB). Core/config/clock, centralized combat tuning hypotheses, Unity adapter, Editor API bootstrap/build entry points, test scripts, assembly definitions, version pin and minimal package manifest are present. Offline smoke tests and separate netstandard2.1 core build pass; Unity import/player build remain unrun. Preliminary independent review completed and findings addressed.
-Blockers: none confirmed; sandbox requires elevated access for Git metadata, Unity networking/license access and installation.
+Completed: Unity 6000.3.26f1 LTS installed and pinned; core/config/clock, centralized tuning hypotheses, Unity adapter, Editor API bootstrap/build entry points, test scripts and assemblies established. Offline smoke tests and separate netstandard2.1 core build pass. Unity import, bootstrap validation, and macOS player build pass (102 MiB). Final independent P0 review found no material scaffold blocker; raw Unity log output is now captured and sanitized.
+Blockers: none. Sandbox requires elevated access for Git metadata and Unity runtime/license access.
+Known issue: editor GUI build settings have no enabled scene yet; scripted build supplies Bootstrap.unity explicitly. Add the playable scene to build settings during P2.
 Human gates: gameplay after P2, art direction after P3, online fairness after P5, production release after P7. None approved.
 
-Next: finish editor installation; run `bash tools/test-unity.sh`, fix failures, obtain final P0 critic review, then begin P1. P1 module boundaries have been planned; no gameplay code implemented yet.
+Next: P1 pure combat simulation. Define state/input/contracts, then delegate movement/divider and projectile/combat modules; integrate body interactions, match flow, replay/fuzz and locked-mechanic regression tests. No gameplay code is implemented yet.
 
-Resume: inspect current installation and `git status`; finish P0 validation before implementing gameplay.
+Validation commands: `bash tools/test-core.sh`; `bash tools/test-unity.sh`. Build: `artifacts/build/ElasticArena.app` (bootstrap only, not playable).
+
+Resume: inspect `git status`, then execute plan P1. Continue through P2 graybox before stopping at the mandatory human gameplay gate.
