@@ -15,7 +15,7 @@ P0 plan:
 4. Run headless smoke test, editor import/build, and independent review.
 5. Continue to plan P1 pure combat simulation only when P0 passes.
 
-Current: LTS installation downloading (5.2 GB). Core/config/clock, Unity adapter, Editor API bootstrap/build entry points, test scripts, assembly definitions, version pin and minimal package manifest are present. Offline smoke tests and separate netstandard2.1 core build pass; Unity import/player build remain unrun. Preliminary independent review completed and findings addressed.
+Current: LTS installation downloading (5.2 GB). Core/config/clock, centralized combat tuning hypotheses, Unity adapter, Editor API bootstrap/build entry points, test scripts, assembly definitions, version pin and minimal package manifest are present. Offline smoke tests and separate netstandard2.1 core build pass; Unity import/player build remain unrun. Preliminary independent review completed and findings addressed.
 Blockers: none confirmed; sandbox requires elevated access for Git metadata, Unity networking/license access and installation.
 Human gates: gameplay after P2, art direction after P3, online fairness after P5, production release after P7. None approved.
 
