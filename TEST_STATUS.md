@@ -2,7 +2,7 @@
 
 P0 partial validation (2026-10-18):
 
-- `bash tools/test-core.sh`: PASS, offline source-linked C# 9 smoke suite; config validation, invalid elapsed time, fixed tick numbering, fractional accumulation, deferred catch-up without lost ticks, and bounded interpolation.
+- `bash tools/test-core.sh`: PASS, offline source-linked C# 9 smoke suite; config validation, invalid elapsed time, fixed tick numbering, fractional accumulation, deferred catch-up without lost ticks, bounded interpolation, GDD tuning baselines/posture rounding, and invalid tuning relationships.
 - Separate `Game.Core.csproj` Release build targeting `netstandard2.1`: PASS, zero warnings/errors. Reference package restored from NuGet into `/private/tmp/parry-nuget-verify`; the .NET SDK lacks this targeting pack out of the box.
 - Shell syntax and assembly-definition JSON: PASS.
 - Independent preliminary review: caught stale checkpoint text, interpolation backlog semantics, and missing Unity scaffold. These are addressed. Final editor/build review remains pending.
