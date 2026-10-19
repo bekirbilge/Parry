@@ -172,7 +172,7 @@ internal static class MatchTests
             "A new round keeps scores and resets projectiles, divider and scheduler.");
         foreach (FighterState fighter in state.Fighters)
             Assert(fighter.Posture == 0 && fighter.Velocity.LengthSquared == 0 && !fighter.Eliminated &&
-                fighter.DashCharges == 2 && fighter.DashRechargeTicksRemaining == 0 &&
+                fighter.DashCharges == MovementTuning.MaximumDashCharges && fighter.DashRechargeTicksRemaining == 0 &&
                 fighter.ParryTicksRemaining == 0 && fighter.GuardBreakTicksRemaining == 0 &&
                 fighter.Position.Y == 1.5 && fighter.Position.X == (fighter.Id == 0 ? 25 : 75),
                 "Round reset restores baseline fighter position, posture, charges and timers.");
