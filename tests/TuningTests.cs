@@ -13,7 +13,7 @@ internal static class TuningTests
     private static void DefaultTuningMatchesDesignBaselines()
     {
         CombatTuning tuning = CombatTuning.Default;
-        Assert(MovementTuning.MaximumDashCharges == 2, "Dash charge cap must remain locked at two.");
+        Assert(MovementTuning.MaximumDashCharges == 3, "Dash charge cap must be three.");
         Assert(tuning.Movement.RunSpeedUnitsPerSecond == 24 && tuning.Movement.JumpSpeedUnitsPerSecond == 36 &&
             tuning.Movement.DashSpeedUnitsPerSecond == 80, "Playtest movement speed defaults must be applied.");
         Assert(tuning.Movement.GroundAccelerationUnitsPerSecondSquared == 240 &&
