@@ -20,6 +20,7 @@ namespace Game.Unity
         private GUIStyle _label, _large, _small;
         private bool _paused, _slow, _showTuning, _showColliders, _showTouchWidgets;
         private bool _localTwoPlayer;
+        private bool _prototypeInstantTestingStart = true;
         private int _botDifficulty;
         private bool _smoke;
         private int _smokeDriverStepsRemaining, _smokeDriverStepsDone;
@@ -29,12 +30,23 @@ namespace Game.Unity
         private float _lastEventUntil;
         private int _hitstopTicks;
         private Vector2 _tuningScroll;
-        private double _runSpeed = 12, _jumpSpeed = 20, _dashSpeed = 50, _parryWindow = .10,
-            _projectileSpeed = 24, _spring = 24, _damping = 8, _rebound = 45;
+        private double _runSpeed = CombatTuning.Default.Movement.RunSpeedUnitsPerSecond;
+        private double _jumpSpeed = CombatTuning.Default.Movement.JumpSpeedUnitsPerSecond;
+        private double _dashSpeed = CombatTuning.Default.Movement.DashSpeedUnitsPerSecond;
+        private double _parryWindow = CombatTuning.Default.Movement.PerfectParryWindowSeconds;
+        private double _projectileSpeed = CombatTuning.Default.Projectile.BaseSpeedUnitsPerSecond;
+        private double _spring = CombatTuning.Default.Divider.SpringStrength;
+        private double _damping = CombatTuning.Default.Divider.Damping;
+        private double _rebound = CombatTuning.Default.Divider.DashReboundSpeedUnitsPerSecond;
 
         public MatchSimulation Sim => _sim;
         public CombatTuning Tuning => _sim?.Tuning;
         public int BotDifficulty => _botDifficulty;
+        public bool PrototypeInstantTestingStart
+        {
+            get => _prototypeInstantTestingStart;
+            set => _prototypeInstantTestingStart = value;
+        }
         public SimulationState CaptureSnapshot() => _sim?.CaptureSnapshot();
         public void SetBotDifficulty(int difficulty)
         {
@@ -52,8 +64,11 @@ namespace Game.Unity
             var projectile = new ProjectileTuning(baseSpeedUnitsPerSecond: _projectileSpeed);
             var divider = new DividerTuning(springStrength: _spring, damping: _damping,
                 dashReboundSpeedUnitsPerSecond: _rebound);
+            var match = _prototypeInstantTestingStart ?
+                new MatchTuning(roundCountdownSeconds: 0, startImmediatelyForTesting: true) :
+                new MatchTuning();
             _sim = new MatchSimulation(new SimulationConfig(), new CombatTuning(movement, projectile,
-                new DefenseTuning(), divider, new ArenaTuning()));
+                new DefenseTuning(), divider, new ArenaTuning(), match));
             _inputs[0].Clear(); _inputs[1].Clear();
             _lastEvent = "";
             _hitstopTicks = 0;
@@ -394,9 +409,9 @@ namespace Game.Unity
             GUILayout.BeginArea(new Rect(box.x+padding, box.y+padding, box.width-2*padding, box.height-2*padding));
             _tuningScroll = GUILayout.BeginScrollView(_tuningScroll);
             GUILayout.Label("TUNING · drag sliders, then Apply / reset match");
-            Slider("Run speed", ref _runSpeed, 3, 30);
-            Slider("Jump speed", ref _jumpSpeed, 8, 35);
-            Slider("Dash speed", ref _dashSpeed, 15, 90);
+            Slider("Run speed", ref _runSpeed, 3, 40);
+            Slider("Jump speed", ref _jumpSpeed, 8, 60);
+            Slider("Dash speed", ref _dashSpeed, 15, 120);
             Slider("Parry window", ref _parryWindow, .03f, .3f);
             Slider("Projectile speed", ref _projectileSpeed, 8, 60);
             Slider("Spring", ref _spring, 0, 80);
@@ -404,6 +419,8 @@ namespace Game.Unity
             Slider("Rebound speed", ref _rebound, 10, 85);
             if (GUILayout.Button("Bot difficulty: " + BotDifficultyName + " (tap to change)"))
                 SetBotDifficulty((_botDifficulty + 1) % 3);
+            _prototypeInstantTestingStart = GUILayout.Toggle(_prototypeInstantTestingStart,
+                "Immediate test start (apply/reset)");
             if (GUILayout.Button("Apply / reset match")) RestartMatch();
             GUILayout.Label("Capture: " + _capturePath);
             GUILayout.EndScrollView();
@@ -435,6 +452,7 @@ namespace Game.Unity
                     mode = _localTwoPlayer ? "local-2p" : "bot",
                     botDifficulty = _botDifficulty,
                     botDifficultyName = BotDifficultyName,
+                    immediateTestStart = Tuning.Match.StartImmediatelyForTesting,
                     checksum = _sim.CaptureSnapshot().ComputeChecksum().ToString("X16"), tick = _sim.Tick };
                 File.WriteAllText(Path.Combine(dir, "tuning.json"), JsonUtility.ToJson(data, true));
             }
@@ -446,6 +464,7 @@ namespace Game.Unity
             public double runSpeed, jumpSpeed, dashSpeed, parryWindow, projectileSpeed, spring, damping, rebound;
             public string mode, botDifficultyName;
             public int botDifficulty;
+            public bool immediateTestStart;
             public string checksum;
             public long tick;
         }
