@@ -1,5 +1,7 @@
 using Game.Core;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using TouchPhase = UnityEngine.TouchPhase;
 
 namespace Game.Unity
 {
@@ -20,27 +22,37 @@ namespace Game.Unity
 
         public void SampleFrame(bool enableTouch)
         {
+            SampleFrame(enableTouch, Gamepad.all.Count > 0 ? Gamepad.all[0] : null);
+        }
+
+        /// <summary>Samples a frame with an explicit controller for virtual-device tests.</summary>
+        public void SampleFrame(bool enableTouch, Gamepad gamepad)
+        {
             bool left = _fighterId == 0;
             float x = (Input.GetKey(left ? KeyCode.D : KeyCode.RightArrow) ? 1 : 0) -
                 (Input.GetKey(left ? KeyCode.A : KeyCode.LeftArrow) ? 1 : 0);
             float y = (Input.GetKey(left ? KeyCode.W : KeyCode.UpArrow) ? 1 : 0) -
                 (Input.GetKey(left ? KeyCode.S : KeyCode.DownArrow) ? 1 : 0);
-            if (left)
+            if (left && gamepad != null)
             {
-                x += Axis("ParryGamepadX");
-                y += Axis("ParryGamepadY");
+                Vector2 stick = gamepad.leftStick.ReadValue();
+                x += stick.x;
+                y += stick.y;
             }
             Vector2 normalized = Vector2.ClampMagnitude(new Vector2(x, y), 1);
             bool jump = Input.GetKey(left ? KeyCode.Space : KeyCode.U) ||
-                (left && Input.GetKey(KeyCode.Joystick1Button0));
+                (left && gamepad != null && gamepad.buttonNorth.isPressed);
             bool dash = Input.GetKey(left ? KeyCode.LeftShift : KeyCode.I) ||
-                (left && Input.GetKey(KeyCode.Joystick1Button1));
+                (left && gamepad != null && gamepad.buttonSouth.isPressed);
             bool defense = Input.GetKey(left ? KeyCode.E : KeyCode.O) ||
-                (left && Input.GetKey(KeyCode.Joystick1Button2));
+                (left && gamepad != null && gamepad.buttonWest.isPressed);
             SampleRaw(new Vec2(normalized.x, normalized.y), jump, dash, defense,
-                Input.GetKeyDown(left ? KeyCode.Space : KeyCode.U) || (left && Input.GetKeyDown(KeyCode.Joystick1Button0)),
-                Input.GetKeyDown(left ? KeyCode.LeftShift : KeyCode.I) || (left && Input.GetKeyDown(KeyCode.Joystick1Button1)),
-                Input.GetKeyDown(left ? KeyCode.E : KeyCode.O) || (left && Input.GetKeyDown(KeyCode.Joystick1Button2)));
+                Input.GetKeyDown(left ? KeyCode.Space : KeyCode.U) ||
+                    (left && gamepad != null && gamepad.buttonNorth.wasPressedThisFrame),
+                Input.GetKeyDown(left ? KeyCode.LeftShift : KeyCode.I) ||
+                    (left && gamepad != null && gamepad.buttonSouth.wasPressedThisFrame),
+                Input.GetKeyDown(left ? KeyCode.E : KeyCode.O) ||
+                    (left && gamepad != null && gamepad.buttonWest.wasPressedThisFrame));
         }
 
         /// <summary>Feeds one sampled frame. Explicit press flags preserve taps that end before a fixed tick.</summary>
@@ -141,13 +153,6 @@ namespace Game.Unity
                 if (fingerId == _defenseFinger) _defenseFinger = -1;
             }
             UpdateCombined();
-        }
-
-        private static float Axis(string name)
-        {
-            // Player settings install these axes; imported legacy projects may not have them yet.
-            try { return Input.GetAxisRaw(name); }
-            catch (System.ArgumentException) { return 0; }
         }
     }
 }
