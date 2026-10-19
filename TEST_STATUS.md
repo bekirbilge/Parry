@@ -44,3 +44,9 @@ Gate A three-dash iteration verified on 2026-10-19:
 - Full core suite PASS: 240 deterministic bot rounds / 205,116 ticks, 60,000 fuzz ticks and 18,000 replay comparisons. Checks include three dash consumptions, fourth denied without recharge, sequential refill through all three slots, parry restores one without posture healing and caps at three, round reset restores full charges.
 - Unity scene validation/build PASS; 10/10 EditMode tests, including three starting/reset charges and two remaining after a dash through the controller bridge. Native smoke PASS (900 steps / 3 live driver ticks), checksum `A8604A136299A3BA`; screenshot confirms three HUD indicators per fighter.
 - Independent final review and `git diff --check` PASS. Gameplay approval remains outstanding.
+
+Controller layout iteration verified on 2026-10-19:
+
+- Unity validation/build PASS, 14/14 EditMode tests. Virtual gamepad states verify south/Cross dash without jump and buffered short taps; west/Square press, hold, release and repress for defense; north/Triangle variable jump hold plus normalized stick; gamepad excluded from P2. Devices are removed after each test. Both-backend setting and assembly/package integration verified.
+- Native graphical smoke PASS: 900 steps, 3 live driver ticks, checksum `A8604A136299A3BA`. Authoritative gameplay is unchanged; core suite was not rerun for this input-adapter change.
+- First compile exposed ambiguous TouchPhase from the two input APIs; explicit aliases fixed it before the passing rerun. Independent review and `git diff --check` PASS. Real controller hardware/button feel and multi-controller behavior still need a playtest.
