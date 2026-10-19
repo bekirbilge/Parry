@@ -13,7 +13,19 @@ internal static class MovementTests
         VariableJumpAndNoDoubleJump();
         CoyoteAndLandingBuffer();
         DirectionalDashAndSequentialRecharge();
+        NeutralBoostLaunchesUpward();
         GuardBreakLeavesRunAndJumpAvailable();
+    }
+
+    private static void NeutralBoostLaunchesUpward()
+    {
+        SimulationState state = Fresh();
+        FighterState fighter = state.Fighter(0);
+        Tick(state, new FighterInput(Vec2.Zero, dashPressed: true));
+        Assert(Math.Abs(fighter.DashDirection.X) < 1e-12 && fighter.DashDirection.Y == 1 &&
+            Math.Abs(fighter.Position.X - 25) < 1e-9 &&
+            fighter.Position.Y > Tuning.Arena.FighterRadiusUnits,
+            "A neutral boost must launch straight upward without horizontal drift.");
     }
 
     private static void RunAccelerationAndAirSteering()
