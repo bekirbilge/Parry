@@ -55,6 +55,10 @@ if (data.get("completed") is not True or data.get("ticks") != 900 or
     raise SystemExit("Player smoke report failed simulation checks")
 if not 0.75 <= data.get("ropeBend", 0) <= 8.000001:
     raise SystemExit("Player rope demo did not produce bounded visible deformation")
+if not 4.0 <= data.get("ropeIntrusion", 0) <= 8.000001:
+    raise SystemExit("Player boost demo did not push the fighter into the opponent's resting half")
+if data.get("ropeReboundSeen") is not True or not 15 <= data.get("ropeRecoilUnits", 0) <= 20:
+    raise SystemExit("Player boost demo did not recoil after loading the rope")
 for field, path in (("screenshot", screenshot), ("ropeScreenshot", rope_screenshot)):
     if pathlib.Path(data.get(field, "")).resolve() != path.resolve():
         raise SystemExit(f"Player smoke {field} path is unexpected")
