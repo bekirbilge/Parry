@@ -33,7 +33,7 @@ F12 saves a timestamped PNG and `tuning.json`; applied settings, mode, bot diffi
 
 ## Five-minute checklist
 
-1. Compare short/held jumps; steer and dash in the air; spend two charges and observe sequential recharge.
+1. Compare short/held jumps; steer and dash in the air; spend three charges and observe sequential recharge.
 2. Tap defense just before impact, then hold it. Check reflected direction, projectile power colors, one restored dash charge, and posture staying unchanged on parry.
 3. Guard through impacts and posture break; compare guarded versus unguarded recovery. A projectile during break should eliminate.
 4. Walk/jump/dash into the membrane, including diagonal rebound and opposing dashes in local mode. Fighters should stay on their own side of the visible membrane.
@@ -57,3 +57,5 @@ Gameplay approval and visual approval remain outstanding. Production art, networ
 Requested change: divider should behave like an elastic rope rather than a straight line. Its floor/ceiling ends are now pinned, and pressure bends the rope near contact height. Drawing and fighter collision use the same polyline; projectiles pass through as before.
 
 Try holding toward the rope on the ground, then jumping into it, releasing pressure, and dashing diagonally into it. In local mode, compare equal-height opposing pressure with pressure at different heights. Check that it springs back, recoil retains vertical motion, and fighters stay on their side of the visible rope. Report whether the bend/rebound feels strong enough.
+
+Dash capacity iteration: user requested three dash charges. Fighters start/reset with three; recharge remains sequential at one second per charge. Perfect parry still restores exactly one charge, now capped at three. HUD shows all three slots.
