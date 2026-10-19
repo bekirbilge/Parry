@@ -28,3 +28,5 @@
 - **Feasible rope bounds:** maximum deflection must leave at least one fighter diameter between each extreme rope position and its arena wall, so all supported deformation states have a valid fighter center. Defaults remain unchanged.
 
 - **User rule change (2026-10-19):** dash capacity increases from two to three, superseding the original locked cap. Update GDD section 3, initial/reset charges, HUD and regression expectations. Sequential one-second recharge and one-charge perfect-parry restoration remain unchanged; parry caps at three.
+
+- **Controller layout feedback (2026-10-19):** Cross/south is dash; Square/west is parry/guard. Move jump to Triangle/north as a reversible prototype choice while the user evaluates whether jump is needed; retain the specified jump mechanic and keyboard/touch inputs. Replace platform-specific legacy joystick indices with semantic `Gamepad` controls from pinned Unity Input System 1.14.2; enable Both backends for existing keyboard/touch APIs. Source: https://docs.unity3d.com/Packages/com.unity.inputsystem@1.14/manual/Gamepad.html#controls .
