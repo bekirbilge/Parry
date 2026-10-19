@@ -29,7 +29,7 @@ internal static class ReplayFuzzTests
                 resumed = new MatchSimulation();
                 resumed.RestoreSnapshot(a);
                 a.Fighter(0).Position = Vec2.Zero;
-                a.Divider.Deflection = -99;
+                a.Divider.NodeDeflections[1] = -99;
                 a.Projectiles.Clear();
                 Assert(first.CaptureSnapshot().ComputeChecksum() == resumed.CaptureSnapshot().ComputeChecksum(),
                     "Capturing and restoring snapshots must retain no mutable aliases.");
@@ -115,10 +115,12 @@ internal static class ReplayFuzzTests
     {
         const double epsilon = 1e-7;
         double radius = tuning.Arena.FighterRadiusUnits;
-        double divider = tuning.Arena.WidthUnits / 2 + state.Divider.Deflection;
-        Assert(Finite(state.Divider.Deflection) && Finite(state.Divider.Velocity) &&
-            Math.Abs(state.Divider.Deflection) <= tuning.Divider.MaximumDeflectionUnits + epsilon,
-            "The membrane spring must remain finite and bounded.");
+        for (int i = 0; i < DividerSystem.RopePointCount; i++)
+            Assert(Finite(state.Divider.NodeDeflections[i]) && Finite(state.Divider.NodeVelocities[i]) &&
+                Math.Abs(state.Divider.NodeDeflections[i]) <= tuning.Divider.MaximumDeflectionUnits + epsilon &&
+                (i != 0 && i != DividerSystem.RopePointCount - 1 ||
+                 state.Divider.NodeDeflections[i] == 0 && state.Divider.NodeVelocities[i] == 0),
+                "Pinned spring nodes must remain finite and bounded.");
         foreach (FighterState fighter in state.Fighters)
         {
             Assert(Finite(fighter.Position.X) && Finite(fighter.Position.Y) &&
@@ -127,8 +129,9 @@ internal static class ReplayFuzzTests
             Assert(fighter.Position.X >= radius - epsilon && fighter.Position.X <= tuning.Arena.WidthUnits - radius + epsilon &&
                 fighter.Position.Y >= radius - epsilon && fighter.Position.Y <= tuning.Arena.HeightUnits - radius + epsilon,
                 "Fighters must remain inside arena collision bounds.");
-            Assert(fighter.Id == 0 ? fighter.Position.X <= divider - radius + epsilon : fighter.Position.X >= divider + radius - epsilon,
-                "Neither fighter may cross its side of the moving membrane.");
+            double limit = DividerSystem.FighterCenterLimitX(state, tuning, fighter.Id, fighter.Position.Y);
+            Assert(fighter.Id == 0 ? fighter.Position.X <= limit + epsilon : fighter.Position.X >= limit - epsilon,
+                "Neither fighter circle may cross the local rope polyline.");
             Assert(fighter.DashCharges >= 0 && fighter.DashCharges <= 2 && fighter.Posture >= 0 && fighter.Posture <= tuning.Defense.MaximumPosture,
                 "Posture and charge counts must remain in their supported ranges.");
         }
