@@ -41,6 +41,35 @@ else
 fi
 report_stage "Unity validation" "$validation_status" "$logs_dir/unity-validation.log" "$logs_dir/unity-validation.cli.log"
 
+test_report="$project_dir/artifacts/test-results/editmode.xml"
+mkdir -p "$(dirname -- "$test_report")"
+rm -f -- "$test_report"
+if unity test "$project_dir" \
+  --editor-version "$editor_version" \
+  --mode EditMode \
+  --output "$test_report" \
+  --timeout 600 \
+  -- -nographics -logFile "$logs_dir/unity-test.log" \
+  >"$logs_dir/unity-test.cli.log" 2>&1; then
+  test_status=0
+else
+  test_status=$?
+fi
+report_stage "Unity EditMode tests" "$test_status" "$logs_dir/unity-test.log" "$logs_dir/unity-test.cli.log"
+if ! python3 - "$test_report" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+count = int(root.attrib.get("total", root.attrib.get("testcasecount", "0")))
+if count <= 0:
+    raise SystemExit("EditMode report has no tests")
+PY
+then
+  printf 'Unity EditMode report has no tests: %s\n' "$test_report" >&2
+  exit 1
+fi
+printf 'Unity EditMode report: %s\n' "$test_report"
+
 if unity build "$project_dir" \
   --editor-version "$editor_version" \
   --target StandaloneOSX \
@@ -49,6 +78,7 @@ if unity build "$project_dir" \
   --log-file "$logs_dir/unity-build.log" \
   --timeout 600 \
   --allow-dirty-build \
+  --no-tail \
   >"$logs_dir/unity-build.cli.log" 2>&1; then
   build_status=0
 else
