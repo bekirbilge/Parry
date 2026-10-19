@@ -1,3 +1,4 @@
+using System.IO;
 using Game.Core;
 using Game.Editor;
 using Game.Unity;
@@ -37,6 +38,39 @@ namespace Game.Unity.Tests
             controller.StepOnce(new SimulationInput(before, default(FighterInput), default(FighterInput)));
             Assert.That(controller.CaptureSnapshot().Tick, Is.EqualTo(before + 1));
             Assert.That(controller.Sim.Tick, Is.EqualTo(before + 1));
+        }
+
+        [Test]
+        public void ImmediateTestingStartsMovableAndCountdownModeAppliesOnRestart()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.RestartMatch();
+            Assert.That(controller.PrototypeInstantTestingStart, Is.True);
+            Assert.That(controller.Tuning.Match.StartImmediatelyForTesting, Is.True);
+            Assert.That(controller.Sim.Phase, Is.EqualTo(MatchPhase.Active));
+            string capturePath = Path.Combine(Application.persistentDataPath, "Playtests", "tuning.json");
+            Assert.That(File.ReadAllText(capturePath), Does.Contain("\"immediateTestStart\": true"));
+
+            SimulationState before = controller.CaptureSnapshot();
+            controller.StepOnce(new SimulationInput(before.Tick,
+                new FighterInput(new Vec2(1, 0)), default(FighterInput)));
+            Assert.That(controller.CaptureSnapshot().Fighter(0).Position.X,
+                Is.GreaterThan(before.Fighter(0).Position.X));
+
+            controller.PrototypeInstantTestingStart = false;
+            Assert.That(controller.Tuning.Match.StartImmediatelyForTesting, Is.True);
+            controller.RestartMatch();
+            Assert.That(controller.Tuning.Match.StartImmediatelyForTesting, Is.False);
+            Assert.That(controller.Sim.Phase, Is.EqualTo(MatchPhase.Countdown));
+            SimulationState countdown = controller.CaptureSnapshot();
+            controller.StepOnce(new SimulationInput(countdown.Tick,
+                new FighterInput(new Vec2(1, 0)), default(FighterInput)));
+            Assert.That(controller.CaptureSnapshot().Fighter(0).Position.X,
+                Is.EqualTo(countdown.Fighter(0).Position.X));
+
+            Assert.That(File.ReadAllText(capturePath), Does.Contain("\"immediateTestStart\": false"));
         }
 
         [Test]
