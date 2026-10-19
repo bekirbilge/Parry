@@ -57,6 +57,11 @@ namespace Game.Core
                     }
                     break;
                 case MatchPhase.Active:
+                    if (Tuning.Match.StartImmediatelyForTesting && _state.PhaseTicksRemaining != 0)
+                    {
+                        _state.PhaseTicksRemaining = 0;
+                        events.Add(new SimulationEvent(_state.Tick, SimulationEventType.RoundStarted, value: _state.RoundNumber));
+                    }
                     AdvanceActive(controls, events);
                     break;
                 case MatchPhase.RoundResult:
@@ -64,9 +69,12 @@ namespace Game.Core
                     if (_state.PhaseTicksRemaining == 0)
                     {
                         _state.RoundNumber++;
-                        ResetRound();
-                        IssueWarningIfDue(events);
-                        _state.PhaseTicksRemaining = Math.Max(0, _state.PhaseTicksRemaining - 1);
+                        ResetRound(afterResult: true);
+                        if (!Tuning.Match.StartImmediatelyForTesting)
+                        {
+                            IssueWarningIfDue(events);
+                            _state.PhaseTicksRemaining = Math.Max(0, _state.PhaseTicksRemaining - 1);
+                        }
                     }
                     break;
                 case MatchPhase.MatchComplete:
@@ -155,18 +163,21 @@ namespace Game.Core
             _state.PhaseTicksRemaining = Ticks(Tuning.Match.RoundResultSeconds);
         }
 
-        private void ResetRound()
+        private void ResetRound(bool afterResult = false)
         {
             int leftWins = _state.Fighter(0).RoundWins;
             int rightWins = _state.Fighter(1).RoundWins;
             _state.Fighters = new[] { CreateFighter(0, leftWins), CreateFighter(1, rightWins) };
             _state.Projectiles.Clear();
             _state.Divider = new DividerState();
-            _state.Phase = MatchPhase.Countdown;
-            _state.PhaseTicksRemaining = Ticks(Tuning.Match.RoundCountdownSeconds);
+            _state.Phase = Tuning.Match.StartImmediatelyForTesting ? MatchPhase.Active : MatchPhase.Countdown;
+            // Active rounds use this value only to defer RoundStarted to the first playable step.
+            _state.PhaseTicksRemaining = Tuning.Match.StartImmediatelyForTesting ? 1 : Ticks(Tuning.Match.RoundCountdownSeconds);
             _state.RoundWinnerId = -1;
             _state.MatchWinnerId = -1;
-            _state.NextSpawnTick = _state.Tick + _state.PhaseTicksRemaining;
+            _state.NextSpawnTick = _state.Tick + (Tuning.Match.StartImmediatelyForTesting
+                ? Ticks(Tuning.Projectile.SpawnWarningSeconds) + (afterResult ? 1 : 0)
+                : _state.PhaseTicksRemaining);
             _state.SpawnWarningIssued = false;
             _state.SpawnSequence = 0;
             _state.NextProjectileId = 0;
