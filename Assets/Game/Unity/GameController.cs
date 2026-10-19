@@ -34,15 +34,21 @@ namespace Game.Unity
         private double _runSpeed = CombatTuning.Default.Movement.RunSpeedUnitsPerSecond;
         private double _jumpSpeed = CombatTuning.Default.Movement.JumpSpeedUnitsPerSecond;
         private double _dashSpeed = CombatTuning.Default.Movement.DashSpeedUnitsPerSecond;
+        private double _boostDuration = CombatTuning.Default.Movement.DashDurationSeconds;
         private double _parryWindow = CombatTuning.Default.Movement.PerfectParryWindowSeconds;
         private double _projectileSpeed = CombatTuning.Default.Projectile.BaseSpeedUnitsPerSecond;
         private double _spring = CombatTuning.Default.Divider.SpringStrength;
         private double _damping = CombatTuning.Default.Divider.Damping;
         private double _rebound = CombatTuning.Default.Divider.DashReboundSpeedUnitsPerSecond;
+        private double _boostLoadDuration = CombatTuning.Default.Divider.BoostLoadSeconds;
+        private double _boostLoadSpring = CombatTuning.Default.Divider.BoostLoadSpringStrength;
+        private double _boostLoadDamping = CombatTuning.Default.Divider.BoostLoadDamping;
 
         public MatchSimulation Sim => _sim;
         public CombatTuning Tuning => _sim?.Tuning;
         public int BotDifficulty => _botDifficulty;
+        public bool RopePreviewSawRebound { get; private set; }
+        public double RopePreviewRecoilUnits { get; private set; }
         public bool PrototypeInstantTestingStart
         {
             get => _prototypeInstantTestingStart;
@@ -61,10 +67,13 @@ namespace Game.Unity
         {
             var movement = new MovementTuning(runSpeedUnitsPerSecond: _runSpeed,
                 jumpSpeedUnitsPerSecond: _jumpSpeed, dashSpeedUnitsPerSecond: _dashSpeed,
-                perfectParryWindowSeconds: _parryWindow);
+                dashDurationSeconds: _boostDuration, perfectParryWindowSeconds: _parryWindow);
             var projectile = new ProjectileTuning(baseSpeedUnitsPerSecond: _projectileSpeed);
             var divider = new DividerTuning(springStrength: _spring, damping: _damping,
-                dashReboundSpeedUnitsPerSecond: _rebound);
+                dashReboundSpeedUnitsPerSecond: _rebound,
+                boostLoadSeconds: _boostLoadDuration,
+                boostLoadSpringStrength: _boostLoadSpring,
+                boostLoadDamping: _boostLoadDamping);
             var match = _prototypeInstantTestingStart ?
                 new MatchTuning(roundCountdownSeconds: 0, startImmediatelyForTesting: true) :
                 new MatchTuning();
@@ -332,6 +341,13 @@ namespace Game.Unity
             Line(prev, pos, new Color(c.r, c.g, c.b, .45f), Mathf.Max(2, u * .65f));
             float r = (float)Tuning.Arena.ProjectileRadiusUnits * u;
             Circle(new Rect(pos.x - r * 1.8f, pos.y - r * 1.8f, r * 3.6f, r * 3.6f), new Color(c.r, c.g, c.b, .18f));
+            if (p.LastParrierId >= 0)
+            {
+                Color owner = p.LastParrierId == 0 ? new Color(.2f, .72f, 1f) :
+                    new Color(1f, .38f, .48f);
+                Circle(new Rect(pos.x - r * 1.35f, pos.y - r * 1.35f,
+                    r * 2.7f, r * 2.7f), owner);
+            }
             Circle(new Rect(pos.x - r, pos.y - r, r * 2, r * 2), c);
             if (_showColliders) Circle(new Rect(pos.x - r, pos.y - r, r * 2, r * 2), new Color(1, 0, 0, .35f));
         }
@@ -342,10 +358,19 @@ namespace Game.Unity
             float r = (float)Tuning.Arena.FighterRadiusUnits * u;
             Color c = f.Id == 0 ? new Color(.20f, .72f, 1) : new Color(1, .38f, .48f);
             if (f.Eliminated) c = Color.gray;
-            if (f.DashTicksRemaining > 0)
+            if (PoweredBoost(f))
             {
-                Vector2 prev = Point(a, f.PreviousPosition);
-                Circle(new Rect(prev.x - r, prev.y - r, 2*r, 2*r), new Color(c.r, c.g, c.b, .25f));
+                Vector2 direction = new Vector2((float)f.DashDirection.X, -(float)f.DashDirection.Y);
+                if (direction.sqrMagnitude < .01f) direction = Vector2.right * f.FacingSign;
+                direction.Normalize();
+                Vector2 tail = p - direction * (r * 2.8f);
+                Color exhaust = f.Id == 0 ? new Color(.36f, .93f, 1f, .75f) :
+                    new Color(1f, .7f, .28f, .75f);
+                Line(p - direction * r * .65f, tail, exhaust, Mathf.Max(3, r * .62f));
+                Line(p - direction * r, tail - direction * r * .65f,
+                    new Color(exhaust.r, exhaust.g, exhaust.b, .3f), Mathf.Max(2, r * .28f));
+                Circle(new Rect(tail.x - r * .32f, tail.y - r * .32f, r * .64f, r * .64f),
+                    new Color(1f, .95f, .65f, .8f));
             }
             if (f.ParryTicksRemaining > 0) Circle(new Rect(p.x - 1.8f*r, p.y - 1.8f*r, 3.6f*r, 3.6f*r), new Color(.38f, 1f, .78f, .45f));
             else if (f.GuardBreakTicksRemaining == 0 && f.DefenseHeldPrevious &&
@@ -357,6 +382,10 @@ namespace Game.Unity
             if (f.GuardBreakTicksRemaining > 0) Label(new Rect(p.x - 30, p.y - 2.5f*r, 60, 20), "BREAK", _small);
             if (_showColliders) Circle(new Rect(p.x-r, p.y-r, 2*r, 2*r), new Color(1, 0, 0, .28f));
         }
+
+        private static bool PoweredBoost(FighterState fighter) =>
+            (fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0) &&
+            fighter.DividerReboundDistanceRemaining <= 0;
 
         private void DrawHud(Rect a, SimulationState s)
         {
@@ -392,16 +421,16 @@ namespace Game.Unity
             if (footer.height < 16) return;
             Box(footer, new Color(.055f, .075f, .10f));
             float row = footer.height * .5f;
-            string p1Controls = "P1 WASD · Space jump · Shift dash · E defense";
+            string p1Controls = "P1 WASD aim/move · Space/Shift boost · E parry/guard";
             if (UnityEngine.InputSystem.Gamepad.all.Count > 0)
                 p1Controls = UnityEngine.InputSystem.Gamepad.all[0] is UnityEngine.InputSystem.DualShock.DualShockGamepad
-                    ? "P1 PAD: stick move · Cross dash · Square parry/guard · Triangle jump"
-                    : "P1 PAD: stick move · A dash · X parry/guard · Y jump";
+                    ? "P1 PAD: stick aim/move · Cross boost · Square parry/guard"
+                    : "P1 PAD: stick aim/move · A boost · X parry/guard";
             Label(new Rect(footer.xMin+4, footer.yMin, footer.width-8, row),
-                p1Controls + "     P2 arrows · U jump · I dash · O defense", _small);
+                p1Controls + "     P2 arrows aim/move · U/I boost · O parry/guard", _small);
             Label(new Rect(footer.xMin+4, footer.yMin+row, footer.width-8, row),
                 (_localTwoPlayer ? "LOCAL 2P" : "P1 VS BOT " + BotDifficultyName.ToUpperInvariant()) +
-                "  |  B mode  P pause  N step  R restart  F1 tuning  F2 slow  F3 colliders  F4 touch  F12 capture", _small);
+                "  |  Neutral boost rises · Projectile ring shows last parrier  |  B mode  P pause  N step  R restart  F1 tune  F12 capture", _small);
         }
 
         private void DrawTouch(Rect a)
@@ -409,8 +438,8 @@ namespace Game.Unity
             Rect stick = ArenaLayout.TouchControl(a, 0);
             Circle(stick, new Color(.3f, .55f, .7f, .35f));
             Label(stick, "MOVE", _small);
-            string[] names = { "JUMP", "DASH", "DEF" };
-            for (int i = 0; i < 3; i++)
+            string[] names = { "BOOST", "DEF" };
+            for (int i = 0; i < 2; i++)
             {
                 Rect target = ArenaLayout.TouchControl(a, i + 1);
                 Circle(target, new Color(.4f, .7f, .9f, .35f));
@@ -439,13 +468,17 @@ namespace Game.Unity
             _tuningScroll = GUILayout.BeginScrollView(_tuningScroll);
             GUILayout.Label("TUNING · drag sliders, then Apply / reset match");
             Slider("Run speed", ref _runSpeed, 3, 40);
-            Slider("Jump speed", ref _jumpSpeed, 8, 60);
-            Slider("Dash speed", ref _dashSpeed, 15, 120);
+            Slider("Boost speed", ref _dashSpeed, 15, 120);
+            Slider("Boost duration", ref _boostDuration, .15f, .5f);
             Slider("Parry window", ref _parryWindow, .03f, .3f);
             Slider("Projectile speed", ref _projectileSpeed, 8, 60);
             Slider("Spring", ref _spring, 0, 80);
             Slider("Damping", ref _damping, 0, 30);
             Slider("Rebound speed", ref _rebound, 10, 85);
+            Slider("Rope boost load", ref _boostLoadDuration, .05f, .35f);
+            Slider("Rope load spring", ref _boostLoadSpring, 50, 400);
+            Slider("Rope load damping", ref _boostLoadDamping, 2, 60);
+            GUILayout.Label("Neutral boost rises; aim with move stick. Projectile ring: blue P1, red P2 owner.");
             if (GUILayout.Button("Bot difficulty: " + BotDifficultyName + " (tap to change)"))
                 SetBotDifficulty((_botDifficulty + 1) % 3);
             _prototypeInstantTestingStart = GUILayout.Toggle(_prototypeInstantTestingStart,
@@ -473,11 +506,21 @@ namespace Game.Unity
                 var data = new TuningCapture { runSpeed = Tuning.Movement.RunSpeedUnitsPerSecond,
                     jumpSpeed = Tuning.Movement.JumpSpeedUnitsPerSecond,
                     dashSpeed = Tuning.Movement.DashSpeedUnitsPerSecond,
+                    boostDuration = Tuning.Movement.DashDurationSeconds,
+                    boostInvulnerability = Tuning.Movement.DashInvulnerabilitySeconds,
                     parryWindow = Tuning.Movement.PerfectParryWindowSeconds,
                     projectileSpeed = Tuning.Projectile.BaseSpeedUnitsPerSecond,
+                    projectileDecaySecondsPerLevel = Tuning.Projectile.PowerDecaySecondsPerLevel,
+                    projectileLevel0Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond,
+                    projectileLevel1Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond * Tuning.Projectile.Level1SpeedMultiplier,
+                    projectileLevel2Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond * Tuning.Projectile.Level2SpeedMultiplier,
+                    projectileLevel3Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond * Tuning.Projectile.Level3SpeedMultiplier,
                     spring = Tuning.Divider.SpringStrength,
                     damping = Tuning.Divider.Damping,
                     rebound = Tuning.Divider.DashReboundSpeedUnitsPerSecond,
+                    boostLoadDuration = Tuning.Divider.BoostLoadSeconds,
+                    boostLoadSpring = Tuning.Divider.BoostLoadSpringStrength,
+                    boostLoadDamping = Tuning.Divider.BoostLoadDamping,
                     mode = _localTwoPlayer ? "local-2p" : "bot",
                     botDifficulty = _botDifficulty,
                     botDifficultyName = BotDifficultyName,
@@ -490,7 +533,10 @@ namespace Game.Unity
 
         [Serializable] private sealed class TuningCapture
         {
-            public double runSpeed, jumpSpeed, dashSpeed, parryWindow, projectileSpeed, spring, damping, rebound;
+            public double runSpeed, jumpSpeed, dashSpeed, boostDuration, boostInvulnerability,
+                parryWindow, projectileSpeed, spring, damping, rebound, boostLoadDuration,
+                boostLoadSpring, boostLoadDamping, projectileDecaySecondsPerLevel,
+                projectileLevel0Speed, projectileLevel1Speed, projectileLevel2Speed, projectileLevel3Speed;
             public string mode, botDifficultyName;
             public int botDifficulty;
             public bool immediateTestStart;
@@ -510,6 +556,9 @@ namespace Game.Unity
             public string screenshot;
             public string ropeScreenshot;
             public double ropeBend;
+            public double ropeIntrusion;
+            public bool ropeReboundSeen;
+            public double ropeRecoilUnits;
             public string error;
         }
 
@@ -560,6 +609,9 @@ namespace Game.Unity
                 {
                     _smokeRenderState = CreateRopePreviewSnapshot();
                     result.ropeBend = RopeBend(_smokeRenderState, Tuning);
+                    result.ropeIntrusion = _smokeRenderState.Fighter(0).Position.X - Tuning.Arena.WidthUnits * .5;
+                    result.ropeReboundSeen = RopePreviewSawRebound;
+                    result.ropeRecoilUnits = RopePreviewRecoilUnits;
                 }
                 catch (Exception e) { Debug.LogWarning("Rope smoke setup unavailable: " + e.Message); }
                 if (_smokeRenderState != null)
@@ -581,27 +633,45 @@ namespace Game.Unity
             Application.Quit(result.completed ? 0 : 1);
         }
 
-        /// <summary>A separate deterministic contact for the rope smoke image.</summary>
+        /// <summary>An isolated grounded boost loaded into the rope for the smoke image.</summary>
         public SimulationState CreateRopePreviewSnapshot()
         {
             var demo = new MatchSimulation(_sim.Config, _sim.Tuning);
             SimulationState best = demo.CaptureSnapshot();
-            double largestBend = 0;
+            double deepestIntrusion = double.NegativeInfinity;
+            bool boosted = false;
+            RopePreviewSawRebound = false;
+            RopePreviewRecoilUnits = 0;
+            double reboundStartX = 0;
+            double launchX = demo.Tuning.Arena.WidthUnits * .5 -
+                demo.Tuning.Arena.FighterRadiusUnits - 2.25;
             for (int i = 0; i < 170; i++)
             {
-                var left = new FighterInput(new Vec2(1, 0), jumpPressed: i == 120,
-                    jumpHeld: i >= 120 && i < 137, dashPressed: i == 145);
+                SimulationState before = demo.CaptureSnapshot();
+                bool launch = !boosted && before.Fighter(0).Position.X >= launchX;
+                if (launch) boosted = true;
+                var left = new FighterInput(new Vec2(1, 0), dashPressed: launch);
                 demo.Step(new SimulationInput(demo.Tick, left, default(FighterInput)));
                 SimulationState current = demo.CaptureSnapshot();
-                double bend = RopeBend(current, demo.Tuning);
-                if (bend > largestBend)
+                FighterState fighter = current.Fighter(0);
+                double intrusion = fighter.Position.X - demo.Tuning.Arena.WidthUnits * .5;
+                if (!RopePreviewSawRebound && fighter.DividerReboundDistanceRemaining > 0)
                 {
-                    largestBend = bend;
+                    RopePreviewSawRebound = true;
+                    reboundStartX = fighter.Position.X;
+                }
+                if (RopePreviewSawRebound)
+                    RopePreviewRecoilUnits = Math.Max(RopePreviewRecoilUnits,
+                        reboundStartX - fighter.Position.X);
+                if (boosted && PoweredBoost(fighter) && intrusion > deepestIntrusion)
+                {
+                    deepestIntrusion = intrusion;
                     best = current;
                 }
             }
-            if (largestBend < 0.75)
-                throw new InvalidOperationException("Deterministic rope demo did not bend the rope visibly.");
+            if (!boosted || deepestIntrusion < 4.0 || RopeBend(best, demo.Tuning) < 4.0 ||
+                !RopePreviewSawRebound || RopePreviewRecoilUnits < 1)
+                throw new InvalidOperationException("Grounded boost did not load and recoil from the rope.");
             return best;
         }
 
