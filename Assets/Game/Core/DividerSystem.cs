@@ -7,15 +7,18 @@ namespace Game.Core
     /// <summary>A pinned polyline whose interior nodes are bounded damped springs.</summary>
     public static class DividerSystem
     {
-        public const int RopePointCount = 19;
+        // The first and last mobile nodes lie on the arena boundaries. Their
+        // horizontal segments are visible hinges, allowing a grounded circle
+        // to push the rope while the true endpoints remain pinned at X=50.
+        public const int RopePointCount = 21;
 
         /// <summary>Authoritative collision/render point in arena units, bottom to top.</summary>
         public static Vec2 GetRopePoint(SimulationState state, CombatTuning tuning, int index)
         {
             if (index < 0 || index >= RopePointCount) throw new ArgumentOutOfRangeException(nameof(index));
-            double y = index == 0 ? 0 : index == RopePointCount - 1 ? tuning.Arena.HeightUnits :
-                tuning.Arena.FighterRadiusUnits + (index - 1) *
-                (tuning.Arena.HeightUnits - 2 * tuning.Arena.FighterRadiusUnits) / (RopePointCount - 3);
+            double y = index <= 1 ? 0 : index >= RopePointCount - 2 ? tuning.Arena.HeightUnits :
+                tuning.Arena.FighterRadiusUnits + (index - 2) *
+                (tuning.Arena.HeightUnits - 2 * tuning.Arena.FighterRadiusUnits) / (RopePointCount - 5);
             double x = tuning.Arena.WidthUnits * 0.5 +
                 (index == 0 || index == RopePointCount - 1 ? 0 : state.Divider.NodeDeflections[index]);
             return new Vec2(x, y);
@@ -25,6 +28,9 @@ namespace Game.Core
         public static double CenterXAtHeight(SimulationState state, CombatTuning tuning, double y)
         {
             y = SimMath.Clamp(y, 0, tuning.Arena.HeightUnits);
+            if (y == 0) return GetRopePoint(state, tuning, 1).X;
+            if (y == tuning.Arena.HeightUnits)
+                return GetRopePoint(state, tuning, RopePointCount - 2).X;
             for (int i = 1; i < RopePointCount; i++)
             {
                 Vec2 upper = GetRopePoint(state, tuning, i);
@@ -46,6 +52,8 @@ namespace Game.Core
             {
                 Vec2 a = GetRopePoint(state, tuning, i - 1);
                 Vec2 b = GetRopePoint(state, tuning, i);
+                // Boundary hinges are tangent to every legal fighter circle.
+                if (b.Y == a.Y) continue;
                 double low = Math.Max(a.Y, centerY - radius);
                 double high = Math.Min(b.Y, centerY + radius);
                 if (low > high) continue;
@@ -91,14 +99,22 @@ namespace Game.Core
             for (int node = 1; node < RopePointCount - 1; node++)
             {
                 double y = GetRopePoint(state, tuning, node).Y;
-                double target = divider.LeftPressure * Weight(y, left.Position.Y, tuning.Divider.DeformationReachUnits) -
-                    divider.RightPressure * Weight(y, right.Position.Y, tuning.Divider.DeformationReachUnits);
+                double effectiveY = SimMath.Clamp(y, tuning.Arena.FighterRadiusUnits,
+                    tuning.Arena.HeightUnits - tuning.Arena.FighterRadiusUnits);
+                double target = divider.LeftPressure * Weight(effectiveY, left.Position.Y, tuning.Divider.DeformationReachUnits) -
+                    divider.RightPressure * Weight(effectiveY, right.Position.Y, tuning.Divider.DeformationReachUnits);
                 target = SimMath.Clamp(target, -tuning.Divider.MaximumDeflectionUnits,
                     tuning.Divider.MaximumDeflectionUnits);
+                bool boostLoading = (left.DividerLoadTicksRemaining > 0 &&
+                    Weight(effectiveY, left.Position.Y, tuning.Divider.DeformationReachUnits) > 0) ||
+                    (right.DividerLoadTicksRemaining > 0 &&
+                    Weight(effectiveY, right.Position.Y, tuning.Divider.DeformationReachUnits) > 0);
+                double strength = boostLoading ? tuning.Divider.BoostLoadSpringStrength : tuning.Divider.SpringStrength;
+                double damping = boostLoading ? tuning.Divider.BoostLoadDamping : tuning.Divider.Damping;
                 for (int step = 0; step < substeps; step++)
                 {
-                    double acceleration = tuning.Divider.SpringStrength *
-                        (target - divider.NodeDeflections[node]) - tuning.Divider.Damping * divider.NodeVelocities[node];
+                    double acceleration = strength *
+                        (target - divider.NodeDeflections[node]) - damping * divider.NodeVelocities[node];
                     divider.NodeVelocities[node] += acceleration * h;
                     divider.NodeDeflections[node] += divider.NodeVelocities[node] * h;
                     double bounded = SimMath.Clamp(divider.NodeDeflections[node],
@@ -111,8 +127,10 @@ namespace Game.Core
                     }
                 }
             }
-            ConstrainFighter(left, state, tuning, events);
-            ConstrainFighter(right, state, tuning, events);
+            ConstrainFighter(left, state, tuning, events, config);
+            ConstrainFighter(right, state, tuning, events, config);
+            AdvanceLoading(left, state, tuning, config, events);
+            AdvanceLoading(right, state, tuning, config, events);
         }
 
         private static double Weight(double nodeY, double contactY, double reach)
@@ -121,13 +139,14 @@ namespace Game.Core
         }
 
         /// <summary>Projects an endpoint to arena and rope; safe for post-impact sweeps.</summary>
-        public static void ConstrainFighter(FighterState fighter, SimulationState state, CombatTuning tuning)
+        public static void ConstrainFighter(FighterState fighter, SimulationState state,
+            CombatTuning tuning, SimulationConfig? config = null)
         {
-            ConstrainFighter(fighter, state, tuning, null);
+            ConstrainFighter(fighter, state, tuning, null, config ?? new SimulationConfig());
         }
 
         private static void ConstrainFighter(FighterState fighter, SimulationState state,
-            CombatTuning tuning, IList<SimulationEvent>? events)
+            CombatTuning tuning, IList<SimulationEvent>? events, SimulationConfig config)
         {
             double radius = tuning.Arena.FighterRadiusUnits;
             double y = SimMath.Clamp(fighter.Position.Y, radius, tuning.Arena.HeightUnits - radius);
@@ -156,15 +175,17 @@ namespace Game.Core
             int inward = fighter.Id == 0 ? 1 : -1;
             bool touchedDivider = fighter.Id == 0 ? oldX > x + 1e-9 : oldX < x - 1e-9;
             bool inwardDash = fighter.DashTicksRemaining > 0 && fighter.DashDirection.X * inward > 1e-9;
-            if (touchedDivider && inwardDash && fighter.DividerReboundDistanceRemaining <= 0)
+            if (touchedDivider && inwardDash && fighter.GuardBreakTicksRemaining <= 0 &&
+                fighter.DividerReboundDistanceRemaining <= 0 &&
+                fighter.DashSequence > fighter.LastDividerLoadDashSequence)
             {
-                fighter.Velocity = new Vec2(-inward * tuning.Divider.DashReboundSpeedUnitsPerSecond,
-                    fighter.Velocity.Y);
-                fighter.DividerReboundDistanceRemaining = tuning.Divider.DashReboundDistanceUnits;
-                events?.Add(new SimulationEvent(state.Tick, SimulationEventType.DividerRebound,
-                    fighter.Id, -1, fighter.Position, fighter.DividerReboundDistanceRemaining));
+                fighter.LastDividerLoadDashSequence = fighter.DashSequence;
+                // Include the contact tick; AdvanceLoading consumes one tick below.
+                fighter.DividerLoadTicksRemaining = Math.Max(1,
+                    SimMath.SecondsToTicks(tuning.Divider.BoostLoadSeconds, config.TickRateHz) + 1);
             }
-            else if (touchedDivider && fighter.Velocity.X * inward > 0)
+            else if (touchedDivider && fighter.DividerLoadTicksRemaining <= 0 &&
+                fighter.Velocity.X * inward > 0)
                 fighter.Velocity = new Vec2(0, fighter.Velocity.Y);
 
             if ((x <= radius && fighter.Velocity.X < 0) ||
@@ -173,6 +194,48 @@ namespace Game.Core
             if ((y <= radius && fighter.Velocity.Y < 0) ||
                 (y >= tuning.Arena.HeightUnits - radius && fighter.Velocity.Y > 0))
                 fighter.Velocity = new Vec2(fighter.Velocity.X, 0);
+        }
+
+        private static void AdvanceLoading(FighterState fighter, SimulationState state,
+            CombatTuning tuning, SimulationConfig config, IList<SimulationEvent> events)
+        {
+            if (fighter.DividerLoadTicksRemaining <= 0) return;
+            int inward = fighter.Id == 0 ? 1 : -1;
+            double gap = inward * (FighterCenterLimitX(state, tuning, fighter.Id,
+                fighter.Position.Y) - fighter.Position.X);
+            if (fighter.Eliminated || fighter.GuardBreakTicksRemaining > 0 ||
+                gap > tuning.Arena.FighterRadiusUnits +
+                    tuning.Movement.DashSpeedUnitsPerSecond * config.TickDurationSeconds)
+            {
+                fighter.DividerLoadTicksRemaining = 0;
+                return;
+            }
+            fighter.DividerLoadTicksRemaining--;
+            int nearest = 1;
+            double distance = double.PositiveInfinity;
+            for (int i = 1; i < RopePointCount - 1; i++)
+            {
+                double delta = Math.Abs(GetRopePoint(state, tuning, i).Y - fighter.Position.Y);
+                if (delta >= distance) continue;
+                nearest = i;
+                distance = delta;
+            }
+            bool fullyStretched = inward * state.Divider.NodeDeflections[nearest] >=
+                tuning.Divider.MaximumDeflectionUnits - 1e-6;
+            if (fighter.DividerLoadTicksRemaining > 0 && !fullyStretched) return;
+
+            fighter.DividerLoadTicksRemaining = 0;
+            // An elastic impulse requires contact at release, even if a prior
+            // body impact separated the fighter shortly before the timer ended.
+            if (gap > 1e-6) return;
+            // Collision classification still sees this tick's powered motion.
+            // MovementSystem clears the dash on the following recoil tick.
+            fighter.DashTicksRemaining = Math.Max(1, fighter.DashTicksRemaining);
+            fighter.Velocity = new Vec2(-inward * tuning.Divider.DashReboundSpeedUnitsPerSecond,
+                fighter.Velocity.Y);
+            fighter.DividerReboundDistanceRemaining = tuning.Divider.DashReboundDistanceUnits;
+            events.Add(new SimulationEvent(state.Tick, SimulationEventType.DividerRebound,
+                fighter.Id, -1, fighter.Position, fighter.DividerReboundDistanceRemaining));
         }
 
         private static Vec2 SweptCenterPosition(SimulationState state, CombatTuning tuning, int id,
@@ -185,6 +248,7 @@ namespace Game.Core
             {
                 Vec2 a = GetRopePoint(state, tuning, i - 1);
                 Vec2 b = GetRopePoint(state, tuning, i);
+                if (b.Y == a.Y) continue;
                 maxSlope = Math.Max(maxSlope, Math.Abs((b.X - a.X) / (b.Y - a.Y)));
             }
             // A rope with maximum slope S changes its safe center limit by at
@@ -251,7 +315,8 @@ namespace Game.Core
                     tuning.Arena.HeightUnits - tuning.Arena.FighterRadiusUnits));
             double gap = (limit - fighter.Position.X) * inward;
             if (gap > fighter.Velocity.X * inward * 0.02) return 0;
-            if (fighter.DashTicksRemaining > 0 && fighter.DashDirection.X * inward > 0)
+            if ((fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0) &&
+                fighter.DashDirection.X * inward > 0)
                 return tuning.Divider.DashingDeflectionUnits;
             return fighter.Grounded ? tuning.Divider.WalkingDeflectionUnits :
                 tuning.Divider.JumpingDeflectionUnits;
