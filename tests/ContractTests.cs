@@ -41,17 +41,24 @@ internal static class ContractTests
         var state = new SimulationState();
         state.Fighter(0).Position = new Vec2(20, 3);
         state.Projectiles.Add(new ProjectileState { Id = 7, Position = new Vec2(45, 40) });
-        state.Divider.Deflection = 2;
+        state.Divider.NodeDeflections[1] = 2;
+        state.Divider.NodeVelocities[1] = 3;
         ulong originalHash = state.ComputeChecksum();
         SimulationState snapshot = state.Clone();
         Assert(snapshot.ComputeChecksum() == originalHash, "Clone must preserve every checksummed field.");
         snapshot.Fighter(0).Position = new Vec2(25, 3);
         snapshot.Projectiles[0].PowerLevel = 2;
-        snapshot.Divider.Deflection = -2;
-        Assert(state.Fighter(0).Position.X == 20 && state.Projectiles[0].PowerLevel == 0 && state.Divider.Deflection == 2,
+        snapshot.Divider.NodeDeflections[1] = -2;
+        snapshot.Divider.NodeVelocities[1] = -3;
+        Assert(state.Fighter(0).Position.X == 20 && state.Projectiles[0].PowerLevel == 0 &&
+            state.Divider.NodeDeflections[1] == 2 && state.Divider.NodeVelocities[1] == 3,
             "Snapshot must not share mutable fighter, projectile, or divider objects.");
         Assert(state.ComputeChecksum() == originalHash && snapshot.ComputeChecksum() != originalHash,
             "State checksum must change when authoritative fields change.");
+        ulong changedDeflectionHash = snapshot.ComputeChecksum();
+        snapshot.Divider.NodeVelocities[1] = 4;
+        Assert(snapshot.ComputeChecksum() != changedDeflectionHash,
+            "Node velocity must contribute to the authoritative checksum.");
     }
 
     private static void InitialWarningFitsCountdown()
