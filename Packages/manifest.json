@@ -1,5 +1,11 @@
 {
   "dependencies": {
-    "com.unity.modules.imgui": "1.0.0"
-  }
+    "com.parry.tests": "file:../tests/Unity",
+    "com.unity.test-framework": "1.6.0",
+    "com.unity.modules.imgui": "1.0.0",
+    "com.unity.modules.audio": "1.0.0",
+    "com.unity.modules.imageconversion": "1.0.0",
+    "com.unity.modules.screencapture": "1.0.0"
+  },
+  "testables": ["com.parry.tests"]
 }
