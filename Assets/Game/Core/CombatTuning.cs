@@ -32,9 +32,9 @@ namespace Game.Core
             Arena = arena ?? throw new ArgumentNullException(nameof(arena));
             Match = match ?? new MatchTuning();
 
-            if (Divider.MaximumDeflectionUnits > Arena.WidthUnits / 2.0 - Arena.FighterRadiusUnits)
+            if (Divider.MaximumDeflectionUnits > Arena.WidthUnits / 2.0 - 2 * Arena.FighterRadiusUnits)
             {
-                throw new ArgumentOutOfRangeException(nameof(divider), "Divider stretch must leave room for the fighter within its half of the arena.");
+                throw new ArgumentOutOfRangeException(nameof(divider), "Divider stretch must leave a fighter diameter within each half of the arena.");
             }
 
             if (Projectile.MaximumActiveCount < ProjectileTuning.InitialProjectileCount)
@@ -283,6 +283,7 @@ namespace Game.Core
         public double SpringStrength { get; }
         public double Damping { get; }
         public double DashReboundSpeedUnitsPerSecond { get; }
+        public double DeformationReachUnits { get; }
 
         public DividerTuning(
             double maximumDeflectionUnits = 8.0,
@@ -292,7 +293,8 @@ namespace Game.Core
             double dashReboundDistanceUnits = 18.0,
             double springStrength = 24.0,
             double damping = 8.0,
-            double dashReboundSpeedUnitsPerSecond = 45.0)
+            double dashReboundSpeedUnitsPerSecond = 45.0,
+            double deformationReachUnits = 14.0)
         {
             MaximumDeflectionUnits = TuningValidation.InRange(maximumDeflectionUnits, nameof(maximumDeflectionUnits), 0.0, 100.0);
             WalkingDeflectionUnits = TuningValidation.InRange(walkingDeflectionUnits, nameof(walkingDeflectionUnits), 0.0, MaximumDeflectionUnits);
@@ -302,6 +304,7 @@ namespace Game.Core
             SpringStrength = TuningValidation.InRange(springStrength, nameof(springStrength), 0.0, 10000.0);
             Damping = TuningValidation.InRange(damping, nameof(damping), 0.0, 10000.0);
             DashReboundSpeedUnitsPerSecond = TuningValidation.InRange(dashReboundSpeedUnitsPerSecond, nameof(dashReboundSpeedUnitsPerSecond), 0.0, 1000.0);
+            DeformationReachUnits = TuningValidation.InRange(deformationReachUnits, nameof(deformationReachUnits), 0.1, 100.0);
         }
     }
 
