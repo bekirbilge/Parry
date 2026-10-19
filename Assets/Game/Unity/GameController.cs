@@ -371,7 +371,7 @@ namespace Game.Unity
                 Box(new Rect(x, a.yMin + 31, barWidth, 12), new Color(.04f, .05f, .08f));
                 Box(new Rect(x, a.yMin + 31, barWidth * Mathf.Clamp01((float)(f.Posture / Tuning.Defense.MaximumPosture)), 12),
                     f.Posture > 75 ? new Color(1, .22f, .2f) : new Color(.98f, .77f, .27f));
-                for (int j = 0; j < 2; j++) Circle(new Rect(x + j * 18, a.yMin + 48, 12, 12),
+                for (int j = 0; j < MovementTuning.MaximumDashCharges; j++) Circle(new Rect(x + j * 18, a.yMin + 48, 12, 12),
                     j < f.DashCharges ? new Color(.35f, .95f, 1) : new Color(.3f, .35f, .4f));
             }
             string center = "ROUND " + s.RoundNumber;
