@@ -23,9 +23,13 @@ internal static class MovementTests
         for (int i = 0; i < 12; i++) Tick(state, new FighterInput(new Vec2(1, 0)));
         Assert(left.Position.X > 25 && left.Velocity.X > 0, "Ground run must accelerate continuously.");
         Tick(state, new FighterInput(new Vec2(0, 0), jumpPressed: true, jumpHeld: true));
-        double initialX = left.Position.X;
-        for (int i = 0; i < 8; i++) Tick(state, new FighterInput(new Vec2(-1, 0), jumpHeld: true));
-        Assert(left.Position.X < initialX + 1, "Air steering must change horizontal motion.");
+        double initialVelocityX = left.Velocity.X;
+        SimulationState unsteered = state.Clone();
+        for (int i = 0; i < 14; i++) Tick(state, new FighterInput(new Vec2(-1, 0), jumpHeld: true));
+        for (int i = 0; i < 14; i++) Tick(unsteered, new FighterInput(Vec2.Zero, jumpHeld: true));
+        Assert(left.Velocity.X < 0 && left.Velocity.X < initialVelocityX &&
+            left.Position.X < unsteered.Fighter(0).Position.X,
+            "Opposite air steering must reverse motion and travel less than an unsteered jump.");
     }
 
     private static void VariableJumpAndNoDoubleJump()
