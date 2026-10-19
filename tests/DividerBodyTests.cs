@@ -307,7 +307,7 @@ internal static class DividerBodyTests
         foreach (FighterState fighter in state.Fighters)
         {
             fighter.Grounded = true;
-            fighter.DashCharges = 2;
+            fighter.DashCharges = MovementTuning.MaximumDashCharges;
         }
         return state;
     }
