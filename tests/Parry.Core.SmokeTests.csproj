@@ -9,6 +9,7 @@
     <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Unity/**/*.cs" />
     <Compile Include="../Assets/Game/Core/*.cs" Link="Core/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
