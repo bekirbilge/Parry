@@ -38,3 +38,9 @@ Gate A elastic rope iteration verified on 2026-10-19:
 - Review caught a legal-endpoint/illegal-midpath case around a local bend. Fixed with exact motion-segment/rope-segment clearance and outward endpoint search; swept-only contacts trigger recoil. Invalid stretch values that leave no room for a fighter are rejected.
 - Final Unity validation/build PASS: 10/10 EditMode tests, including isolated preview geometry and unchanged live simulation. Native smoke PASS: 900 steps / 3 live driver ticks, checksum `4483D9EC75658E22`; isolated rope demo bend 3.523 units. Both PNGs validated and bent-rope screenshot inspected after joining rasterized segments.
 - Independent final source review PASS, with all pending automated checks subsequently passing. `git diff --check` and runtime shell syntax pass. Subjective rope feel remains at Gate A.
+
+Gate A three-dash iteration verified on 2026-10-19:
+
+- Full core suite PASS: 240 deterministic bot rounds / 205,116 ticks, 60,000 fuzz ticks and 18,000 replay comparisons. Checks include three dash consumptions, fourth denied without recharge, sequential refill through all three slots, parry restores one without posture healing and caps at three, round reset restores full charges.
+- Unity scene validation/build PASS; 10/10 EditMode tests, including three starting/reset charges and two remaining after a dash through the controller bridge. Native smoke PASS (900 steps / 3 live driver ticks), checksum `A8604A136299A3BA`; screenshot confirms three HUD indicators per fighter.
+- Independent final review and `git diff --check` PASS. Gameplay approval remains outstanding.
