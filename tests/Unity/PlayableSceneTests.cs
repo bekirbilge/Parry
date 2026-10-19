@@ -55,10 +55,13 @@ namespace Game.Unity.Tests
             Assert.That(File.ReadAllText(capturePath), Does.Contain("\"immediateTestStart\": true"));
 
             SimulationState before = controller.CaptureSnapshot();
+            Assert.That(before.Fighter(0).DashCharges, Is.EqualTo(3));
+            Assert.That(before.Fighter(1).DashCharges, Is.EqualTo(3));
             controller.StepOnce(new SimulationInput(before.Tick,
-                new FighterInput(new Vec2(1, 0)), default(FighterInput)));
+                new FighterInput(new Vec2(1, 0), dashPressed: true), default(FighterInput)));
             Assert.That(controller.CaptureSnapshot().Fighter(0).Position.X,
                 Is.GreaterThan(before.Fighter(0).Position.X));
+            Assert.That(controller.CaptureSnapshot().Fighter(0).DashCharges, Is.EqualTo(2));
 
             controller.PrototypeInstantTestingStart = false;
             Assert.That(controller.Tuning.Match.StartImmediatelyForTesting, Is.True);
@@ -66,6 +69,8 @@ namespace Game.Unity.Tests
             Assert.That(controller.Tuning.Match.StartImmediatelyForTesting, Is.False);
             Assert.That(controller.Sim.Phase, Is.EqualTo(MatchPhase.Countdown));
             SimulationState countdown = controller.CaptureSnapshot();
+            Assert.That(countdown.Fighter(0).DashCharges, Is.EqualTo(3));
+            Assert.That(countdown.Fighter(1).DashCharges, Is.EqualTo(3));
             controller.StepOnce(new SimulationInput(countdown.Tick,
                 new FighterInput(new Vec2(1, 0)), default(FighterInput)));
             Assert.That(controller.CaptureSnapshot().Fighter(0).Position.X,
