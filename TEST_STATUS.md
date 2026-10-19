@@ -11,4 +11,16 @@ P0 and P1 verified on 2026-10-18 with Unity 6000.3.26f1 LTS and .NET 10.0.101.
 
 Earlier boundary failures fixed: 60 Hz clock rounding, symmetric divider recoil, same-time wall/parry escape. Shell syntax/JSON checks pass; no separate static-analysis framework configured.
 
-Not yet verified: playable Unity runtime/input/touch/gamepad, safe areas/aspect ratios, real-device frame pacing/thermals, human feel/readability, cross-platform deterministic equivalence. P2 must address feasible runtime checks before the human gate.
+P1 did not include Unity runtime or hardware validation. P2 automated results follow; real-device frame pacing/thermals, physical touch/gamepad behavior, subjective feel/readability and cross-platform deterministic equivalence remain unverified.
+
+P2 verified on 2026-10-19:
+
+- Full core suite remains PASS with DebugBot determinism/immutability tests; 240 bot rounds / 332,295 ticks. Python sanitizer suite: 5/5 PASS.
+- `bash tools/test-unity.sh`: PASS, Unity LTS 6000.3.26f1 scene validation, 8/8 EditMode tests and macOS build; zero C# diagnostics. Tests cover scene/camera/audio listener, joystick-only axes and Y direction, safe-area/footer layout at 1280x720/16:9/ultrawide, tick adapter, short/held input edges, independent touch fingers, and bot difficulty preserving authoritative state/stats.
+- `bash tools/test-runtime.sh`: PASS, native graphical player; initialTick 0, finalTick 900, 900 steps, 3 driver callbacks each advancing simulation. PNG and active tuning capture validated. Final checksum `93821CEC7BFF7288`.
+- Independent P2 review: PASS after exposing bot difficulty and showing full collision silhouettes. Final screenshot visually inspected; footer is separate from playfield and grounded fighters fit.
+- `git diff --check`, script syntax and package/config JSON checks pass. Unity-generated empty YAML values retain engine formatting; whitespace attributes exempt their trailing spaces.
+
+P2 runtime fixes verified: GUI initialization moved into OnGUI; touch coordinate scope corrected; membrane view matches collision; mobile toolbar and shared touch regions; applied-only captures; footer/guard/hitbox readability; walking contact does not trigger hitstop; camera audio listener present.
+
+Human gameplay approval and physical mobile/gamepad testing remain outstanding. Stop at Gate A.
