@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Game.Core;
 using Game.Editor;
@@ -54,7 +55,13 @@ namespace Game.Unity.Tests
             Assert.That(controller.Tuning.Match.StartImmediatelyForTesting, Is.True);
             Assert.That(controller.Sim.Phase, Is.EqualTo(MatchPhase.Active));
             string capturePath = Path.Combine(Application.persistentDataPath, "Playtests", "tuning.json");
-            Assert.That(File.ReadAllText(capturePath), Does.Contain("\"immediateTestStart\": true"));
+            string capture = File.ReadAllText(capturePath);
+            Assert.That(capture, Does.Contain("\"immediateTestStart\": true"));
+            Assert.That(capture, Does.Contain("\"boostDuration\""));
+            Assert.That(capture, Does.Contain("\"boostInvulnerability\""));
+            Assert.That(capture, Does.Contain("\"boostLoadDuration\""));
+            Assert.That(capture, Does.Contain("\"projectileDecaySecondsPerLevel\""));
+            Assert.That(capture, Does.Contain("\"projectileLevel3Speed\""));
 
             SimulationState before = controller.CaptureSnapshot();
             Assert.That(before.Fighter(0).DashCharges, Is.EqualTo(3));
@@ -82,7 +89,7 @@ namespace Game.Unity.Tests
         }
 
         [Test]
-        public void RopePreviewBendsBetweenFixedAnchorsAndMatchesCollisionSampling()
+        public void RopePreviewShowsLoadedBoostBetweenFixedAnchorsAndRebounds()
         {
             BootstrapPipeline.EnsureBootstrapScene();
             Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
@@ -92,17 +99,27 @@ namespace Game.Unity.Tests
             SimulationState preview = controller.CreateRopePreviewSnapshot();
             Assert.That(controller.CaptureSnapshot().ComputeChecksum(), Is.EqualTo(liveChecksum));
             double center = controller.Tuning.Arena.WidthUnits / 2.0;
+            Assert.That(preview.Fighter(0).DashTicksRemaining > 0 ||
+                preview.Fighter(0).DividerLoadTicksRemaining > 0, Is.True);
+            Assert.That(preview.Fighter(0).DividerReboundDistanceRemaining, Is.EqualTo(0));
+            Assert.That(preview.Fighter(0).Position.X - center, Is.GreaterThanOrEqualTo(4.0));
+            Assert.That(controller.RopePreviewSawRebound, Is.True);
+            Assert.That(controller.RopePreviewRecoilUnits, Is.GreaterThan(1));
             double bend = 0;
             for (int i = 0; i < DividerSystem.RopePointCount; i++)
             {
                 Vec2 point = DividerSystem.GetRopePoint(preview, controller.Tuning, i);
                 bend = Math.Max(bend, Math.Abs(point.X - center));
-                Assert.That(DividerSystem.CenterXAtHeight(preview, controller.Tuning, point.Y),
-                    Is.EqualTo(point.X).Within(1e-6));
                 if (i == 0 || i == DividerSystem.RopePointCount - 1)
                     Assert.That(point.X, Is.EqualTo(center).Within(1e-6));
+                else
+                    Assert.That(DividerSystem.CenterXAtHeight(preview, controller.Tuning, point.Y),
+                        Is.EqualTo(point.X).Within(1e-6));
             }
-            Assert.That(bend, Is.GreaterThanOrEqualTo(0.75));
+            Assert.That(DividerSystem.GetRopePoint(preview, controller.Tuning, 1).Y, Is.EqualTo(0));
+            Assert.That(DividerSystem.GetRopePoint(preview, controller.Tuning,
+                DividerSystem.RopePointCount - 2).Y, Is.EqualTo(controller.Tuning.Arena.HeightUnits));
+            Assert.That(bend, Is.GreaterThanOrEqualTo(4.0));
         }
 
         [Test]
@@ -171,11 +188,109 @@ namespace Game.Unity.Tests
                 Sample(adapter, pad, new GamepadState());
                 FighterInput tick = adapter.ConsumeTick();
                 Assert.That(tick.DashPressed, Is.True);
+                Assert.That(tick.Move.LengthSquared, Is.EqualTo(0));
                 Assert.That(tick.JumpPressed || tick.JumpHeld, Is.False);
                 Assert.That(tick.DefensePressed || tick.DefenseHeld, Is.False);
                 Assert.That(adapter.ConsumeTick().DashPressed, Is.False);
             }
             finally { InputSystem.RemoveDevice(pad); }
+        }
+
+        [Test]
+        public void GamepadCrossAndSquareInOneTickBoostsAndParriesWithoutJumping()
+        {
+            Gamepad pad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                var adapter = new InputAdapter(0);
+                GamepadState boostAndParry = new GamepadState()
+                    .WithButton(GamepadButton.South)
+                    .WithButton(GamepadButton.West);
+                Sample(adapter, pad, boostAndParry);
+                FighterInput tick = adapter.ConsumeTick();
+                Assert.That(tick.DashPressed, Is.True);
+                Assert.That(tick.DefensePressed && tick.DefenseHeld, Is.True);
+                Assert.That(tick.JumpPressed || tick.JumpHeld, Is.False);
+                Assert.That(tick.Move.LengthSquared, Is.EqualTo(0));
+                Sample(adapter, pad, boostAndParry);
+                FighterInput held = adapter.ConsumeTick();
+                Assert.That(held.DashPressed || held.DefensePressed || held.JumpPressed, Is.False);
+                Assert.That(held.DefenseHeld, Is.True);
+            }
+            finally { InputSystem.RemoveDevice(pad); }
+        }
+
+        [Test]
+        public void ControllerRoutesMidBoostSquareParryAfterInvulnerabilityEnds()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.RestartMatch();
+            SimulationState setup = controller.CaptureSnapshot();
+            FighterState fighter = setup.Fighter(0);
+            fighter.Position = fighter.PreviousPosition = fighter.TickStartPosition = new Vec2(25, 10);
+            fighter.Grounded = false;
+            setup.NextSpawnTick = setup.Tick + 1000;
+            controller.Sim.RestoreSnapshot(setup);
+
+            controller.StepOnce(new SimulationInput(controller.Sim.Tick,
+                new FighterInput(new Vec2(1, 0), dashPressed: true), default(FighterInput)));
+            for (int i = 0; i < 20 && controller.CaptureSnapshot().Fighter(0).DashInvulnerabilityTicksRemaining > 0; i++)
+                controller.StepOnce(new SimulationInput(controller.Sim.Tick,
+                    new FighterInput(new Vec2(1, 0)), default(FighterInput)));
+            SimulationState beforeParry = controller.CaptureSnapshot();
+            fighter = beforeParry.Fighter(0);
+            Assert.That(fighter.DashInvulnerabilityTicksRemaining, Is.EqualTo(0));
+            Assert.That(fighter.DashTicksRemaining, Is.GreaterThan(0));
+            Assert.That(fighter.DashCharges, Is.EqualTo(2));
+            double contactRadius = controller.Tuning.Arena.FighterRadiusUnits +
+                controller.Tuning.Arena.ProjectileRadiusUnits;
+            Vec2 incoming = new Vec2(fighter.Position.X + contactRadius + .5, fighter.Position.Y);
+            beforeParry.Projectiles.Add(new ProjectileState
+            {
+                Id = 7, Position = incoming, PreviousPosition = incoming,
+                Velocity = new Vec2(-24, 0)
+            });
+            controller.Sim.RestoreSnapshot(beforeParry);
+            IReadOnlyList<SimulationEvent> events;
+            Gamepad pad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                var adapter = new InputAdapter(0);
+                Sample(adapter, pad, new GamepadState { leftStick = new Vector2(1, 0) }
+                    .WithButton(GamepadButton.West));
+                FighterInput square = adapter.ConsumeTick();
+                Assert.That(square.DefensePressed && square.DefenseHeld, Is.True);
+                Assert.That(square.JumpPressed || square.DashPressed, Is.False);
+                events = controller.StepOnce(new SimulationInput(controller.Sim.Tick,
+                    square, default(FighterInput)));
+            }
+            finally { InputSystem.RemoveDevice(pad); }
+            bool parried = false;
+            foreach (SimulationEvent item in events)
+                if (item.Type == SimulationEventType.PerfectParry) parried = true;
+            Assert.That(parried, Is.True);
+            SimulationState afterParry = controller.CaptureSnapshot();
+            Assert.That(afterParry.Fighter(0).Eliminated, Is.False);
+            Assert.That(afterParry.Fighter(0).DashCharges, Is.EqualTo(3));
+            Assert.That(afterParry.Projectiles[0].PowerLevel, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ControllerNeutralBoostLaunchesUpwardWithNoJumpInput()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.RestartMatch();
+            SimulationState before = controller.CaptureSnapshot();
+            controller.StepOnce(new SimulationInput(before.Tick,
+                new FighterInput(Vec2.Zero, dashPressed: true), default(FighterInput)));
+            FighterState after = controller.CaptureSnapshot().Fighter(0);
+            Assert.That(after.DashDirection.Y, Is.GreaterThan(0));
+            Assert.That(after.Position.Y, Is.GreaterThan(before.Fighter(0).Position.Y));
+            Assert.That(after.DashCharges, Is.EqualTo(2));
         }
 
         [Test]
@@ -203,7 +318,7 @@ namespace Game.Unity.Tests
         }
 
         [Test]
-        public void GamepadNorthJumpsWhileHeldAndStickIsClamped()
+        public void GamepadNorthIsUnassignedAndStickIsClamped()
         {
             Gamepad pad = InputSystem.AddDevice<Gamepad>();
             try
@@ -213,14 +328,15 @@ namespace Game.Unity.Tests
                     .WithButton(GamepadButton.North);
                 Sample(adapter, pad, northAndStick);
                 FighterInput first = adapter.ConsumeTick();
-                Assert.That(first.JumpPressed && first.JumpHeld, Is.True);
+                Assert.That(first.JumpPressed || first.JumpHeld || first.DashPressed ||
+                    first.DefensePressed || first.DefenseHeld, Is.False);
                 Assert.That(first.Move.X, Is.GreaterThan(0.5));
                 Assert.That(first.Move.Y, Is.GreaterThan(0.5));
                 Assert.That(first.Move.LengthSquared, Is.LessThanOrEqualTo(1.0001));
                 Sample(adapter, pad, northAndStick);
                 FighterInput held = adapter.ConsumeTick();
-                Assert.That(held.JumpPressed, Is.False);
-                Assert.That(held.JumpHeld, Is.True);
+                Assert.That(held.JumpPressed || held.JumpHeld || held.DashPressed ||
+                    held.DefensePressed || held.DefenseHeld, Is.False);
             }
             finally { InputSystem.RemoveDevice(pad); }
         }
