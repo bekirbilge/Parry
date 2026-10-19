@@ -17,16 +17,16 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 - No conventional match timer in initial design; once projectile cap is reached, continue until a round resolves. A **TUNE** anti-stall fallback may be introduced only with explicit approval and fairness testing.
 
 ## 3. Movement — LOCKED mechanics, TUNE numbers
-- Continuous horizontal run; grounded jump with variable jump height; no double jump; air steering; air dash; parry available during dash.
+- Continuous horizontal run and air steering. One movement action: neutral stick boosts straight up; aiming boosts in that direction immediately, on ground or in air. No separate jump button; upward boost consumes a normal charge. Parry remains available throughout boost/loading/recoil. Legacy jump commands remain internal for prototype regression/replay compatibility, not in the playable controls.
 - Three dash charges, refilling sequentially at approximately **1.0 s per charge** (**TUNE**). Perfect parry instantly restores **one** dash charge, capped at three. No automatic extra restoration at critical projectile level unless separately approved.
-- Directional dash, initially eight-way snapped from movement stick, ~0.15 s duration and ~0.08 s invulnerability (**TUNE**). Invulnerability rules must be specified in the prototype and tested against projectile and body collisions. Avoid unintended invincible dash chains.
+- Directional rocket boost (dash), initially eight-way snapped from movement stick, ~0.30 s powered duration and ~0.08 s invulnerability (**TUNE**). Invulnerability rules must be specified in the prototype and tested against projectile and body collisions. Avoid unintended invincible dash chains.
 - Jump buffering, coyote time, acceleration, friction, air steering, dash cancel windows, and jump arc are **TUNE**. Ground movement should be crisp, never slippery. Preserve controllability in rebounds/knockback; no long helpless stun.
 - Design target: responsive to mobile latency and touch imprecision, without auto-aiming parries.
 
 ## 4. Mobile input — TUNE layout
-- Left thumb: virtual directional joystick (movement and directional influence).
-- Right thumb: jump, dash, defense. Tap defense = timed parry attempt; hold defense = guard after tap window. Perfect-parry window, hold threshold, priority when pressing multiple controls, and gesture forgiveness are **TUNE**.
-- Support simultaneous directional input + jump/dash/parry. Prevent accidental guard toggling and conflicting gestures. Add accessible control sizing and remapping after first prototype.
+- Left thumb: virtual directional joystick (movement and directional influence; neutral boost is straight up).
+- Right thumb: boost and defense; no separate jump button. Tap defense = timed parry attempt (prototype window 0.16 s, **TUNE**); hold defense = guard after tap window. Perfect-parry window, hold threshold, priority when pressing multiple controls, and gesture forgiveness are **TUNE**.
+- Support simultaneous directional input + boost/parry. Prevent accidental guard toggling and conflicting gestures. Add accessible control sizing and remapping after first prototype.
 - For desktop playtesting, keyboard/gamepad equivalents must expose identical actions.
 
 ## 5. Projectiles and ricochet — LOCKED
@@ -34,15 +34,16 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 - All projectiles remain **permanently until the round ends**. No lifetime or bounce-count despawn. Pass through each other and the center membrane. Bounce predictably off walls, ceiling and floor using deterministic rules; no random speed ramp.
 - Arena themes change appearance (sawblade, fireball, meteor, magic orb) but **never** hitbox, speed, bounce, parry, posture, or other competitive properties.
 - Parry outgoing angle is a controlled hybrid of incoming velocity, impact geometry and player input. Input steers within about **±30°** of natural reflection (**TUNE**); same steering at all projectile levels. No level-specific aim assistance.
-- A perfect parry increments power by one level (max 3), resets decay timer, boosts speed/posture pressure, and restores one dash charge. With no subsequent perfect parry, lose **one level per second** until zero. Example multipliers (**TUNE**):
+- A perfect parry increments power by one level (max 3), resets decay timer, boosts speed/posture pressure, and restores one dash charge. With no subsequent perfect parry, lose **one level every four seconds** until zero. Example multipliers (**TUNE**):
 
 | Level | Name | Speed multiplier | Block posture multiplier |
 |---|---|---:|---:|
 | 0 | Normal | 1.00× | 1.00× |
-| 1 | Charged | 1.15× | 1.25× |
-| 2 | Overcharged | 1.30× | 1.50× |
-| 3 | Critical | 1.45× | 2.00× |
+| 1 | Charged | 1.50× | 1.25× |
+| 2 | Overcharged | 1.75× | 1.50× |
+| 3 | Critical | 2.00× | 2.00× |
 
+- Only the most recent perfect parrier is immune to that projectile until the opponent perfect-parries it back. Wall bounces, ordinary guard and power decay do not transfer or remove immunity. Owned projectiles pass through their owner without damage, posture impact or repeated parry benefits. Unclaimed projectiles remain dangerous to both players. Show ownership with an owner-colored ring while keeping the power color visible.
 - Keep visual states obvious through glow/trail/impact/audio, without obscuring exact hitbox. Speed can transition smoothly while level-based posture values switch at decay thresholds; implement deterministically.
 - Perfect parries **never** reduce posture and remain possible even at 99/100 posture. The guard-break state at exactly 100 must be handled explicitly (see §6).
 
@@ -63,6 +64,7 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 ## 8. Elastic membrane — LOCKED behavior, TUNE coefficients
 - Shared, full-height, elastic divider centered at X=50 on a conceptual 100-unit arena; never permits complete crossing. Projectile paths unaffected by it.
 - **Baseline TUNE:** maximum deflection 8 units toward either half; walking press ~3–4; jumping ~5–6; dashing up to 8. Elastic return when pressure ends. Dash rebound travels ~15–20 units back toward own half. No divider-caused posture damage.
+- An inward boost first loads and stretches the rope into the opponent’s resting half before recoil (prototype load window ~0.20 s, **TUNE**). Crossing the arena’s resting center line during stretch is allowed; crossing through the actual rope is never allowed. Ground-level rope segments can lie along the floor/ceiling next to fixed anchors so grounded loading is physically possible. Parry stays available through boost, loading and recoil.
 - Both players pressing creates opposing forces; simultaneous equal dashes cause strong symmetrical recoil; unequal momentum changes deformation and rebound. Preserve vertical momentum for diagonal rebound. Players retain control, including parry during recoil, subject to tested collision rules.
 - The divider is not a generic rigid wall. Model as a **bounded, damped spring with explicit per-player contact constraints**. Prefer stable, auditable custom math over unstable engine spring chains. Separate visual mesh deformation from gameplay collision model.
 - Allow offensive body collisions near a stretched membrane without players crossing. Document contact priority and no-teleport invariants.
@@ -93,7 +95,7 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 - No online mode until local core passes tests and manual feel gate. Prototype AI is a test opponent, not a substitute for human PvP testing.
 
 ## 13. Prototype acceptance criteria
-1. Two equal-stat fighters can run, jump, air dash three times, refill, parry and guard in one fixed camera arena.
+1. Two equal-stat fighters can run, boost upward or directionally three times, refill, parry and guard in one fixed camera arena.
 2. Projectile trajectories are predictable and reproducible; spawn telegraphs work; up to six persist until round end.
 3. Perfect parry steers projectile, charges level, decays correctly, restores one dash and never heals posture.
 4. Guard recovers posture faster than unguarded idle; guard break and unguarded instant death work.
