@@ -88,10 +88,10 @@ namespace Game.Core
         public MovementTuning(
             double runSpeedUnitsPerSecond = 24.0,
             double jumpSpeedUnitsPerSecond = 36.0,
-            double dashDurationSeconds = 0.15,
+            double dashDurationSeconds = 0.30,
             double dashInvulnerabilitySeconds = 0.08,
             double dashRechargeSeconds = 1.0,
-            double perfectParryWindowSeconds = 0.10,
+            double perfectParryWindowSeconds = 0.16,
             double gravityUnitsPerSecondSquared = 60.0,
             double groundAccelerationUnitsPerSecondSquared = 240.0,
             double airAccelerationUnitsPerSecondSquared = 140.0,
@@ -151,11 +151,11 @@ namespace Game.Core
             double spawnIntervalSeconds = 15.0,
             double spawnWarningSeconds = 3.0,
             double baseSpeedUnitsPerSecond = 24.0,
-            double powerDecaySecondsPerLevel = 1.0,
+            double powerDecaySecondsPerLevel = 4.0,
             double maximumParrySteeringDegrees = 30.0,
-            double level1SpeedMultiplier = 1.15,
-            double level2SpeedMultiplier = 1.30,
-            double level3SpeedMultiplier = 1.45,
+            double level1SpeedMultiplier = 1.50,
+            double level2SpeedMultiplier = 1.75,
+            double level3SpeedMultiplier = 2.00,
             double level1BlockPostureMultiplier = 1.25,
             double level2BlockPostureMultiplier = 1.50,
             double level3BlockPostureMultiplier = 2.0,
@@ -284,6 +284,9 @@ namespace Game.Core
         public double Damping { get; }
         public double DashReboundSpeedUnitsPerSecond { get; }
         public double DeformationReachUnits { get; }
+        public double BoostLoadSeconds { get; }
+        public double BoostLoadSpringStrength { get; }
+        public double BoostLoadDamping { get; }
 
         public DividerTuning(
             double maximumDeflectionUnits = 8.0,
@@ -294,7 +297,10 @@ namespace Game.Core
             double springStrength = 24.0,
             double damping = 8.0,
             double dashReboundSpeedUnitsPerSecond = 45.0,
-            double deformationReachUnits = 14.0)
+            double deformationReachUnits = 14.0,
+            double boostLoadSeconds = 0.20,
+            double boostLoadSpringStrength = 200.0,
+            double boostLoadDamping = 20.0)
         {
             MaximumDeflectionUnits = TuningValidation.InRange(maximumDeflectionUnits, nameof(maximumDeflectionUnits), 0.0, 100.0);
             WalkingDeflectionUnits = TuningValidation.InRange(walkingDeflectionUnits, nameof(walkingDeflectionUnits), 0.0, MaximumDeflectionUnits);
@@ -305,6 +311,9 @@ namespace Game.Core
             Damping = TuningValidation.InRange(damping, nameof(damping), 0.0, 10000.0);
             DashReboundSpeedUnitsPerSecond = TuningValidation.InRange(dashReboundSpeedUnitsPerSecond, nameof(dashReboundSpeedUnitsPerSecond), 0.0, 1000.0);
             DeformationReachUnits = TuningValidation.InRange(deformationReachUnits, nameof(deformationReachUnits), 0.1, 100.0);
+            BoostLoadSeconds = TuningValidation.InRange(boostLoadSeconds, nameof(boostLoadSeconds), 0.01, 2.0);
+            BoostLoadSpringStrength = TuningValidation.InRange(boostLoadSpringStrength, nameof(boostLoadSpringStrength), 0.0, 10000.0);
+            BoostLoadDamping = TuningValidation.InRange(boostLoadDamping, nameof(boostLoadDamping), 0.0, 10000.0);
         }
     }
 
