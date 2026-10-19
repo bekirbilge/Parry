@@ -60,18 +60,24 @@ namespace Game.Core
     /// <summary>Positive deflection moves the membrane toward fighter 1's half.</summary>
     public sealed class DividerState
     {
-        public double Deflection;
-        public double Velocity;
+        public double[] NodeDeflections = new double[DividerSystem.RopePointCount];
+        public double[] NodeVelocities = new double[DividerSystem.RopePointCount];
         public double LeftPressure;
         public double RightPressure;
 
-        public DividerState Clone() => (DividerState)MemberwiseClone();
+        public DividerState Clone()
+        {
+            var clone = (DividerState)MemberwiseClone();
+            clone.NodeDeflections = (double[])NodeDeflections.Clone();
+            clone.NodeVelocities = (double[])NodeVelocities.Clone();
+            return clone;
+        }
     }
 
     /// <summary>Versioned, deep-clonable state for same-runtime replay comparison.</summary>
     public sealed class SimulationState
     {
-        public const int SnapshotVersion = 1;
+        public const int SnapshotVersion = 2;
         public const int LeftFighterId = 0;
         public const int RightFighterId = 1;
 
@@ -163,8 +169,8 @@ namespace Game.Core
                 hash.Add(fighter.RoundWins);
             }
 
-            hash.Add(Divider.Deflection);
-            hash.Add(Divider.Velocity);
+            foreach (double deflection in Divider.NodeDeflections) hash.Add(deflection);
+            foreach (double velocity in Divider.NodeVelocities) hash.Add(velocity);
             hash.Add(Divider.LeftPressure);
             hash.Add(Divider.RightPressure);
             hash.Add(Projectiles.Count);
