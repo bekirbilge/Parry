@@ -18,7 +18,7 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 
 ## 3. Movement — LOCKED mechanics, TUNE numbers
 - Continuous horizontal run; grounded jump with variable jump height; no double jump; air steering; air dash; parry available during dash.
-- Two dash charges, refilling sequentially at approximately **1.0 s per charge** (**TUNE**). Perfect parry instantly restores **one** dash charge, capped at two. No automatic extra restoration at critical projectile level unless separately approved.
+- Three dash charges, refilling sequentially at approximately **1.0 s per charge** (**TUNE**). Perfect parry instantly restores **one** dash charge, capped at three. No automatic extra restoration at critical projectile level unless separately approved.
 - Directional dash, initially eight-way snapped from movement stick, ~0.15 s duration and ~0.08 s invulnerability (**TUNE**). Invulnerability rules must be specified in the prototype and tested against projectile and body collisions. Avoid unintended invincible dash chains.
 - Jump buffering, coyote time, acceleration, friction, air steering, dash cancel windows, and jump arc are **TUNE**. Ground movement should be crisp, never slippery. Preserve controllability in rebounds/knockback; no long helpless stun.
 - Design target: responsive to mobile latency and touch imprecision, without auto-aiming parries.
@@ -93,7 +93,7 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 - No online mode until local core passes tests and manual feel gate. Prototype AI is a test opponent, not a substitute for human PvP testing.
 
 ## 13. Prototype acceptance criteria
-1. Two equal-stat fighters can run, jump, air dash twice, refill, parry and guard in one fixed camera arena.
+1. Two equal-stat fighters can run, jump, air dash three times, refill, parry and guard in one fixed camera arena.
 2. Projectile trajectories are predictable and reproducible; spawn telegraphs work; up to six persist until round end.
 3. Perfect parry steers projectile, charges level, decays correctly, restores one dash and never heals posture.
 4. Guard recovers posture faster than unguarded idle; guard break and unguarded instant death work.
