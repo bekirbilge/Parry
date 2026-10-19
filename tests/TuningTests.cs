@@ -40,6 +40,11 @@ internal static class TuningTests
         ExpectThrows<ArgumentOutOfRangeException>(() => new CombatTuning(
             new MovementTuning(), new ProjectileTuning(), new DefenseTuning(),
             new DividerTuning(maximumDeflectionUnits: 49), new ArenaTuning()));
+        ExpectThrows<ArgumentOutOfRangeException>(() => new CombatTuning(
+            new MovementTuning(), new ProjectileTuning(), new DefenseTuning(),
+            new DividerTuning(maximumDeflectionUnits: 5.1, jumpingDeflectionUnits: 5,
+                dashingDeflectionUnits: 5),
+            new ArenaTuning(widthUnits: 20, heightUnits: 20, fighterRadiusUnits: 2.5)));
     }
 
     private static void AllowsSingleHitGuardBreakTuning()
