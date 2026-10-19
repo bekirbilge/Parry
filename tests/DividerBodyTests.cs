@@ -13,12 +13,178 @@ internal static class DividerBodyTests
         HeightSwitchDoesNotRelocateExistingBend();
         CircleClearanceMatchesVisiblePolyline();
         SweptVerticalDashCannotThreadLocalBend();
+        PoweredBoostLoadsBeforeRecoilAndEntersOpposingHalf();
+        LoadingRejectsInwardRestartAndAllowsEscape();
+        SeparatedLoadingDoesNotCreateGhostRecoil();
+        ParryWorksAfterIframesDuringLoadingAndRecoil();
         MembraneBoundsAndReturns();
         EqualDashesRecoilSymmetrically();
         DiagonalReboundPreservesVerticalMomentumAndTravelsTunedDistance();
         BodyAttackDamagesOnceAndRewritesMotion();
         BodyIframeSuppressesPostureButNotImpulse();
         WalkingContactHasNoPostureDamage();
+    }
+
+    private static void ParryWorksAfterIframesDuringLoadingAndRecoil()
+    {
+        SimulationState state = FreshAtDivider();
+        FighterState left = state.Fighter(0);
+        left.Position = new Vec2(47, 10);
+        left.Grounded = false;
+        var events = new List<SimulationEvent>();
+        for (int tick = 0; tick < 12 &&
+            (left.DividerLoadTicksRemaining == 0 || left.DashInvulnerabilityTicksRemaining > 0); tick++)
+        {
+            var input = new FighterInput(new Vec2(1, 0), dashPressed: tick == 0);
+            MovementSystem.AdvanceKinematics(state, new SimulationInput(state.Tick, input, default),
+                Tuning, Config, events);
+            CombatSystem.Advance(state, new SimulationInput(state.Tick, input, default),
+                Tuning, Config, events);
+            state.Tick++;
+        }
+        Assert(left.DividerLoadTicksRemaining > 0 && left.DashInvulnerabilityTicksRemaining == 0,
+            "Loading must continue after the short iframe window ends.");
+        AssertParryAtCurrentPosition(state, true);
+
+        bool recoiled = false;
+        for (int tick = 0; tick < 20 && !recoiled; tick++)
+        {
+            events.Clear();
+            var input = new FighterInput(new Vec2(1, 0));
+            MovementSystem.AdvanceKinematics(state, new SimulationInput(state.Tick, input, default),
+                Tuning, Config, events);
+            recoiled = events.Exists(e => e.Type == SimulationEventType.DividerRebound);
+            CombatSystem.Advance(state, new SimulationInput(state.Tick, input, default),
+                Tuning, Config, events);
+            state.Tick++;
+        }
+        Assert(recoiled && left.DividerReboundDistanceRemaining > 0,
+            "The loaded boost must eventually enter recoil.");
+        AssertParryAtCurrentPosition(state, false);
+    }
+
+    private static void AssertParryAtCurrentPosition(SimulationState state, bool loading)
+    {
+        FighterState fighter = state.Fighter(0);
+        fighter.PreviousPosition = fighter.Position;
+        fighter.MotionStartFraction = 0;
+        state.Projectiles.Clear();
+        state.Projectiles.Add(new ProjectileState
+        {
+            Id = loading ? 100 : 101,
+            Position = new Vec2(fighter.Position.X + (loading ? 2.2 : -2.2), fighter.Position.Y),
+            Velocity = new Vec2(loading ? -24 : 24, 0)
+        });
+        var input = new FighterInput(new Vec2(1, 0), defensePressed: true);
+        var events = new List<SimulationEvent>();
+        CombatSystem.Advance(state, new SimulationInput(state.Tick, input, default),
+            Tuning, Config, events);
+        Assert(events.Exists(e => e.Type == SimulationEventType.PerfectParry) && !fighter.Eliminated,
+            "A fighter must be able to parry after iframes during " + (loading ? "loading" : "recoil") + ".");
+        state.Tick++;
+        state.Projectiles.Clear();
+    }
+
+    private static void PoweredBoostLoadsBeforeRecoilAndEntersOpposingHalf()
+    {
+        foreach (int id in new[] { 0, 1 })
+        foreach (bool airborne in new[] { false, true })
+        {
+            SimulationState state = FreshAtDivider();
+            FighterState fighter = state.Fighter(id);
+            fighter.Position = new Vec2(id == 0 ? 47 : 53,
+                airborne ? 10 : Tuning.Arena.FighterRadiusUnits);
+            fighter.Grounded = !airborne;
+            var events = new List<SimulationEvent>();
+            double deepest = id == 0 ? fighter.Position.X : -fighter.Position.X;
+            int contactTick = -1;
+            int reboundTick = -1;
+            double priorX = fighter.Position.X;
+            for (int tick = 0; tick < 40; tick++)
+            {
+                events.Clear();
+                FighterInput input = new FighterInput(new Vec2(id == 0 ? 1 : -1, 0),
+                    dashPressed: tick == 0);
+                Step(state, id == 0 ? input : default, id == 1 ? input : default, events);
+                AssertBounds(state);
+                Assert(Math.Abs(fighter.Position.X - priorX) <=
+                    Tuning.Movement.DashSpeedUnitsPerSecond * Config.TickDurationSeconds + 1e-6,
+                    "Boost and rope loading must move continuously within the powered speed bound.");
+                priorX = fighter.Position.X;
+                double depth = id == 0 ? fighter.Position.X : -fighter.Position.X;
+                if (fighter.DividerReboundDistanceRemaining <= 0)
+                    deepest = Math.Max(deepest, depth);
+                if (fighter.DividerLoadTicksRemaining > 0 && contactTick < 0)
+                {
+                    contactTick = tick;
+                    Assert(events.FindAll(e => e.Type == SimulationEventType.DividerRebound).Count == 0,
+                        "First rope contact must start loading without an immediate rebound.");
+                }
+                if (events.Exists(e => e.Type == SimulationEventType.DividerRebound))
+                {
+                    reboundTick = tick;
+                    break;
+                }
+            }
+            Assert(contactTick >= 0 && reboundTick > contactTick + 1,
+                "A boost must have a sustained loading interval before recoil.");
+            Assert(deepest >= (id == 0 ? 54 : -46),
+                "Powered boost must enter the opposing half before recoil; depth=" + deepest);
+        }
+    }
+
+    private static void LoadingRejectsInwardRestartAndAllowsEscape()
+    {
+        foreach (int id in new[] { 0, 1 })
+        {
+            SimulationState state = FreshAtDivider();
+            FighterState fighter = state.Fighter(id);
+            fighter.Position = new Vec2(id == 0 ? 47 : 53, Tuning.Arena.FighterRadiusUnits);
+            var events = new List<SimulationEvent>();
+            int inward = id == 0 ? 1 : -1;
+            for (int tick = 0; tick < 8 && fighter.DividerLoadTicksRemaining == 0; tick++)
+            {
+                var input = new FighterInput(new Vec2(inward, 0), dashPressed: tick == 0);
+                Step(state, id == 0 ? input : default, id == 1 ? input : default, events);
+            }
+            Assert(fighter.DividerLoadTicksRemaining > 0, "Boost must reach rope loading for cancel test.");
+            int sequence = fighter.DashSequence;
+            int charges = fighter.DashCharges;
+            int timer = fighter.DividerLoadTicksRemaining;
+            var restart = new FighterInput(new Vec2(inward, 0), dashPressed: true);
+            Step(state, id == 0 ? restart : default, id == 1 ? restart : default, events);
+            Assert(fighter.DashSequence == sequence && fighter.DashCharges == charges &&
+                fighter.DividerLoadTicksRemaining < timer,
+                "An inward reboost must not spend a charge or restart the loading clock.");
+            for (int tick = 0; tick < 3; tick++)
+            {
+                var continuing = new FighterInput(new Vec2(inward, 0));
+                Step(state, id == 0 ? continuing : default, id == 1 ? continuing : default, events);
+            }
+            var escape = new FighterInput(new Vec2(-inward, 0), dashPressed: true);
+            Step(state, id == 0 ? escape : default, id == 1 ? escape : default, events);
+            Assert(fighter.DashSequence == sequence + 1 && fighter.DashCharges == charges - 1 &&
+                fighter.DividerLoadTicksRemaining == 0 && fighter.DividerReboundDistanceRemaining == 0,
+                "An outward boost must cancel loading and preserve control.");
+        }
+    }
+
+    private static void SeparatedLoadingDoesNotCreateGhostRecoil()
+    {
+        SimulationState state = FreshAtDivider();
+        FighterState left = state.Fighter(0);
+        left.Position = new Vec2(47, Tuning.Arena.FighterRadiusUnits);
+        var events = new List<SimulationEvent>();
+        for (int tick = 0; tick < 8 && left.DividerLoadTicksRemaining == 0; tick++)
+            Step(state, new FighterInput(new Vec2(1, 0), dashPressed: tick == 0), default, events);
+        Assert(left.DividerLoadTicksRemaining > 0, "Boost must be loading before separation.");
+        left.Position = new Vec2(42, left.Position.Y);
+        left.PreviousPosition = left.Position;
+        events.Clear();
+        Step(state, new FighterInput(new Vec2(1, 0)), default, events);
+        Assert(left.DividerLoadTicksRemaining == 0 && left.DividerReboundDistanceRemaining == 0 &&
+            !events.Exists(e => e.Type == SimulationEventType.DividerRebound),
+            "A fighter separated from the rope must not receive a delayed spring recoil.");
     }
 
     private static void SweptVerticalDashCannotThreadLocalBend()
@@ -52,9 +218,9 @@ internal static class DividerBodyTests
                 "A vertical dash through a local peak must receive a bounded outward correction.");
             Assert(fighter.Position.Y == end.Y && fighter.Velocity.Y == 80,
                 "Swept rope contact must preserve diagonal or vertical momentum.");
-            Assert(fighter.DividerReboundDistanceRemaining == Tuning.Divider.DashReboundDistanceUnits &&
-                (id == 0 ? fighter.Velocity.X < 0 : fighter.Velocity.X > 0),
-                "A swept-only inward dash contact must trigger outward rebound.");
+            Assert(fighter.DividerLoadTicksRemaining > 0 &&
+                fighter.DividerReboundDistanceRemaining == 0,
+                "A swept-only inward dash contact must begin loading before rebound.");
             for (int step = 0; step <= 100; step++)
             {
                 double t = step / 100.0;
@@ -98,7 +264,7 @@ internal static class DividerBodyTests
         Assert(Math.Abs(state.Divider.NodeDeflections[1]) > Math.Abs(state.Divider.NodeDeflections[4]) &&
             Math.Abs(state.Divider.NodeDeflections[8]) > Math.Abs(state.Divider.NodeDeflections[13]),
             "Pressure must decay with vertical distance from each contact.");
-        for (int i = 0; i < DividerSystem.RopePointCount; i++)
+        for (int i = 1; i < DividerSystem.RopePointCount - 1; i++)
         {
             Vec2 point = DividerSystem.GetRopePoint(state, Tuning, i);
             Assert(Math.Abs(DividerSystem.CenterXAtHeight(state, Tuning, point.Y) - point.X) < 1e-9,
@@ -152,8 +318,8 @@ internal static class DividerBodyTests
                     "No part of a fighter circle may cross the rendered rope at any sampled height.");
             }
         }
-        Assert(state.Fighter(0).Position.X < DividerSystem.CenterXAtHeight(state, Tuning, 1.5) - 1.5,
-            "The bottom anchor slope must limit ground-level movement conservatively.");
+        Assert(state.Fighter(0).Position.X <= DividerSystem.FighterCenterLimitX(state, Tuning, 0, 1.5) + 1e-8,
+            "The visible floor hinge and lower rope must constrain the circle exactly.");
     }
 
     private static void MembraneBoundsAndReturns()
@@ -190,7 +356,7 @@ internal static class DividerBodyTests
         var events = new List<SimulationEvent>();
         Step(state, new FighterInput(new Vec2(1, 0), dashPressed: true),
             new FighterInput(new Vec2(-1, 0), dashPressed: true), events);
-        for (int i = 0; i < 4 && state.Fighter(0).DividerReboundDistanceRemaining == 0; i++)
+        for (int i = 0; i < 35 && state.Fighter(0).DividerReboundDistanceRemaining == 0; i++)
             Step(state, new FighterInput(new Vec2(1, 0)),
                 new FighterInput(new Vec2(-1, 0)), events);
         Assert(Math.Abs(state.Divider.NodeDeflections[1]) < 1e-9,
@@ -210,7 +376,7 @@ internal static class DividerBodyTests
         left.Position = new Vec2(47, 10);
         var events = new List<SimulationEvent>();
         Step(state, new FighterInput(new Vec2(1, 1), dashPressed: true), default, events);
-        for (int i = 0; i < 8 && left.DividerReboundDistanceRemaining <= 0; i++)
+        for (int i = 0; i < 35 && left.DividerReboundDistanceRemaining <= 0; i++)
             Step(state, new FighterInput(new Vec2(1, 1)), default, events);
         Assert(left.DividerReboundDistanceRemaining > 0, "Diagonal dash must rebound from the membrane.");
         Assert(Math.Abs(left.Velocity.Y - Tuning.Movement.DashSpeedUnitsPerSecond / Math.Sqrt(2)) < 1e-9,
