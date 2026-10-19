@@ -33,8 +33,9 @@ namespace Game.Unity
 
         public static Rect TouchControl(Rect arena, int action)
         {
+            if (action < 0 || action > 2) return Rect.zero;
             float size = Mathf.Min(arena.height * .17f, arena.width * .12f);
-            float x = arena.xMin + arena.width * (action == 0 ? .14f : action == 1 ? .65f : action == 2 ? .78f : .91f);
+            float x = arena.xMin + arena.width * (action == 0 ? .14f : action == 1 ? .76f : .90f);
             float y = arena.yMax - arena.height * .21f;
             return new Rect(x - size * .5f, y - size * .5f, size, size);
         }
@@ -60,7 +61,7 @@ namespace Game.Unity
             if (!arena.Contains(p)) return -1;
             for (int i = 0; i < 4; i++) if (ToolbarButton(arena, i).Contains(p)) return -1;
             if (tuningOpen) return -1;
-            for (int i = 1; i < 4; i++) if (TouchControl(arena, i).Contains(p)) return i;
+            for (int i = 1; i <= 2; i++) if (TouchControl(arena, i).Contains(p)) return i;
             Rect stick = TouchControl(arena, 0);
             Rect hit = new Rect(stick.center.x - stick.width * .8f, stick.center.y - stick.height * .8f,
                 stick.width * 1.6f, stick.height * 1.6f);
