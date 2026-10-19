@@ -42,7 +42,7 @@ namespace Game.Core
                 throw new ArgumentOutOfRangeException(nameof(projectile), "Projectile cap must allow the round's initial projectile.");
             }
 
-            if (Match.RoundCountdownSeconds < Projectile.SpawnWarningSeconds)
+            if (!Match.StartImmediatelyForTesting && Match.RoundCountdownSeconds < Projectile.SpawnWarningSeconds)
             {
                 throw new ArgumentOutOfRangeException(nameof(match), "Round countdown must permit the initial projectile warning.");
             }
@@ -86,17 +86,17 @@ namespace Game.Core
         public double DashCancelAfterSeconds { get; }
 
         public MovementTuning(
-            double runSpeedUnitsPerSecond = 12.0,
-            double jumpSpeedUnitsPerSecond = 20.0,
+            double runSpeedUnitsPerSecond = 24.0,
+            double jumpSpeedUnitsPerSecond = 36.0,
             double dashDurationSeconds = 0.15,
             double dashInvulnerabilitySeconds = 0.08,
             double dashRechargeSeconds = 1.0,
             double perfectParryWindowSeconds = 0.10,
             double gravityUnitsPerSecondSquared = 60.0,
-            double groundAccelerationUnitsPerSecondSquared = 120.0,
-            double airAccelerationUnitsPerSecondSquared = 70.0,
-            double groundFrictionUnitsPerSecondSquared = 150.0,
-            double dashSpeedUnitsPerSecond = 50.0,
+            double groundAccelerationUnitsPerSecondSquared = 240.0,
+            double airAccelerationUnitsPerSecondSquared = 140.0,
+            double groundFrictionUnitsPerSecondSquared = 300.0,
+            double dashSpeedUnitsPerSecond = 80.0,
             double jumpReleaseGravityMultiplier = 2.0,
             double coyoteTimeSeconds = 0.08,
             double jumpBufferSeconds = 0.10,
@@ -330,11 +330,14 @@ namespace Game.Core
         public const int RoundWinsRequired = 2;
         public double RoundCountdownSeconds { get; }
         public double RoundResultSeconds { get; }
+        public bool StartImmediatelyForTesting { get; }
 
-        public MatchTuning(double roundCountdownSeconds = 3.0, double roundResultSeconds = 1.0)
+        public MatchTuning(double roundCountdownSeconds = 3.0, double roundResultSeconds = 1.0,
+            bool startImmediatelyForTesting = false)
         {
             RoundCountdownSeconds = TuningValidation.InRange(roundCountdownSeconds, nameof(roundCountdownSeconds), 0.0, 10.0);
             RoundResultSeconds = TuningValidation.InRange(roundResultSeconds, nameof(roundResultSeconds), 0.0, 10.0);
+            StartImmediatelyForTesting = startImmediatelyForTesting;
         }
     }
 
