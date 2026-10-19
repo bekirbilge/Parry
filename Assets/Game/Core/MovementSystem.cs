@@ -64,8 +64,14 @@ namespace Game.Core
 
             int dashDuration = SimMath.SecondsToTicks(movement.DashDurationSeconds, config.TickRateHz);
             int cancelTicks = SimMath.SecondsToTicks(movement.DashCancelAfterSeconds, config.TickRateHz);
-            bool canCancelDash = fighter.DashTicksRemaining <= 0 ||
-                dashDuration - fighter.DashTicksRemaining >= cancelTicks;
+            Vec2 requestedDashDirection = SnapEightWay(stick, fighter.FacingSign);
+            int inward = fighter.Id == SimulationState.LeftFighterId ? 1 : -1;
+            // A fresh inward press cannot restart the rope loading clock.
+            // Outward or vertical dashes still let the fighter escape it.
+            bool canCancelLoad = fighter.DividerLoadTicksRemaining <= 0 ||
+                requestedDashDirection.X * inward <= 1e-9;
+            bool canCancelDash = canCancelLoad && (fighter.DashTicksRemaining <= 0 ||
+                dashDuration - fighter.DashTicksRemaining >= cancelTicks);
             if (input.DashPressed && fighter.DashCharges > 0 &&
                 fighter.GuardBreakTicksRemaining <= 0 && canCancelDash)
             {
@@ -73,14 +79,16 @@ namespace Game.Core
                 fighter.DashTicksRemaining = dashDuration;
                 fighter.DashInvulnerabilityTicksRemaining =
                     SimMath.SecondsToTicks(movement.DashInvulnerabilitySeconds, config.TickRateHz);
-                fighter.DashDirection = SnapEightWay(stick, fighter.FacingSign);
+                fighter.DashDirection = requestedDashDirection;
                 fighter.DashSequence++;
+                fighter.DividerLoadTicksRemaining = 0;
                 fighter.DividerReboundDistanceRemaining = 0;
                 if (fighter.DashRechargeTicksRemaining <= 0)
                     fighter.DashRechargeTicksRemaining = SimMath.SecondsToTicks(movement.DashRechargeSeconds, config.TickRateHz);
             }
 
-            if (fighter.DashTicksRemaining > 0 && fighter.DividerReboundDistanceRemaining <= 0)
+            if ((fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0) &&
+                fighter.DividerReboundDistanceRemaining <= 0)
             {
                 fighter.Velocity = fighter.DashDirection * movement.DashSpeedUnitsPerSecond;
             }
@@ -171,7 +179,7 @@ namespace Game.Core
 
         private static Vec2 SnapEightWay(Vec2 input, int facingSign)
         {
-            if (input.LengthSquared < 1e-12) return new Vec2(facingSign < 0 ? -1 : 1, 0);
+            if (input.LengthSquared < 1e-12) return new Vec2(0, 1);
             double eighth = Math.PI / 4.0;
             double angle = Math.Round(Math.Atan2(input.Y, input.X) / eighth,
                 MidpointRounding.AwayFromZero) * eighth;
