@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using Game.Core;
 using Game.Editor;
@@ -71,6 +72,30 @@ namespace Game.Unity.Tests
                 Is.EqualTo(countdown.Fighter(0).Position.X));
 
             Assert.That(File.ReadAllText(capturePath), Does.Contain("\"immediateTestStart\": false"));
+        }
+
+        [Test]
+        public void RopePreviewBendsBetweenFixedAnchorsAndMatchesCollisionSampling()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.RestartMatch();
+            ulong liveChecksum = controller.CaptureSnapshot().ComputeChecksum();
+            SimulationState preview = controller.CreateRopePreviewSnapshot();
+            Assert.That(controller.CaptureSnapshot().ComputeChecksum(), Is.EqualTo(liveChecksum));
+            double center = controller.Tuning.Arena.WidthUnits / 2.0;
+            double bend = 0;
+            for (int i = 0; i < DividerSystem.RopePointCount; i++)
+            {
+                Vec2 point = DividerSystem.GetRopePoint(preview, controller.Tuning, i);
+                bend = Math.Max(bend, Math.Abs(point.X - center));
+                Assert.That(DividerSystem.CenterXAtHeight(preview, controller.Tuning, point.Y),
+                    Is.EqualTo(point.X).Within(1e-6));
+                if (i == 0 || i == DividerSystem.RopePointCount - 1)
+                    Assert.That(point.X, Is.EqualTo(center).Within(1e-6));
+            }
+            Assert.That(bend, Is.GreaterThanOrEqualTo(0.75));
         }
 
         [Test]
