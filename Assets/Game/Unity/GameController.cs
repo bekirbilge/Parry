@@ -23,6 +23,7 @@ namespace Game.Unity
         private bool _prototypeInstantTestingStart = true;
         private int _botDifficulty;
         private bool _smoke;
+        private SimulationState _smokeRenderState;
         private int _smokeDriverStepsRemaining, _smokeDriverStepsDone;
         private string _smokeError;
         private string _capturePath = "";
@@ -258,7 +259,7 @@ namespace Game.Unity
             _small.fontSize = Mathf.Clamp(Mathf.RoundToInt(arena.height * .018f), 10, 13);
             Box(new Rect(0, 0, Screen.width, Screen.height), new Color(.035f, .045f, .07f));
             Box(arena, new Color(.09f, .12f, .17f));
-            var state = _sim.CaptureSnapshot();
+            var state = _smokeRenderState ?? _sim.CaptureSnapshot();
             float unit = arena.width / (float)Tuning.Arena.WidthUnits;
             float floor = Y(arena, Tuning.Arena.FighterRadiusUnits) + (float)Tuning.Arena.FighterRadiusUnits * unit;
             Box(new Rect(arena.xMin, floor, arena.width, Mathf.Max(2, arena.yMax - floor)), new Color(.17f, .23f, .30f));
@@ -279,12 +280,35 @@ namespace Game.Unity
 
         private void DrawDivider(Rect a, SimulationState s, float u)
         {
-            float center = a.center.x + (float)s.Divider.Deflection * u;
-            // The authoritative contact plane is a full-height vertical line at 50 + deflection.
-            Box(new Rect(center - Mathf.Max(1.5f, u*.18f), a.yMin,
-                Mathf.Max(3, u*.36f), a.height), new Color(.40f, .86f, 1f, .82f));
+            Color rope = new Color(.40f, .86f, 1f, .82f);
+            float width = Mathf.Max(3, u * .36f);
+            Vector2 previous = Point(a, DividerSystem.GetRopePoint(s, Tuning, 0));
+            Vector2 bottomAnchor = previous;
+            for (int i = 1; i < DividerSystem.RopePointCount; i++)
+            {
+                Vector2 next = Point(a, DividerSystem.GetRopePoint(s, Tuning, i));
+                Line(previous, next, rope, width);
+                float jointRadius = width * .5f;
+                Circle(new Rect(next.x - jointRadius, next.y - jointRadius,
+                    width, width), rope);
+                previous = next;
+            }
+            float anchorRadius = Mathf.Max(4, width * .8f);
+            Circle(new Rect(bottomAnchor.x - anchorRadius, bottomAnchor.y - anchorRadius,
+                anchorRadius * 2, anchorRadius * 2), Color.white);
+            Circle(new Rect(previous.x - anchorRadius, previous.y - anchorRadius,
+                anchorRadius * 2, anchorRadius * 2), Color.white);
             if (_showColliders) Label(new Rect(a.center.x - 90, a.center.y - 18, 180, 36),
-                s.Divider.Deflection.ToString("+0.0;-0.0;0"), _small);
+                RopeBend(s, Tuning).ToString("0.0"), _small);
+        }
+
+        private static double RopeBend(SimulationState state, CombatTuning tuning)
+        {
+            double center = tuning.Arena.WidthUnits / 2.0;
+            double bend = 0;
+            for (int i = 0; i < DividerSystem.RopePointCount; i++)
+                bend = Math.Max(bend, Math.Abs(DividerSystem.GetRopePoint(state, tuning, i).X - center));
+            return bend;
         }
 
         private void DrawPortal(Rect a, SimulationState s, float u)
@@ -479,6 +503,8 @@ namespace Game.Unity
             public int driverSimTicks;
             public string checksum;
             public string screenshot;
+            public string ropeScreenshot;
+            public double ropeBend;
             public string error;
         }
 
@@ -523,8 +549,55 @@ namespace Game.Unity
                 }
             }
             catch (Exception e) { Debug.LogWarning("Smoke screenshot unavailable: " + e.Message); }
+            if (!Application.isBatchMode)
+            {
+                try
+                {
+                    _smokeRenderState = CreateRopePreviewSnapshot();
+                    result.ropeBend = RopeBend(_smokeRenderState, Tuning);
+                }
+                catch (Exception e) { Debug.LogWarning("Rope smoke setup unavailable: " + e.Message); }
+                if (_smokeRenderState != null)
+                {
+                    yield return new WaitForEndOfFrame();
+                    try
+                    {
+                        string path = Path.Combine(dir, "smoke-rope.png");
+                        Texture2D image = ScreenCapture.CaptureScreenshotAsTexture();
+                        File.WriteAllBytes(path, image.EncodeToPNG());
+                        Destroy(image);
+                        result.ropeScreenshot = path;
+                    }
+                    catch (Exception e) { Debug.LogWarning("Rope smoke screenshot unavailable: " + e.Message); }
+                    _smokeRenderState = null;
+                }
+            }
             File.WriteAllText(Path.Combine(dir, "smoke.json"), JsonUtility.ToJson(result, true));
             Application.Quit(result.completed ? 0 : 1);
+        }
+
+        /// <summary>A separate deterministic contact for the rope smoke image.</summary>
+        public SimulationState CreateRopePreviewSnapshot()
+        {
+            var demo = new MatchSimulation(_sim.Config, _sim.Tuning);
+            SimulationState best = demo.CaptureSnapshot();
+            double largestBend = 0;
+            for (int i = 0; i < 170; i++)
+            {
+                var left = new FighterInput(new Vec2(1, 0), jumpPressed: i == 120,
+                    jumpHeld: i >= 120 && i < 137, dashPressed: i == 145);
+                demo.Step(new SimulationInput(demo.Tick, left, default(FighterInput)));
+                SimulationState current = demo.CaptureSnapshot();
+                double bend = RopeBend(current, demo.Tuning);
+                if (bend > largestBend)
+                {
+                    largestBend = bend;
+                    best = current;
+                }
+            }
+            if (largestBend < 0.75)
+                throw new InvalidOperationException("Deterministic rope demo did not bend the rope visibly.");
+            return best;
         }
 
         private void ValidateBounds(SimulationState s)
