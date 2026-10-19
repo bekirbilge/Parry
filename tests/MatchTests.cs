@@ -160,15 +160,15 @@ internal static class MatchTests
         state.Fighter(0).DashCharges = 0;
         state.Fighter(0).DashRechargeTicksRemaining = 27;
         state.Fighter(0).Velocity = new Vec2(4, 8);
-        state.Divider.Deflection = 4;
-        state.Divider.Velocity = 9;
+        state.Divider.NodeDeflections[1] = 4;
+        state.Divider.NodeVelocities[1] = 9;
         simulation.RestoreSnapshot(state);
         simulation.Step(new SimulationInput(simulation.Tick, default, default));
         Assert(simulation.CaptureSnapshot().Fighter(0).RoundWins == 1, "A survivor receives one round point.");
         while (simulation.Phase == MatchPhase.RoundResult) simulation.Step(new SimulationInput(simulation.Tick, default, default));
         state = simulation.CaptureSnapshot();
         Assert(state.RoundNumber == 2 && state.Fighter(0).RoundWins == 1 && state.Projectiles.Count == 0 &&
-            state.Divider.Deflection == 0 && state.Divider.Velocity == 0 && state.SpawnSequence == 0,
+            state.Divider.NodeDeflections[1] == 0 && state.Divider.NodeVelocities[1] == 0 && state.SpawnSequence == 0,
             "A new round keeps scores and resets projectiles, divider and scheduler.");
         foreach (FighterState fighter in state.Fighters)
             Assert(fighter.Posture == 0 && fighter.Velocity.LengthSquared == 0 && !fighter.Eliminated &&
