@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Redact credentials from the four known Unity validation/build logs in place."""
+"""Redact credentials from known Unity editor, test, build and player logs in place."""
 
 import argparse
 import os
@@ -13,6 +13,10 @@ LOG_NAMES = (
     "unity-validation.cli.log",
     "unity-build.log",
     "unity-build.cli.log",
+    "unity-test.log",
+    "unity-test.cli.log",
+    "runtime.stdout.log",
+    "runtime.stderr.log",
 )
 SECRET_NAME = (
     r"access[-_]?token|refresh[-_]?token|id[-_]?token|auth[-_]?token|"
