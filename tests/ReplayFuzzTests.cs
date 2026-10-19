@@ -132,7 +132,8 @@ internal static class ReplayFuzzTests
             double limit = DividerSystem.FighterCenterLimitX(state, tuning, fighter.Id, fighter.Position.Y);
             Assert(fighter.Id == 0 ? fighter.Position.X <= limit + epsilon : fighter.Position.X >= limit - epsilon,
                 "Neither fighter circle may cross the local rope polyline.");
-            Assert(fighter.DashCharges >= 0 && fighter.DashCharges <= 2 && fighter.Posture >= 0 && fighter.Posture <= tuning.Defense.MaximumPosture,
+            Assert(fighter.DashCharges >= 0 && fighter.DashCharges <= MovementTuning.MaximumDashCharges &&
+                fighter.Posture >= 0 && fighter.Posture <= tuning.Defense.MaximumPosture,
                 "Posture and charge counts must remain in their supported ranges.");
         }
         Assert(state.Projectiles.Count <= tuning.Projectile.MaximumActiveCount, "Active projectile cap must hold throughout fuzzing.");
