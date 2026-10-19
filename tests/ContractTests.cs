@@ -64,6 +64,11 @@ internal static class ContractTests
         ExpectThrows<ArgumentOutOfRangeException>(() => new CombatTuning(
             new MovementTuning(), new ProjectileTuning(), new DefenseTuning(),
             new DividerTuning(), new ArenaTuning(), new MatchTuning(roundCountdownSeconds: 2)));
+        var immediate = new CombatTuning(new MovementTuning(), new ProjectileTuning(),
+            new DefenseTuning(), new DividerTuning(), new ArenaTuning(),
+            new MatchTuning(roundCountdownSeconds: 0, startImmediatelyForTesting: true));
+        Assert(immediate.Match.StartImmediatelyForTesting && immediate.Match.RoundCountdownSeconds == 0,
+            "Testing mode may start before the projectile warning finishes.");
     }
 
     private static void ExpectThrows<TException>(Action action) where TException : Exception
