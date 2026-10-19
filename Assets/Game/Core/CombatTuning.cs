@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 
 namespace Game.Core
