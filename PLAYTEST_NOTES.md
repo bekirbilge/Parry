@@ -46,4 +46,8 @@ Most likely tuning targets: run/jump/dash speed, parry window, projectile speed,
 
 Reply with pass or requested changes for movement, dash, parry, guard, membrane, fairness and readability. Include edited values or `tuning.json`, and an example of any unclear/unfair death. Explicitly say whether core combat is fun enough to proceed.
 
-No playtest feedback or visual approval has been received. Production art, networking, economy and release remain gated.
+Feedback received: movement felt too slow, jumps too low, and countdowns interrupted testing. Iteration 1 doubles run speed (12 → 24), raises jump launch (20 → 36), and increases dash speed (50 → 80). Acceleration/braking scale with run speed; gravity remains 60. Hold jump for maximum height.
+
+Immediate test start is enabled by default: movement works immediately, while the first projectile retains its three-second warning. F1 → uncheck “Immediate test start” → Apply / reset match restores the normal countdown. Close and reopen the rebuilt app to use these changes.
+
+Gameplay approval and visual approval remain outstanding. Production art, networking, economy and release remain gated.
