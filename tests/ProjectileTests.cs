@@ -18,7 +18,7 @@ internal static class ProjectileTests
         var state = new SimulationState { Tick = 1, Phase = MatchPhase.Active };
         state.Fighter(0).Position = state.Fighter(0).PreviousPosition = left;
         state.Fighter(1).Position = state.Fighter(1).PreviousPosition = right;
-        state.Fighter(0).DashCharges = state.Fighter(1).DashCharges = 2;
+        state.Fighter(0).DashCharges = state.Fighter(1).DashCharges = MovementTuning.MaximumDashCharges;
         return state;
     }
 
