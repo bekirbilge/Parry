@@ -392,8 +392,13 @@ namespace Game.Unity
             if (footer.height < 16) return;
             Box(footer, new Color(.055f, .075f, .10f));
             float row = footer.height * .5f;
+            string p1Controls = "P1 WASD · Space jump · Shift dash · E defense";
+            if (UnityEngine.InputSystem.Gamepad.all.Count > 0)
+                p1Controls = UnityEngine.InputSystem.Gamepad.all[0] is UnityEngine.InputSystem.DualShock.DualShockGamepad
+                    ? "P1 PAD: stick move · Cross dash · Square parry/guard · Triangle jump"
+                    : "P1 PAD: stick move · A dash · X parry/guard · Y jump";
             Label(new Rect(footer.xMin+4, footer.yMin, footer.width-8, row),
-                "P1 WASD · Space jump · Shift dash · E defense     P2 arrows · U jump · I dash · O defense", _small);
+                p1Controls + "     P2 arrows · U jump · I dash · O defense", _small);
             Label(new Rect(footer.xMin+4, footer.yMin+row, footer.width-8, row),
                 (_localTwoPlayer ? "LOCAL 2P" : "P1 VS BOT " + BotDifficultyName.ToUpperInvariant()) +
                 "  |  B mode  P pause  N step  R restart  F1 tuning  F2 slow  F3 colliders  F4 touch  F12 capture", _small);
