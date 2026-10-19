@@ -39,20 +39,20 @@ namespace Game.Core
             double moveX = Math.Abs(targetX - self.Position.X) > 1.25
                 ? Math.Sign(targetX - self.Position.X) : 0;
             double moveY = 0;
-            bool jump = self.Grounded && !threat && phase >= 176 && phase < 181 && (tick / 240 + fighterId) % 2 == 0;
+            bool hop = self.DashCharges > 0 && self.Grounded && !threat && phase == 176 && (tick / 240 + fighterId) % 2 == 0;
             bool dash = self.DashCharges > 0 && !self.Eliminated &&
-                ((threat && phase % (difficulty == 0 ? 19 : difficulty == 1 ? 15 : 12) == 0) ||
+                (hop || (threat && phase % (difficulty == 0 ? 19 : difficulty == 1 ? 15 : 12) == 0) ||
                  (!threat && gap < 13.0 && phase % 73 == (fighterId == 0 ? 21 : 53)));
 
-            if (jump) moveY = 1;
-            if (dash)
+            if (hop) { moveX = 0; moveY = 1; }
+            else if (dash)
             {
                 // Aim toward open space: a threat-side dash is a dodge, while a close-range dash
                 // advances only when it remains within the bot's own half.
                 moveX = threat ? -Math.Sign(opponent.Position.X - self.Position.X) :
                     Math.Sign(opponent.Position.X - self.Position.X);
                 if (moveX == 0) moveX = fighterId == 0 ? 1 : -1;
-                moveY = jump ? 1 : (phase % 2 == 0 ? 1 : 0);
+                moveY = phase % 2 == 0 ? 1 : 0;
             }
 
             int parryPeriod = difficulty == 0 ? 41 : difficulty == 1 ? 31 : 23;
@@ -62,7 +62,7 @@ namespace Game.Core
             // If defense was held on the preceding tick, release before another parry edge.
             if (self.DefenseHeldPrevious && parryPulse) defensePressed = false;
 
-            return new FighterInput(new Vec2(moveX, moveY), jump, jump, dash,
+            return new FighterInput(new Vec2(moveX, moveY), false, false, dash,
                 defensePressed, defenseHeld);
         }
 
@@ -71,6 +71,7 @@ namespace Game.Core
             double reach = difficulty == 0 ? 11.0 : difficulty == 1 ? 15.0 : 19.0;
             foreach (ProjectileState projectile in state.Projectiles)
             {
+                if (projectile.LastParrierId == self.Id) continue;
                 Vec2 offset = self.Position - projectile.Position;
                 double distanceSquared = offset.LengthSquared;
                 if (distanceSquared > reach * reach) continue;
