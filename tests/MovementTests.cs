@@ -79,20 +79,31 @@ internal static class MovementTests
         SimulationState state = Fresh();
         FighterState fighter = state.Fighter(0);
         Tick(state, new FighterInput(new Vec2(1, 0.8), dashPressed: true));
-        Assert(fighter.DashCharges == 1 && fighter.DashSequence == 1,
+        Assert(fighter.DashCharges == MovementTuning.MaximumDashCharges - 1 && fighter.DashSequence == 1,
             "First dash must consume one charge.");
         Assert(Math.Abs(fighter.DashDirection.X - fighter.DashDirection.Y) < 1e-9,
             "Diagonal stick must snap to an eight-way direction.");
         Assert(fighter.DashInvulnerabilityTicksRemaining > 0, "Dash must start its iframe window.");
         for (int i = 0; i < 9; i++) Tick(state, new FighterInput(Vec2.Zero));
         Tick(state, new FighterInput(new Vec2(-1, 0), dashPressed: true));
-        Assert(fighter.DashCharges == 0 && fighter.DashSequence == 2,
-            "Second dash must consume the other charge.");
+        Assert(fighter.DashCharges == MovementTuning.MaximumDashCharges - 2 && fighter.DashSequence == 2,
+            "Second dash must consume one charge.");
+        for (int i = 0; i < 9; i++) Tick(state, new FighterInput(Vec2.Zero));
+        Tick(state, new FighterInput(new Vec2(1, 0), dashPressed: true));
+        Assert(fighter.DashCharges == 0 && fighter.DashSequence == 3,
+            "Third dash must consume the last charge.");
+        for (int i = 0; i < 9; i++) Tick(state, new FighterInput(Vec2.Zero));
+        Tick(state, new FighterInput(new Vec2(1, 0), dashPressed: true));
+        Assert(fighter.DashCharges == 0 && fighter.DashSequence == 3,
+            "A fourth dash must be denied before recharge.");
         int recharge = SimMath.SecondsToTicks(Tuning.Movement.DashRechargeSeconds, Config.TickRateHz);
         for (int i = 0; i < recharge; i++) Tick(state, new FighterInput(Vec2.Zero));
-        Assert(fighter.DashCharges == 1, "Only one dash charge must refill per recharge interval.");
+        Assert(fighter.DashCharges == 1, "Only one dash charge must refill in the first recharge interval.");
         for (int i = 0; i < recharge; i++) Tick(state, new FighterInput(Vec2.Zero));
         Assert(fighter.DashCharges == 2, "Second charge must refill sequentially.");
+        for (int i = 0; i < recharge; i++) Tick(state, new FighterInput(Vec2.Zero));
+        Assert(fighter.DashCharges == MovementTuning.MaximumDashCharges && fighter.DashRechargeTicksRemaining == 0,
+            "Third charge must refill sequentially and stop recharge at the cap.");
     }
 
     private static void GuardBreakLeavesRunAndJumpAvailable()
@@ -101,7 +112,7 @@ internal static class MovementTests
         FighterState fighter = state.Fighter(0);
         fighter.GuardBreakTicksRemaining = 10;
         Tick(state, new FighterInput(new Vec2(1, 0), jumpPressed: true, jumpHeld: true, dashPressed: true));
-        Assert(fighter.DashCharges == 2 && fighter.DashSequence == 0,
+        Assert(fighter.DashCharges == MovementTuning.MaximumDashCharges && fighter.DashSequence == 0,
             "Guard break must disable dash.");
         Assert(fighter.AirSequence == 1 && fighter.Velocity.X > 0,
             "Guard break must retain movement and jump control.");
@@ -115,7 +126,7 @@ internal static class MovementTests
         foreach (FighterState fighter in state.Fighters)
         {
             fighter.Grounded = true;
-            fighter.DashCharges = 2;
+            fighter.DashCharges = MovementTuning.MaximumDashCharges;
         }
         return state;
     }
