@@ -1,61 +1,52 @@
 # Gameplay playtest
 
-Human gameplay approval: NOT GIVEN. P2 passed technical review, 8/8 Unity tests, macOS build and graphical smoke on 2026-10-19. Stop at Gate A; do not start production work until explicit gameplay approval.
+Human gameplay approval: NOT GIVEN. Stay at Gate A until explicit approval; these are feedback iterations, not permission for production work.
 
 ## Run
 
-From Terminal:
+Close any older player instance, then launch:
 
 ```sh
 open /Users/bekir/Code/Parry/artifacts/build/ElasticArena.app --args --parry-output /Users/bekir/Code/Parry/artifacts/playtest
 ```
 
-The default mode is blue P1 versus an Easy debug bot. Press B for local two-player. The bot is a test opponent; please try human PvP if another player is available.
+Default: blue P1 versus Easy debug bot. B toggles local two-player. Editor: Unity 6000.3.26f1 LTS, `Assets/Game/Unity/Scenes/Bootstrap.unity`, Play.
 
-To rebuild/check from the repository: `bash tools/test-core.sh`, `bash tools/test-unity.sh`, then `bash tools/test-runtime.sh`. Unity 6000.3.26f1 LTS is pinned. For Editor play, open the project in that version, open `Assets/Game/Unity/Scenes/Bootstrap.unity`, and press Play.
+## Current controls
 
-## Controls
+| Action | PlayStation P1 | Keyboard P1 | Keyboard P2 |
+|---|---|---|---|
+| Move / aim boost and parry | Left stick | WASD | Arrows |
+| Boost | X/Cross | Shift or Space | I or U |
+| Tap parry / hold guard | Square | E | O |
 
-| Action | P1 | P2 (local mode) |
-|---|---|---|
-| Move / dash direction | WASD | Arrow keys |
-| Jump (hold for height) | Space | U |
-| Dash | Left Shift | I |
-| Defense (tap parry, hold guard) | E | O |
+Neutral-stick boost goes straight up; aiming boosts immediately in that direction. There is no separate jump button; Triangle is unassigned. Xbox equivalents: A boost, X defense. Three charges, sequential one-second recharge; perfect parry restores one up to three. The debug bot uses these same movement actions.
 
-Gamepad 1: left stick moves and aims dash. PlayStation: **X/Cross dash**, **Square tap parry / hold guard**, **Triangle jump**. Xbox equivalents: A dash, X defense, Y jump. Circle/B is unassigned. Keyboard/touch jump remains available while testing whether jump is needed. Unity Input System maps supported pads by physical button position; hardware still needs a playtest.
+Touch: MOVE joystick plus BOOST and DEF. F4 shows mouse-testable touch controls on desktop. Physical gamepad and mobile behavior still need testing; virtual-device integration is covered automatically.
 
-Touch: left MOVE joystick; right JUMP / DASH / DEF. Toolbar: pause, bot/local mode, tuning, restart. F4 shows mouse-testable touch widgets on desktop. Physical device touch feel remains unverified.
+Debug: B bot/local, R restart, P pause, N step paused, F1 tuning, F2 quarter speed, F3 collisions/FPS, F12 capture. macOS may require Fn for function keys. Tuning changes apply on Apply / reset match. Immediate test start is enabled; movement works while the first ball's three-second warning runs. F1 can restore normal countdown.
 
-Debug: B mode, R restart, P pause, N single-step while paused, F1 tuning, F2 quarter speed, F3 colliders/FPS, F12 capture. On macOS, function keys may require Fn. Tuning also exposes Easy / Normal / Hard bot difficulty. Sliders apply when you choose Apply / reset match.
+F12 saves a PNG and applied `tuning.json` in the chosen output folder; the tuning panel shows the path. Captures include boost/load timings, invulnerability, projectile decay/speeds and parry window.
 
-F12 saves a timestamped PNG and `tuning.json`; applied settings, mode, bot difficulty, simulation tick and checksum are captured. With the launch command above, files are in `artifacts/playtest/`; otherwise the tuning panel shows the exact folder.
+## Latest changes to evaluate
+
+- Boost is a 0.30 s powered directional burst, with only 0.08 s invulnerability. A rope contact loads for ~0.20 s before recoil. Fixed anchors and movable floor/ceiling hinges allow real forward stretch without crossing the rope; maximum bend remains eight units.
+- Parry window is 0.16 s and works during boost, rope loading and recoil. Hold defense for guard; a fresh press is needed for another parry. Parry never heals posture.
+- Charged projectile speeds are 36 / 42 / 48 units/s versus normal 24. Each power level lasts four seconds before losing one level; a perfect parry resets that timer. Critical can therefore take twelve seconds to fully return to normal without another parry.
+- Only the last perfect parrier is immune to that projectile until the opponent perfect-parries it. An owned shot passes through its owner, with no posture damage or repeated parry benefits. Walls, ordinary guard and decay preserve ownership. The outer ring shows which player is immune; the core color shows power. Unclaimed shots threaten both players.
 
 ## Five-minute checklist
 
-1. Compare short/held jumps; steer and dash in the air; spend three charges and observe sequential recharge.
-2. Tap defense just before impact, then hold it. Check reflected direction, projectile power colors, one restored dash charge, and posture staying unchanged on parry.
-3. Guard through impacts and posture break; compare guarded versus unguarded recovery. A projectile during break should eliminate.
-4. Walk/jump/dash into the membrane, including diagonal rebound and opposing dashes in local mode. Fighters should stay on their own side of the visible membrane.
-5. Use body attacks to shove an opponent toward projectiles. Body damage alone should not eliminate.
-6. Finish a first-to-two match; assess spawn warnings, resets, fairness and visibility of grazing hits. Try touch controls if hardware is available.
+1. Boost upward from neutral and directionally while aiming. Spend three charges, then check sequential recharge; try movement without a jump button.
+2. Press Cross + Square together, then tap Square midway through a boost. Compare parry timing while still, loading the rope, and recoiling.
+3. Boost into the rope from close range on ground and in air. Expect forward penetration into the opponent's resting half before one rebound. Check diagonal vertical momentum and escape with an outward boost.
+4. Parry a projectile, let it bounce back through you, and verify the owner ring. Have the opponent parry it back: it should now threaten you. Compare ordinary guard with parry ownership transfer.
+5. Judge charged speed, four-second decay, posture pressure, fairness of grazing hits, simultaneous K.O., first-to-two flow, and equal opposing boosts in local mode.
 
-Most likely tuning targets: run/jump/dash speed, parry window, projectile speed, spring strength/damping and rebound speed. These are prototype hypotheses, not approved balance values.
+Report requested changes for boost control, rope penetration/recoil, parry ease, charged speed and ownership immunity. Include any unfair-death example or captured tuning. Explicitly say when the core combat is fun enough to proceed.
 
-## Feedback
+## Feedback history
 
-Reply with pass or requested changes for movement, dash, parry, guard, membrane, fairness and readability. Include edited values or `tuning.json`, and an example of any unclear/unfair death. Explicitly say whether core combat is fun enough to proceed.
+2026-10-19: user requested faster movement/higher jumps, immediate starts, elastic rope, three charges, and Cross boost/Square parry. Run is 24 units/s; later one-button boost supersedes the separate jump control.
 
-Feedback received: movement felt too slow, jumps too low, and countdowns interrupted testing. Iteration 1 doubles run speed (12 → 24), raises jump launch (20 → 36), and increases dash speed (50 → 80). Acceleration/braking scale with run speed; gravity remains 60. Hold jump for maximum height.
-
-Immediate test start is enabled by default: movement works immediately, while the first projectile retains its three-second warning. F1 → uncheck “Immediate test start” → Apply / reset match restores the normal countdown. Close and reopen the rebuilt app to use these changes.
-
-Gameplay approval and visual approval remain outstanding. Production art, networking, economy and release remain gated.
-
-## Elastic rope iteration
-
-Requested change: divider should behave like an elastic rope rather than a straight line. Its floor/ceiling ends are now pinned, and pressure bends the rope near contact height. Drawing and fighter collision use the same polyline; projectiles pass through as before.
-
-Try holding toward the rope on the ground, then jumping into it, releasing pressure, and dashing diagonally into it. In local mode, compare equal-height opposing pressure with pressure at different heights. Check that it springs back, recoil retains vertical motion, and fighters stay on their side of the visible rope. Report whether the bend/rebound feels strong enough.
-
-Dash capacity iteration: user requested three dash charges. Fighters start/reset with three; recharge remains sequential at one second per charge. Perfect parry still restores exactly one charge, now capped at three. HUD shows all three slots.
+2026-10-20: user requested rocket-like boost and deep rope loading, slower projectile decay, stronger charged speed, owner immunity, easier boost parry, and eliminating the jump button. User selected neutral-stick upward boost without tap/hold delay and last-parrier immunity until opponent parry. Implemented as the tunable trial above; subjective approval remains outstanding.
