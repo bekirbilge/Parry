@@ -51,3 +51,9 @@ Feedback received: movement felt too slow, jumps too low, and countdowns interru
 Immediate test start is enabled by default: movement works immediately, while the first projectile retains its three-second warning. F1 → uncheck “Immediate test start” → Apply / reset match restores the normal countdown. Close and reopen the rebuilt app to use these changes.
 
 Gameplay approval and visual approval remain outstanding. Production art, networking, economy and release remain gated.
+
+## Elastic rope iteration
+
+Requested change: divider should behave like an elastic rope rather than a straight line. Its floor/ceiling ends are now pinned, and pressure bends the rope near contact height. Drawing and fighter collision use the same polyline; projectiles pass through as before.
+
+Try holding toward the rope on the ground, then jumping into it, releasing pressure, and dashing diagonally into it. In local mode, compare equal-height opposing pressure with pressure at different heights. Check that it springs back, recoil retains vertical motion, and fighters stay on their side of the visible rope. Report whether the bend/rebound feels strong enough.
