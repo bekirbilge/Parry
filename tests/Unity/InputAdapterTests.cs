@@ -35,27 +35,28 @@ namespace Game.Unity.Tests
         }
 
         [Test]
-        public void SeparateFingersKeepStickJumpAndDefenseIndependent()
+        public void SeparateFingersKeepStickBoostAndDefenseIndependent()
         {
             const int width = 1920, height = 1080;
             Rect arena = ArenaLayout.Compute(width, height, new Rect(0, 0, width, height));
             var adapter = new InputAdapter(0);
             Vector2 stick = BottomLeft(ArenaLayout.TouchControl(arena, 0).center, height);
-            Vector2 jump = BottomLeft(ArenaLayout.TouchControl(arena, 1).center, height);
-            Vector2 defense = BottomLeft(ArenaLayout.TouchControl(arena, 3).center, height);
+            Vector2 boost = BottomLeft(ArenaLayout.TouchControl(arena, 1).center, height);
+            Vector2 defense = BottomLeft(ArenaLayout.TouchControl(arena, 2).center, height);
 
             adapter.SampleTouch(11, TouchPhase.Began, stick, arena, height);
-            adapter.SampleTouch(12, TouchPhase.Began, jump, arena, height);
+            adapter.SampleTouch(12, TouchPhase.Began, boost, arena, height);
             adapter.SampleTouch(13, TouchPhase.Began, defense, arena, height);
             adapter.SampleTouch(11, TouchPhase.Moved, stick + new Vector2(90, 0), arena, height);
             FighterInput first = adapter.ConsumeTick();
             Assert.That(first.Move.X, Is.GreaterThan(0.5));
-            Assert.That(first.JumpPressed && first.JumpHeld, Is.True);
+            Assert.That(first.DashPressed, Is.True);
+            Assert.That(first.JumpPressed || first.JumpHeld, Is.False);
             Assert.That(first.DefensePressed && first.DefenseHeld, Is.True);
 
-            adapter.SampleTouch(12, TouchPhase.Ended, jump, arena, height);
+            adapter.SampleTouch(12, TouchPhase.Ended, boost, arena, height);
             FighterInput second = adapter.ConsumeTick();
-            Assert.That(second.JumpHeld, Is.False);
+            Assert.That(second.DashPressed, Is.False);
             Assert.That(second.DefenseHeld, Is.True);
             Assert.That(second.Move.X, Is.GreaterThan(0.5));
             Assert.That(second.DefensePressed, Is.False);
@@ -65,6 +66,18 @@ namespace Game.Unity.Tests
             FighterInput released = adapter.ConsumeTick();
             Assert.That(released.DefenseHeld, Is.False);
             Assert.That(released.Move.X, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TouchLayoutHasOnlyMoveBoostAndDefenseRegions()
+        {
+            const int width = 1920, height = 1080;
+            Rect arena = ArenaLayout.Compute(width, height, new Rect(0, 0, width, height));
+            for (int action = 0; action <= 2; action++)
+                Assert.That(ArenaLayout.TouchAction(arena,
+                    BottomLeft(ArenaLayout.TouchControl(arena, action).center, height), height, false),
+                    Is.EqualTo(action));
+            Assert.That(ArenaLayout.TouchControl(arena, 3), Is.EqualTo(Rect.zero));
         }
 
         private static Vector2 BottomLeft(Vector2 gui, int height) => new Vector2(gui.x, height - gui.y);
