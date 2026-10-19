@@ -30,7 +30,11 @@ namespace Game.Core
             if (snapshot.Tick < 0 || snapshot.Fighters == null || snapshot.Fighters.Length != 2 ||
                 snapshot.Fighters[0] == null || snapshot.Fighters[1] == null ||
                 snapshot.Fighters[0].Id != 0 || snapshot.Fighters[1].Id != 1 ||
-                snapshot.Projectiles == null || snapshot.Divider == null)
+                snapshot.Projectiles == null || snapshot.Divider == null ||
+                snapshot.Divider.NodeDeflections == null ||
+                snapshot.Divider.NodeVelocities == null ||
+                snapshot.Divider.NodeDeflections.Length != DividerSystem.RopePointCount ||
+                snapshot.Divider.NodeVelocities.Length != DividerSystem.RopePointCount)
                 throw new ArgumentException("Snapshot must contain canonical fighter slots and valid collections.", nameof(snapshot));
             _state = snapshot.Clone();
         }
