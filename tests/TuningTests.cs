@@ -14,6 +14,13 @@ internal static class TuningTests
     {
         CombatTuning tuning = CombatTuning.Default;
         Assert(MovementTuning.MaximumDashCharges == 2, "Dash charge cap must remain locked at two.");
+        Assert(tuning.Movement.RunSpeedUnitsPerSecond == 24 && tuning.Movement.JumpSpeedUnitsPerSecond == 36 &&
+            tuning.Movement.DashSpeedUnitsPerSecond == 80, "Playtest movement speed defaults must be applied.");
+        Assert(tuning.Movement.GroundAccelerationUnitsPerSecondSquared == 240 &&
+            tuning.Movement.AirAccelerationUnitsPerSecondSquared == 140 &&
+            tuning.Movement.GroundFrictionUnitsPerSecondSquared == 300 &&
+            tuning.Movement.GravityUnitsPerSecondSquared == 60,
+            "Playtest movement control defaults must preserve gravity and faster response.");
         Assert(tuning.Movement.DashDurationSeconds == 0.15, "Dash duration baseline must match the design.");
         Assert(tuning.Movement.DashInvulnerabilitySeconds == 0.08, "Dash invulnerability baseline must match the design.");
         Assert(tuning.Projectile.SpawnIntervalSeconds == 15 && tuning.Projectile.MaximumActiveCount == 6, "Projectile schedule must match the design baseline.");
