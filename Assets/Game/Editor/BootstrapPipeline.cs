@@ -75,7 +75,7 @@ namespace Game.Editor
             PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
             PlayerSettings.allowedAutorotateToLandscapeLeft = true;
             PlayerSettings.allowedAutorotateToLandscapeRight = true;
-            EnsureJoystickAxes();
+            EnsureBothInputBackends();
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
 
             EditorSceneManager.MarkSceneDirty(scene);
@@ -108,8 +108,8 @@ namespace Game.Editor
                 PlayerSettings.allowedAutorotateToPortrait || PlayerSettings.allowedAutorotateToPortraitUpsideDown ||
                 !PlayerSettings.allowedAutorotateToLandscapeLeft || !PlayerSettings.allowedAutorotateToLandscapeRight)
                 throw new InvalidOperationException("Landscape player settings are invalid.");
-            ValidateJoystickAxis("ParryGamepadX", 0);
-            ValidateJoystickAxis("ParryGamepadY", 1);
+            if (InputSettings().FindProperty("activeInputHandler").intValue != 2)
+                throw new InvalidOperationException("Both input backends must be enabled for gamepad and legacy keyboard/touch input.");
         }
 
         private static T FindOneOrAdd<T>(Scene scene, string name) where T : Component
@@ -136,63 +136,20 @@ namespace Game.Editor
             return count;
         }
 
-        private static SerializedObject InputManager()
+        private static SerializedObject InputSettings()
         {
-            var assets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/InputManager.asset");
-            if (assets.Length == 0) throw new InvalidOperationException("InputManager asset unavailable.");
+            var assets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset");
+            if (assets.Length == 0) throw new InvalidOperationException("Player settings unavailable.");
             return new SerializedObject(assets[0]);
         }
 
-        private static void EnsureJoystickAxes()
+        private static void EnsureBothInputBackends()
         {
-            var serialized = InputManager();
-            var axes = serialized.FindProperty("m_Axes");
-            EnsureAxis(axes, "ParryGamepadX", 0);
-            EnsureAxis(axes, "ParryGamepadY", 1);
-            serialized.ApplyModifiedProperties();
-        }
-
-        private static void EnsureAxis(SerializedProperty axes, string name, int index)
-        {
-            SerializedProperty axis = null;
-            for (var i = 0; i < axes.arraySize; i++)
-            {
-                var candidate = axes.GetArrayElementAtIndex(i);
-                if (candidate.FindPropertyRelative("m_Name").stringValue == name) { axis = candidate; break; }
-            }
-            if (axis == null)
-            {
-                axes.InsertArrayElementAtIndex(axes.arraySize);
-                axis = axes.GetArrayElementAtIndex(axes.arraySize - 1);
-            }
-            axis.FindPropertyRelative("m_Name").stringValue = name;
-            foreach (var field in new[] { "descriptiveName", "descriptiveNegativeName", "negativeButton", "positiveButton", "altNegativeButton", "altPositiveButton" })
-                axis.FindPropertyRelative(field).stringValue = "";
-            axis.FindPropertyRelative("gravity").floatValue = 0;
-            axis.FindPropertyRelative("dead").floatValue = 0.19f;
-            axis.FindPropertyRelative("sensitivity").floatValue = 1;
-            axis.FindPropertyRelative("snap").boolValue = false;
-            axis.FindPropertyRelative("invert").boolValue = index == 1;
-            axis.FindPropertyRelative("type").intValue = 2;
-            axis.FindPropertyRelative("axis").intValue = index;
-            axis.FindPropertyRelative("joyNum").intValue = 1;
-        }
-
-        private static void ValidateJoystickAxis(string name, int index)
-        {
-            var serialized = InputManager();
-            var axes = serialized.FindProperty("m_Axes");
-            for (var i = 0; i < axes.arraySize; i++)
-            {
-                var axis = axes.GetArrayElementAtIndex(i);
-                if (axis.FindPropertyRelative("m_Name").stringValue != name) continue;
-                if (axis.FindPropertyRelative("type").intValue == 2 && axis.FindPropertyRelative("axis").intValue == index &&
-                    axis.FindPropertyRelative("joyNum").intValue == 1 &&
-                    axis.FindPropertyRelative("invert").boolValue == (index == 1) &&
-                    axis.FindPropertyRelative("negativeButton").stringValue == "" &&
-                    axis.FindPropertyRelative("positiveButton").stringValue == "") return;
-            }
-            throw new InvalidOperationException("Joystick-only input axis invalid: " + name);
+            var settings = InputSettings();
+            var handler = settings.FindProperty("activeInputHandler");
+            if (handler == null) throw new InvalidOperationException("Active input handler setting unavailable.");
+            handler.intValue = 2; // Both: semantic gamepad controls plus existing keyboard/touch APIs.
+            settings.ApplyModifiedProperties();
         }
 
         private static string ProjectPath => Directory.GetParent(Application.dataPath).FullName;
