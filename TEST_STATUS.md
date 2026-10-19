@@ -24,3 +24,10 @@ P2 verified on 2026-10-19:
 P2 runtime fixes verified: GUI initialization moved into OnGUI; touch coordinate scope corrected; membrane view matches collision; mobile toolbar and shared touch regions; applied-only captures; footer/guard/hitbox readability; walking contact does not trigger hitstop; camera audio listener present.
 
 Human gameplay approval and physical mobile/gamepad testing remain outstanding. Stop at Gate A.
+
+Gate A feedback iteration 1 verified on 2026-10-19:
+
+- Full core suite PASS: 240 deterministic bot rounds / 215,564 ticks, 60,000 fuzz ticks and 18,000 replay comparisons under faster movement defaults. New regressions cover immediate first-step movement/jump, one round-start/warning event, full opening warning, no fighter reset at spawn, immediate round reset and preserved standard countdown.
+- Python log tests: 5/5 PASS. Unity validation/build PASS, 9/9 EditMode tests; added controller default, applied mode toggle and capture coverage.
+- Native graphical smoke PASS: 900 authoritative steps, 3 live driver callbacks advancing simulation; checksum `9F52A88A715D8E25`. Captured tuning confirms run 24 / jump 36 / dash 80 / immediate test start true. Screenshot inspected.
+- Independent narrow review PASS; subjective feel remains at Gate A.
