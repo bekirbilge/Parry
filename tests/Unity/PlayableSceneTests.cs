@@ -7,6 +7,8 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.SceneManagement;
 
 namespace Game.Unity.Tests
@@ -148,31 +150,106 @@ namespace Game.Unity.Tests
         }
 
         [Test]
-        public void JoystickAxesUseFirstControllerAndCorrectVerticalDirection()
+        public void BothInputBackendsAreEnabled()
         {
             BootstrapPipeline.EnsureBootstrapScene();
-            var assets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/InputManager.asset");
+            var assets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset");
             Assert.That(assets, Is.Not.Empty);
-            var axes = new SerializedObject(assets[0]).FindProperty("m_Axes");
-            AssertAxis(axes, "ParryGamepadX", 0, false);
-            AssertAxis(axes, "ParryGamepadY", 1, true);
+            var inputHandler = new SerializedObject(assets[0]).FindProperty("activeInputHandler");
+            Assert.That(inputHandler, Is.Not.Null);
+            Assert.That(inputHandler.intValue, Is.EqualTo(2));
         }
 
-        private static void AssertAxis(SerializedProperty axes, string name, int index, bool inverted)
+        [Test]
+        public void GamepadSouthDashesWithoutJumpingAndKeepsShortPressUntilTick()
         {
-            for (int i = 0; i < axes.arraySize; i++)
+            Gamepad pad = InputSystem.AddDevice<Gamepad>();
+            try
             {
-                var axis = axes.GetArrayElementAtIndex(i);
-                if (axis.FindPropertyRelative("m_Name").stringValue != name) continue;
-                Assert.That(axis.FindPropertyRelative("type").intValue, Is.EqualTo(2));
-                Assert.That(axis.FindPropertyRelative("axis").intValue, Is.EqualTo(index));
-                Assert.That(axis.FindPropertyRelative("joyNum").intValue, Is.EqualTo(1));
-                Assert.That(axis.FindPropertyRelative("invert").boolValue, Is.EqualTo(inverted));
-                Assert.That(axis.FindPropertyRelative("positiveButton").stringValue, Is.Empty);
-                Assert.That(axis.FindPropertyRelative("negativeButton").stringValue, Is.Empty);
-                return;
+                var adapter = new InputAdapter(0);
+                Sample(adapter, pad, new GamepadState().WithButton(GamepadButton.South));
+                Sample(adapter, pad, new GamepadState());
+                FighterInput tick = adapter.ConsumeTick();
+                Assert.That(tick.DashPressed, Is.True);
+                Assert.That(tick.JumpPressed || tick.JumpHeld, Is.False);
+                Assert.That(tick.DefensePressed || tick.DefenseHeld, Is.False);
+                Assert.That(adapter.ConsumeTick().DashPressed, Is.False);
             }
-            Assert.Fail("Input axis is missing: " + name);
+            finally { InputSystem.RemoveDevice(pad); }
+        }
+
+        [Test]
+        public void GamepadWestParriesOnceThenHoldsGuardUntilReleased()
+        {
+            Gamepad pad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                var adapter = new InputAdapter(0);
+                GamepadState west = new GamepadState().WithButton(GamepadButton.West);
+                Sample(adapter, pad, west);
+                FighterInput first = adapter.ConsumeTick();
+                Assert.That(first.DefensePressed && first.DefenseHeld, Is.True);
+                Assert.That(first.DashPressed || first.JumpPressed, Is.False);
+                Sample(adapter, pad, west);
+                FighterInput held = adapter.ConsumeTick();
+                Assert.That(held.DefensePressed, Is.False);
+                Assert.That(held.DefenseHeld, Is.True);
+                Sample(adapter, pad, new GamepadState());
+                Assert.That(adapter.ConsumeTick().DefenseHeld, Is.False);
+                Sample(adapter, pad, west);
+                Assert.That(adapter.ConsumeTick().DefensePressed, Is.True);
+            }
+            finally { InputSystem.RemoveDevice(pad); }
+        }
+
+        [Test]
+        public void GamepadNorthJumpsWhileHeldAndStickIsClamped()
+        {
+            Gamepad pad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                var adapter = new InputAdapter(0);
+                GamepadState northAndStick = new GamepadState { leftStick = new Vector2(1, 1) }
+                    .WithButton(GamepadButton.North);
+                Sample(adapter, pad, northAndStick);
+                FighterInput first = adapter.ConsumeTick();
+                Assert.That(first.JumpPressed && first.JumpHeld, Is.True);
+                Assert.That(first.Move.X, Is.GreaterThan(0.5));
+                Assert.That(first.Move.Y, Is.GreaterThan(0.5));
+                Assert.That(first.Move.LengthSquared, Is.LessThanOrEqualTo(1.0001));
+                Sample(adapter, pad, northAndStick);
+                FighterInput held = adapter.ConsumeTick();
+                Assert.That(held.JumpPressed, Is.False);
+                Assert.That(held.JumpHeld, Is.True);
+            }
+            finally { InputSystem.RemoveDevice(pad); }
+        }
+
+        [Test]
+        public void GamepadNeverControlsPlayerTwo()
+        {
+            Gamepad pad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                var playerTwo = new InputAdapter(1);
+                GamepadState allButtons = new GamepadState { leftStick = new Vector2(1, 0) }
+                    .WithButton(GamepadButton.South)
+                    .WithButton(GamepadButton.West)
+                    .WithButton(GamepadButton.North);
+                Sample(playerTwo, pad, allButtons);
+                FighterInput tick = playerTwo.ConsumeTick();
+                Assert.That(tick.Move.X, Is.EqualTo(0));
+                Assert.That(tick.JumpPressed || tick.JumpHeld || tick.DashPressed ||
+                    tick.DefensePressed || tick.DefenseHeld, Is.False);
+            }
+            finally { InputSystem.RemoveDevice(pad); }
+        }
+
+        private static void Sample(InputAdapter adapter, Gamepad pad, GamepadState state)
+        {
+            InputSystem.QueueStateEvent(pad, state);
+            InputSystem.Update();
+            adapter.SampleFrame(false, pad);
         }
 
         private static void AssertLayout(int width, int height, Rect safe)
