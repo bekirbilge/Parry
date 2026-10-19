@@ -90,8 +90,8 @@ namespace Game.Core
             right.MotionStartFraction = contact.Fraction;
             left.Position = leftContact + left.Velocity * remaining;
             right.Position = rightContact + right.Velocity * remaining;
-            DividerSystem.ConstrainFighter(left, state, tuning);
-            DividerSystem.ConstrainFighter(right, state, tuning);
+            DividerSystem.ConstrainFighter(left, state, tuning, config);
+            DividerSystem.ConstrainFighter(right, state, tuning, config);
 
             Vec2 center = (leftContact + rightContact) * 0.5;
             if (leftDamage > 0)
@@ -109,7 +109,7 @@ namespace Game.Core
         {
             if (fighter.DashSequence <= fighter.LastDashBodyHitSequence ||
                 fighter.DashDirection.X * towardOpponent <= 1e-9) return false;
-            return fighter.DashTicksRemaining > 0 ||
+            return fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0 ||
                 Math.Abs(fighter.Velocity.X) >= tuning.Movement.DashSpeedUnitsPerSecond * 0.9;
         }
 
