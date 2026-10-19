@@ -64,7 +64,7 @@ internal static class CombatTests
         Assert(fighter.Posture == 99 && fighter.PostureTouchedTick == state.Tick,
             "Perfect parry must neither damage nor recover posture.");
         Assert(fighter.DashCharges == 1, "A perfect parry restores exactly one dash charge.");
-        Assert(state.Projectiles[0].PowerLevel == 1 && state.Projectiles[0].DecayTicksRemaining == 60,
+        Assert(state.Projectiles[0].PowerLevel == 1 && state.Projectiles[0].DecayTicksRemaining == 240,
             "Perfect parry must charge and reset decay.");
         Assert(state.Projectiles[0].Velocity.X < 0, "Parried projectile must reflect away from the fighter.");
     }
@@ -371,6 +371,7 @@ internal static class CombatTests
             "Reflected contact must clear only after actual geometric separation.");
         state.Projectiles[0].Position = new Vec2(22.7, 10);
         state.Projectiles[0].Velocity = new Vec2(24, 0);
+        state.Projectiles[0].LastParrierId = 1; // Opponent returned it; our own shot is immune.
         state.Tick++;
         List<SimulationEvent> freshEvents = Advance(state,
             new FighterInput(Vec2.Zero, defensePressed: true));
