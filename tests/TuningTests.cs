@@ -21,15 +21,18 @@ internal static class TuningTests
             tuning.Movement.GroundFrictionUnitsPerSecondSquared == 300 &&
             tuning.Movement.GravityUnitsPerSecondSquared == 60,
             "Playtest movement control defaults must preserve gravity and faster response.");
-        Assert(tuning.Movement.DashDurationSeconds == 0.15, "Dash duration baseline must match the design.");
+        Assert(tuning.Movement.DashDurationSeconds == 0.30, "Powered boost duration must match the playtest tuning.");
         Assert(tuning.Movement.DashInvulnerabilitySeconds == 0.08, "Dash invulnerability baseline must match the design.");
         Assert(tuning.Projectile.SpawnIntervalSeconds == 15 && tuning.Projectile.MaximumActiveCount == 6, "Projectile schedule must match the design baseline.");
         Assert(tuning.Projectile.SpawnWarningSeconds == 3, "Projectile warning baseline must match the design.");
-        Assert(tuning.Projectile.SpeedMultiplierAtLevel(3) == 1.45, "Critical projectile speed multiplier must match the design.");
+        Assert(tuning.Projectile.SpeedMultiplierAtLevel(3) == 2.0, "Critical projectile speed multiplier must match the design.");
         Assert(tuning.GetBlockPostureDamage(1) == 38, "Half posture points round away from zero.");
         Assert(tuning.GetBlockPostureDamage(2) == 45 && tuning.GetBlockPostureDamage(3) == 60, "Block posture table must match the design.");
         Assert(tuning.Defense.GuardIdleRecoveryPerSecond > tuning.Defense.UnguardedIdleRecoveryPerSecond, "Guard recovery must be faster.");
         Assert(tuning.Divider.MaximumDeflectionUnits == 8 && tuning.Arena.WidthUnits == 100, "Arena and divider baseline must match the design.");
+        Assert(tuning.Divider.BoostLoadSeconds == 0.20 &&
+            tuning.Divider.BoostLoadSpringStrength == 200 && tuning.Divider.BoostLoadDamping == 20,
+            "Boost loading must have separate tuned duration and spring response.");
     }
 
     private static void RejectsInvalidGroupsAndRelationships()
