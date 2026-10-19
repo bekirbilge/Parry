@@ -16,6 +16,7 @@ internal static class Program
         DividerBodyTests.Run();
         CombatTests.Run();
         ProjectileTests.Run();
+        ParryOwnershipTests.Run();
         MatchTests.Run();
         ReplayFuzzTests.Run();
         Console.WriteLine("Core smoke tests passed.");
