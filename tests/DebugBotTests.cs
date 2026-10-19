@@ -5,6 +5,7 @@ internal static class DebugBotTests
 {
     public static void Run()
     {
+        UpwardMovementRequiresBoostCharge();
         RepeatsWithoutChangingState();
         KeepsAxesFiniteAndWithinInputRange();
         ClampsDifficultyAndRejectsBadFighterIds();
@@ -68,6 +69,19 @@ internal static class DebugBotTests
         FighterInput input = DebugBot.Decide(state, 0);
         Assert(input.Move.X == 0 && input.Move.Y == 0 && !input.JumpPressed && !input.DashPressed &&
             !input.DefensePressed && !input.DefenseHeld, "Non-active phases must not issue gameplay actions.");
+    }
+
+    private static void UpwardMovementRequiresBoostCharge()
+    {
+        SimulationState state = ActiveState();
+        state.Tick = 176;
+        FighterInput charged = DebugBot.Decide(state, 0);
+        Assert(charged.DashPressed && charged.Move.X == 0 && charged.Move.Y == 1 &&
+            !charged.JumpPressed && !charged.JumpHeld, "Bot vertical movement must use the same upward boost action.");
+        state.Fighter(0).DashCharges = 0;
+        FighterInput empty = DebugBot.Decide(state, 0);
+        Assert(!empty.DashPressed && !empty.JumpPressed && !empty.JumpHeld,
+            "A bot with empty charges must not gain a hidden free jump.");
     }
 
     private static SimulationState ActiveState()
