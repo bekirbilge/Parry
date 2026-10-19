@@ -7,9 +7,64 @@ internal static class MatchTests
     public static void Run()
     {
         ValidatesAndClampsInputs();
+        ImmediateStartAllowsMovementBeforeFirstWarnedSpawn();
         CountdownScheduleCapAndPermanence();
         DrawIsIndependentOfProjectileEnumeration();
         RoundResetAndFirstToTwo();
+    }
+
+    private static void ImmediateStartAllowsMovementBeforeFirstWarnedSpawn()
+    {
+        var tuning = new CombatTuning(new MovementTuning(), new ProjectileTuning(),
+            new DefenseTuning(), new DividerTuning(), new ArenaTuning(),
+            new MatchTuning(roundCountdownSeconds: 0, startImmediatelyForTesting: true));
+        var simulation = new MatchSimulation(tuning: tuning);
+        Assert(simulation.Phase == MatchPhase.Active && simulation.CaptureSnapshot().Projectiles.Count == 0,
+            "Testing mode must be active before the first input without a projectile.");
+        IReadOnlyList<SimulationEvent> events = simulation.Step(new SimulationInput(simulation.Tick,
+            new FighterInput(new Vec2(1, 0), jumpPressed: true, jumpHeld: true), default));
+        SimulationState state = simulation.CaptureSnapshot();
+        Assert(Count(events, SimulationEventType.RoundStarted) == 1 &&
+            Count(events, SimulationEventType.SpawnWarning) == 1 &&
+            Count(events, SimulationEventType.ProjectileSpawned) == 0,
+            "First playable tick must start the round and warn once without spawning.");
+        Assert(state.Fighter(0).Position.X > 25 && state.Fighter(0).Position.Y > 1.5 &&
+            state.Projectiles.Count == 0, "Run and jump must respond on the first tick.");
+
+        for (int tick = 1; tick < 180; tick++)
+        {
+            events = simulation.Step(new SimulationInput(simulation.Tick, default, default));
+            Assert(Count(events, SimulationEventType.RoundStarted) == 0 &&
+                Count(events, SimulationEventType.ProjectileSpawned) == 0,
+                "The first projectile must wait the full 180 ticks without restarting the round.");
+        }
+        Vec2 beforeSpawn = simulation.CaptureSnapshot().Fighter(0).Position;
+        events = simulation.Step(new SimulationInput(simulation.Tick, default, default));
+        state = simulation.CaptureSnapshot();
+        Assert(Count(events, SimulationEventType.ProjectileSpawned) == 1 &&
+            Count(events, SimulationEventType.RoundStarted) == 0 && state.Projectiles.Count == 1,
+            "The first projectile must spawn after the full three-second warning.");
+        Assert(Math.Abs(state.Fighter(0).Position.X - beforeSpawn.X) < 1 &&
+            Math.Abs(state.Fighter(0).Position.Y - beforeSpawn.Y) < 1,
+            "First spawn must preserve the fighter's current position.");
+
+        state.Fighter(1).Eliminated = true;
+        simulation.RestoreSnapshot(state);
+        simulation.Step(new SimulationInput(simulation.Tick, default, default));
+        while (simulation.Phase == MatchPhase.RoundResult)
+            simulation.Step(new SimulationInput(simulation.Tick, default, default));
+        state = simulation.CaptureSnapshot();
+        Assert(state.Phase == MatchPhase.Active && state.RoundNumber == 2 && state.Projectiles.Count == 0,
+            "Testing mode must reactivate immediately when the next round resets.");
+        long firstPlayableTick = simulation.Tick;
+        events = simulation.Step(new SimulationInput(firstPlayableTick, new FighterInput(new Vec2(1, 0)), default));
+        Assert(Count(events, SimulationEventType.RoundStarted) == 1 &&
+            Count(events, SimulationEventType.SpawnWarning) == 1 &&
+            Count(events, SimulationEventType.ProjectileSpawned) == 0 &&
+            simulation.CaptureSnapshot().Fighter(0).Position.X > 25,
+            "The reset round must emit one start and warning while accepting movement immediately.");
+        Assert(simulation.CaptureSnapshot().NextSpawnTick == firstPlayableTick + 180,
+            "A reset round must preserve the full warning interval from its first playable tick.");
     }
 
     private static void ValidatesAndClampsInputs()
