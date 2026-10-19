@@ -13,10 +13,10 @@ namespace Game.Unity
         private bool _jumpHeld, _defenseHeld;
         private Vec2 _move, _rawMove;
         private bool _rawJump, _rawDash, _rawDefense;
-        private int _stickFinger = -1, _jumpFinger = -1, _dashFinger = -1, _defenseFinger = -1;
+        private int _stickFinger = -1, _dashFinger = -1, _defenseFinger = -1;
         private Vector2 _stickOrigin, _stickPoint;
         private int _touchScreenHeight;
-        private bool _mouseStick, _mouseJump, _mouseDash, _mouseDefense;
+        private bool _mouseStick, _mouseDash, _mouseDefense;
 
         public InputAdapter(int fighterId) { _fighterId = fighterId; }
 
@@ -40,16 +40,15 @@ namespace Game.Unity
                 y += stick.y;
             }
             Vector2 normalized = Vector2.ClampMagnitude(new Vector2(x, y), 1);
-            bool jump = Input.GetKey(left ? KeyCode.Space : KeyCode.U) ||
-                (left && gamepad != null && gamepad.buttonNorth.isPressed);
             bool dash = Input.GetKey(left ? KeyCode.LeftShift : KeyCode.I) ||
+                Input.GetKey(left ? KeyCode.Space : KeyCode.U) ||
                 (left && gamepad != null && gamepad.buttonSouth.isPressed);
             bool defense = Input.GetKey(left ? KeyCode.E : KeyCode.O) ||
                 (left && gamepad != null && gamepad.buttonWest.isPressed);
-            SampleRaw(new Vec2(normalized.x, normalized.y), jump, dash, defense,
-                Input.GetKeyDown(left ? KeyCode.Space : KeyCode.U) ||
-                    (left && gamepad != null && gamepad.buttonNorth.wasPressedThisFrame),
+            SampleRaw(new Vec2(normalized.x, normalized.y), false, dash, defense,
+                false,
                 Input.GetKeyDown(left ? KeyCode.LeftShift : KeyCode.I) ||
+                    Input.GetKeyDown(left ? KeyCode.Space : KeyCode.U) ||
                     (left && gamepad != null && gamepad.buttonSouth.wasPressedThisFrame),
                 Input.GetKeyDown(left ? KeyCode.E : KeyCode.O) ||
                     (left && gamepad != null && gamepad.buttonWest.wasPressedThisFrame));
@@ -71,7 +70,7 @@ namespace Game.Unity
 
         private void UpdateCombined()
         {
-            bool jump = _rawJump || _jumpFinger >= 0 || _mouseJump;
+            bool jump = _rawJump;
             bool dash = _rawDash || _dashFinger >= 0 || _mouseDash;
             bool defense = _rawDefense || _defenseFinger >= 0 || _mouseDefense;
             Vector2 touchMove = _stickFinger >= 0 || _mouseStick ?
@@ -101,8 +100,8 @@ namespace Game.Unity
             _jumpHeld = _dashHeldPrevious = _defenseHeld = false;
             _rawJump = _rawDash = _rawDefense = false;
             _rawMove = new Vec2(0, 0);
-            _stickFinger = _jumpFinger = _dashFinger = _defenseFinger = -1;
-            _mouseStick = _mouseJump = _mouseDash = _mouseDefense = false;
+            _stickFinger = _dashFinger = _defenseFinger = -1;
+            _mouseStick = _mouseDash = _mouseDefense = false;
             _move = new Vec2(0, 0);
             _stickOrigin = _stickPoint = Vector2.zero;
             _touchScreenHeight = 0;
@@ -119,14 +118,13 @@ namespace Game.Unity
             {
                 Vector2 p = Input.mousePosition;
                 int zone = ArenaLayout.TouchAction(arena, p, Screen.height, tuningOpen);
-                _mouseStick = zone == 0; _mouseJump = zone == 1; _mouseDash = zone == 2; _mouseDefense = zone == 3;
-                if (_mouseJump) _jumpPending = true;
+                _mouseStick = zone == 0; _mouseDash = zone == 1; _mouseDefense = zone == 2;
                 if (_mouseDash) _dashPending = true;
                 if (_mouseDefense) _defensePending = true;
                 if (_mouseStick) _stickOrigin = _stickPoint = p;
             }
             if (Input.GetMouseButton(0) && _mouseStick) _stickPoint = Input.mousePosition;
-            if (Input.GetMouseButtonUp(0)) _mouseStick = _mouseJump = _mouseDash = _mouseDefense = false;
+            if (Input.GetMouseButtonUp(0)) _mouseStick = _mouseDash = _mouseDefense = false;
             UpdateCombined();
         }
 
@@ -140,15 +138,13 @@ namespace Game.Unity
             {
                 int action = ArenaLayout.TouchAction(arena, position, screenHeight, tuningOpen);
                 if (action == 0 && _stickFinger < 0) { _stickFinger = fingerId; _stickOrigin = _stickPoint = position; }
-                if (action == 1 && _jumpFinger < 0) { _jumpFinger = fingerId; _jumpPending = true; }
-                if (action == 2 && _dashFinger < 0) { _dashFinger = fingerId; _dashPending = true; }
-                if (action == 3 && _defenseFinger < 0) { _defenseFinger = fingerId; _defensePending = true; }
+                if (action == 1 && _dashFinger < 0) { _dashFinger = fingerId; _dashPending = true; }
+                if (action == 2 && _defenseFinger < 0) { _defenseFinger = fingerId; _defensePending = true; }
             }
             if (fingerId == _stickFinger) _stickPoint = position;
             if (phase == TouchPhase.Ended || phase == TouchPhase.Canceled)
             {
                 if (fingerId == _stickFinger) _stickFinger = -1;
-                if (fingerId == _jumpFinger) _jumpFinger = -1;
                 if (fingerId == _dashFinger) _dashFinger = -1;
                 if (fingerId == _defenseFinger) _defenseFinger = -1;
             }
