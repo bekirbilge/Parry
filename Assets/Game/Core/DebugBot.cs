@@ -29,7 +29,7 @@ namespace Game.Core
             // Keep to the fighter's half, drifting toward its center when pushed too far outward
             // or toward the membrane. Approach the opponent only while safely in the outer half.
             double centerX = CombatTuning.Default.Arena.WidthUnits * (fighterId == 0 ? 0.25 : 0.75);
-            double dividerX = CombatTuning.Default.Arena.WidthUnits * 0.5 + state.Divider.Deflection;
+            double dividerX = DividerSystem.CenterXAtHeight(state, CombatTuning.Default, self.Position.Y);
             double safeEdgeX = fighterId == 0 ? dividerX - 5.0 : dividerX + 5.0;
             double targetX = centerX;
             double gap = Math.Abs(opponent.Position.X - self.Position.X);
