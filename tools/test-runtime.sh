@@ -31,8 +31,10 @@ if not binary.is_file():
     raise SystemExit("Player bundle executable is missing")
 report = output_dir / "smoke.json"
 screenshot = output_dir / "smoke.png"
+rope_screenshot = output_dir / "smoke-rope.png"
 report.unlink(missing_ok=True)
 screenshot.unlink(missing_ok=True)
+rope_screenshot.unlink(missing_ok=True)
 with (logs_dir / "runtime.stdout.log").open("wb") as stdout, (logs_dir / "runtime.stderr.log").open("wb") as stderr:
     try:
         result = subprocess.run(
@@ -51,17 +53,21 @@ if (data.get("completed") is not True or data.get("ticks") != 900 or
         data.get("finalTick") - data.get("initialTick") != 900 or
         data.get("driverTicks", 0) < 3 or data.get("driverSimTicks", 0) < 3 or data.get("error")):
     raise SystemExit("Player smoke report failed simulation checks")
-if pathlib.Path(data.get("screenshot", "")).resolve() != screenshot.resolve():
-    raise SystemExit("Player smoke screenshot path is unexpected")
-if not screenshot.is_file() or screenshot.stat().st_size < 1000:
-    raise SystemExit("Player smoke screenshot is missing or invalid")
-with screenshot.open("rb") as image_file:
-    header = image_file.read(24)
-if header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
-    raise SystemExit("Player smoke screenshot is not a PNG")
-image_width, image_height = struct.unpack(">II", header[16:24])
-if image_width < 640 or image_height < 360:
-    raise SystemExit("Player smoke screenshot dimensions are too small")
+if not 0.75 <= data.get("ropeBend", 0) <= 8.000001:
+    raise SystemExit("Player rope demo did not produce bounded visible deformation")
+for field, path in (("screenshot", screenshot), ("ropeScreenshot", rope_screenshot)):
+    if pathlib.Path(data.get(field, "")).resolve() != path.resolve():
+        raise SystemExit(f"Player smoke {field} path is unexpected")
+    if not path.is_file() or path.stat().st_size < 1000:
+        raise SystemExit(f"Player smoke {field} is missing or invalid")
+    with path.open("rb") as image_file:
+        header = image_file.read(24)
+    if header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        raise SystemExit(f"Player smoke {field} is not a PNG")
+    image_width, image_height = struct.unpack(">II", header[16:24])
+    if image_width < 640 or image_height < 360:
+        raise SystemExit(f"Player smoke {field} dimensions are too small")
+
 PY
 then
   status=0
