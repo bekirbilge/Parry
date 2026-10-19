@@ -31,3 +31,10 @@ Gate A feedback iteration 1 verified on 2026-10-19:
 - Python log tests: 5/5 PASS. Unity validation/build PASS, 9/9 EditMode tests; added controller default, applied mode toggle and capture coverage.
 - Native graphical smoke PASS: 900 authoritative steps, 3 live driver callbacks advancing simulation; checksum `9F52A88A715D8E25`. Captured tuning confirms run 24 / jump 36 / dash 80 / immediate test start true. Screenshot inspected.
 - Independent narrow review PASS; subjective feel remains at Gate A.
+
+Gate A elastic rope iteration verified on 2026-10-19:
+
+- Final core suite PASS: 240 deterministic bot rounds / 207,610 ticks, 60,000 fuzz ticks, 18,000 replay comparisons. Focused tests cover pinned anchors, independent contact heights, spring return, no instant bend relocation, circle/segment clearance, symmetric vertical/diagonal swept contact, rebound, deep node-array clone/hash and feasible tuning bounds.
+- Review caught a legal-endpoint/illegal-midpath case around a local bend. Fixed with exact motion-segment/rope-segment clearance and outward endpoint search; swept-only contacts trigger recoil. Invalid stretch values that leave no room for a fighter are rejected.
+- Final Unity validation/build PASS: 10/10 EditMode tests, including isolated preview geometry and unchanged live simulation. Native smoke PASS: 900 steps / 3 live driver ticks, checksum `4483D9EC75658E22`; isolated rope demo bend 3.523 units. Both PNGs validated and bent-rope screenshot inspected after joining rasterized segments.
+- Independent final source review PASS, with all pending automated checks subsequently passing. `git diff --check` and runtime shell syntax pass. Subjective rope feel remains at Gate A.
