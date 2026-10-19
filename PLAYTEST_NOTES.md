@@ -23,7 +23,7 @@ To rebuild/check from the repository: `bash tools/test-core.sh`, `bash tools/tes
 | Dash | Left Shift | I |
 | Defense (tap parry, hold guard) | E | O |
 
-Gamepad 1: left stick, buttons 0 jump / 1 dash / 2 defense. Hardware mappings remain unverified.
+Gamepad 1: left stick moves and aims dash. PlayStation: **X/Cross dash**, **Square tap parry / hold guard**, **Triangle jump**. Xbox equivalents: A dash, X defense, Y jump. Circle/B is unassigned. Keyboard/touch jump remains available while testing whether jump is needed. Unity Input System maps supported pads by physical button position; hardware still needs a playtest.
 
 Touch: left MOVE joystick; right JUMP / DASH / DEF. Toolbar: pause, bot/local mode, tuning, restart. F4 shows mouse-testable touch widgets on desktop. Physical device touch feel remains unverified.
 
