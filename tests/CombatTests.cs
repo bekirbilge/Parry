@@ -7,6 +7,7 @@ internal static class CombatTests
     public static void Run()
     {
         PerfectParryAtNinetyNineRestoresOneDashWithoutHealing();
+        PerfectParryRestorationStopsAtThreeWithoutHealing();
         ParryWorksDuringDashInvulnerabilityAndSteersThirtyDegrees();
         GuardRecoveryImpactDelayAndBreak();
         GuardBreakInterruptsActiveDashAndBlocksNextDash();
@@ -26,7 +27,7 @@ internal static class CombatTests
         var state = new SimulationState { Tick = 1, Phase = MatchPhase.Active };
         state.Fighter(0).Position = state.Fighter(0).PreviousPosition = new Vec2(25, 10);
         state.Fighter(1).Position = state.Fighter(1).PreviousPosition = new Vec2(75, 10);
-        state.Fighter(0).DashCharges = state.Fighter(1).DashCharges = 2;
+        state.Fighter(0).DashCharges = state.Fighter(1).DashCharges = MovementTuning.MaximumDashCharges;
         return state;
     }
 
@@ -68,6 +69,24 @@ internal static class CombatTests
         Assert(state.Projectiles[0].Velocity.X < 0, "Parried projectile must reflect away from the fighter.");
     }
 
+    private static void PerfectParryRestorationStopsAtThreeWithoutHealing()
+    {
+        foreach (int startingCharges in new[] { MovementTuning.MaximumDashCharges - 1, MovementTuning.MaximumDashCharges })
+        {
+            SimulationState state = State();
+            FighterState fighter = state.Fighter(0);
+            fighter.Posture = 99;
+            fighter.DashCharges = startingCharges;
+            state.Projectiles.Add(Inbound(40 + startingCharges));
+            List<SimulationEvent> events = Advance(state, new FighterInput(Vec2.Zero, defensePressed: true));
+            Assert(Count(events, SimulationEventType.PerfectParry) == 1 &&
+                fighter.DashCharges == MovementTuning.MaximumDashCharges,
+                "Parry must restore exactly one charge up to the three-charge cap.");
+            Assert(fighter.Posture == 99 && fighter.PostureTouchedTick == state.Tick,
+                "Parrying at the charge cap must not heal posture.");
+        }
+    }
+
     private static void ParryWorksDuringDashInvulnerabilityAndSteersThirtyDegrees()
     {
         SimulationState state = State();
@@ -79,7 +98,7 @@ internal static class CombatTests
         Vec2 direction = state.Projectiles[0].Velocity.NormalizedOr(Vec2.Zero);
         Assert(Count(events, SimulationEventType.PerfectParry) == 1 && !state.Fighter(0).Eliminated,
             "Legal parry has priority over dash invulnerability.");
-        Assert(state.Fighter(0).DashCharges == 2, "Dash restoration is capped at two.");
+        Assert(state.Fighter(0).DashCharges == 2, "A parry during dash invulnerability restores exactly one charge.");
         Assert(Math.Abs(direction.X + Math.Cos(Math.PI / 6)) < 1e-10 &&
             Math.Abs(direction.Y - 0.5) < 1e-10,
             "Up input must steer the natural left reflection by exactly 30 degrees.");
