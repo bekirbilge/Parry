@@ -196,6 +196,9 @@ namespace Game.Core
                 if (separationSquared <= clearRadiusSquared) return;
                 projectile.ReflectedContactMask &= ~fighterBit;
             }
+            // Ownership immunity survives walls and power decay. Own shots pass through
+            // without farming another parry; only an opponent's parry transfers ownership.
+            if (projectile.LastParrierId == fighter.Id) return;
             if (suppressedPairs.Contains(pair))
             {
                 if (separationSquared <= clearRadiusSquared) return;
@@ -252,6 +255,7 @@ namespace Game.Core
             if (defense == DefenseKind.Parry)
             {
                 projectile.ReflectedContactMask |= 1 << fighter.Id;
+                projectile.LastParrierId = fighter.Id;
                 fighter.PostureTouchedTick = state.Tick;
                 projectile.PowerLevel = Math.Min(ProjectileTuning.MaximumPowerLevel, projectile.PowerLevel + 1);
                 projectile.DecayTicksRemaining = Math.Max(1,
@@ -266,7 +270,7 @@ namespace Game.Core
             else if (defense == DefenseKind.Guard)
             {
                 projectile.ReflectedContactMask |= 1 << fighter.Id;
-                bool activeDash = fighter.DashTicksRemaining > 0;
+                bool activeDash = fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0;
                 DefenseSystem.ApplyPostureDamage(state, fighter,
                     tuning.GetBlockPostureDamage(projectile.PowerLevel), tuning, config, events);
                 if (activeDash && fighter.GuardBreakTicksRemaining > 0)
