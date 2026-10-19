@@ -75,8 +75,8 @@ internal static class DebugBotTests
         var state = new SimulationState { Tick = 600, Phase = MatchPhase.Active };
         state.Fighters = new[]
         {
-            new FighterState { Id = 0, Position = new Vec2(25, 1.5), Grounded = true, DashCharges = 2 },
-            new FighterState { Id = 1, Position = new Vec2(75, 1.5), Grounded = true, DashCharges = 2 }
+            new FighterState { Id = 0, Position = new Vec2(25, 1.5), Grounded = true, DashCharges = MovementTuning.MaximumDashCharges },
+            new FighterState { Id = 1, Position = new Vec2(75, 1.5), Grounded = true, DashCharges = MovementTuning.MaximumDashCharges }
         };
         return state;
     }
