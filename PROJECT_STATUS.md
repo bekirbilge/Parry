@@ -3,7 +3,7 @@
 Date: 2026-10-19 (Europe/Istanbul)
 Milestone: HUMAN GATE A — core gameplay playtest/approval
 Last verified milestone: P2 playable graybox
-Branch: playtest/elastic-rope (local main updated to verified movement iteration; no remote or issue supplied)
+Branch: playtest/three-dashes (local main updated to verified rope iteration; no remote or issue supplied)
 
 Unity 6000.3.26f1 LTS is installed and pinned (user explicitly confirmed LTS). Environment: macOS arm64, .NET SDK 10.0.101, Xcode 27.1, active Unity Personal license. No remote exists to pull from; original planning documents are preserved on main. Git and Unity execution need sandbox escalation.
 
@@ -12,7 +12,7 @@ Completed:
 - P1: movement/jump/dash; spring divider/body combat; continuous projectile/defense solver; spawn/decay/posture; draw/reset/best-of-three; snapshots and same-runtime replay/fuzz.
 - P2: playable graybox/HUD/telegraphs, keyboard/gamepad/multitouch adapters, bot/local two-player modes, adjustable bot difficulty, tuning/capture, pause/slow/step, scene and build automation.
 
-Verified latest iteration: full core suite (240 bot rounds / 207,610 ticks, 60k fuzz and 18k replay), Unity scene validation, 10/10 EditMode tests, macOS build and graphical smoke (900 steps, 3 live driver ticks, checksum `4483D9EC75658E22`). Independent rope review passed after fixing swept-path crossing and tuning bounds. Bent-rope screenshot inspected; isolated native contact demo bends 3.523 units. Earlier Python sanitizer tests remain 5/5 passing.
+Verified latest iteration: full core suite (240 bot rounds / 205,116 ticks, 60k fuzz and 18k replay), Unity scene validation, 10/10 EditMode tests, macOS build and graphical smoke (900 steps, 3 live driver ticks, checksum `A8604A136299A3BA`). Independent rope and three-dash reviews passed. Bent-rope screenshot inspected; isolated native contact demo bends 3.523 units. Earlier Python sanitizer tests remain 5/5 passing.
 
 Build: `artifacts/build/ElasticArena.app`.
 Preview/report: `artifacts/runtime/smoke.png`, `artifacts/runtime/smoke-rope.png`, `artifacts/runtime/smoke.json`.
@@ -27,6 +27,8 @@ Gate A feedback iteration 1: faster run/jump/dash and immediate testing start im
 
 Gate A feedback iteration 2 complete: anchored 19-point rope with local bounded spring deformation, shared render/collision geometry, swept fighter-circle constraints and symmetric rebound. First iteration movement improvements and immediate testing start remain enabled.
 
-Blocker: mandatory human gameplay approval; rope iteration is ready for another playtest.
+Gate A feedback iteration 3 complete: user-authorized three-charge dash capacity, three-slot HUD, spawn/reset/recharge/parry caps and GDD updated. Core suite, 10/10 Unity tests, build and native smoke pass; screenshot confirms three slots per fighter.
+
+Blocker: mandatory human gameplay approval; no production approval given.
 Next action: user plays for five minutes and reports movement, dash, parry, guard, membrane, fairness and readability; explicitly approve core combat or request changes. Capture edited values if tuning.
 Resume: read this file and PLAYTEST_NOTES.md. Implement requested feel fixes and repeat checks as necessary; begin plan P3 only after explicit gameplay approval. A bare continue does not imply approval of subjective gameplay. No art/network/release approvals granted.
