@@ -67,7 +67,7 @@ namespace Game.Core
 
     public sealed class MovementTuning
     {
-        public const int MaximumDashCharges = 2;
+        public const int MaximumDashCharges = 3;
 
         public double RunSpeedUnitsPerSecond { get; }
         public double JumpSpeedUnitsPerSecond { get; }
