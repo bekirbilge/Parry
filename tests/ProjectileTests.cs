@@ -8,7 +8,7 @@ internal static class ProjectileTests
     {
         RicochetAtWallAndCornerKeepsProjectile();
         FastProjectileSweepsThroughFighterPath();
-        PowerCapsAndDecaysOneLevelPerSecond();
+        PowerCapsAndDecaysEveryFourSeconds();
         ProjectilesCrossEachOtherAndDividerWithoutInteraction();
         ContactLimitThrowsInsteadOfDroppingBounces();
     }
@@ -68,7 +68,7 @@ internal static class ProjectileTests
         Assert(state.Projectiles.Count == 1, "Lethal contact must not despawn a permanent projectile.");
     }
 
-    private static void PowerCapsAndDecaysOneLevelPerSecond()
+    private static void PowerCapsAndDecaysEveryFourSeconds()
     {
         SimulationState state = State(new Vec2(25, 10), new Vec2(75, 10));
         var projectile = new ProjectileState
@@ -80,28 +80,29 @@ internal static class ProjectileTests
         {
             projectile.Position = new Vec2(22.7, 10);
             projectile.Velocity = new Vec2(24, 0);
+            projectile.LastParrierId = 1; // Each shot represents a new opponent return.
             List<SimulationEvent> events = Advance(state,
                 new FighterInput(Vec2.Zero, defensePressed: true));
             Assert(Count(events, SimulationEventType.PerfectParry) == 1,
                 "Each deliberate contact must resolve as a perfect parry.");
             state.Tick++;
         }
-        Assert(projectile.PowerLevel == 3 && projectile.DecayTicksRemaining == 60 &&
-            Math.Abs(projectile.Velocity.Length - 24 * 1.45) < 1e-10,
+        Assert(projectile.PowerLevel == 3 && projectile.DecayTicksRemaining == 240 &&
+            Math.Abs(projectile.Velocity.Length - 24 * 2.0) < 1e-10,
             "Power must cap at three and apply the configured critical speed multiplier.");
         projectile.Position = new Vec2(50, 30);
-        projectile.Velocity = new Vec2(24 * 1.45, 0);
-        for (int tick = 0; tick < 59; tick++)
+        projectile.Velocity = new Vec2(24 * 2.0, 0);
+        for (int tick = 0; tick < 239; tick++)
         {
             Advance(state);
             state.Tick++;
         }
-        Assert(projectile.PowerLevel == 3, "Power must not decay before one full second.");
+        Assert(projectile.PowerLevel == 3, "Power must not decay before four full seconds.");
         Advance(state);
         state.Tick++;
-        Assert(projectile.PowerLevel == 2 && Math.Abs(projectile.Velocity.Length - 24 * 1.30) < 1e-10,
-            "Power must lose exactly one level at one second and rescale speed.");
-        for (int tick = 0; tick < 120; tick++)
+        Assert(projectile.PowerLevel == 2 && Math.Abs(projectile.Velocity.Length - 24 * 1.75) < 1e-10,
+            "Power must lose exactly one level at four seconds and rescale speed.");
+        for (int tick = 0; tick < 480; tick++)
         {
             Advance(state);
             state.Tick++;
