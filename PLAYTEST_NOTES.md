@@ -64,3 +64,5 @@ Fuel trial validation complete: core replay/stress,23/23 Unity tests, macOS buil
 Latest request: test larger projectiles and gradual speed loss first, then compare the fuel boost trial with the F1 three-charge mode. Power/posture thresholds stay discrete, so power color can change before speed finishes easing down.
 
 Latest feedback: permanent ownership immunity removed in favor of contact-only protection. Test fresh wall returns, boosted pass-through and repeated parries. User likes the three-charge movement; F1 retains that comparison. Close old game instances with Command-Q before opening a newly rebuilt app.
+
+2026-10-20 selection: user confirmed the latest tested build used fuel and asked to keep it as-is. Fuel movement and current tuning are selected; larger projectiles, gradual slowdown and contact-only safety retained. Three charges remain available through F1 for comparison. Overall Gate A production approval has not been explicitly given.
