@@ -379,7 +379,9 @@ internal static class DividerBodyTests
         for (int i = 0; i < 35 && left.DividerReboundDistanceRemaining <= 0; i++)
             Step(state, new FighterInput(new Vec2(1, 1)), default, events);
         Assert(left.DividerReboundDistanceRemaining > 0, "Diagonal dash must rebound from the membrane.");
-        Assert(Math.Abs(left.Velocity.Y - Tuning.Movement.DashSpeedUnitsPerSecond / Math.Sqrt(2)) < 1e-9,
+        Vec2 launchDirection = new Vec2(1, 1).NormalizedOr(Vec2.Zero);
+        double launchVerticalSpeed = launchDirection.Y * Tuning.Movement.BoostSpeedForDirection(launchDirection);
+        Assert(Math.Abs(left.Velocity.Y - launchVerticalSpeed) < 1e-9,
             "Membrane recoil must preserve diagonal dash vertical momentum.");
         double impactX = left.Position.X;
         for (int i = 0; i < 90 && left.DividerReboundDistanceRemaining > 1e-9; i++)
