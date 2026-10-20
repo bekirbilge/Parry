@@ -65,6 +65,8 @@ namespace Game.Core
         // A parry can reach beyond the physical hit radius. Track that overlap
         // separately so it cannot repeat while a later physical hit stays legal.
         public int ParryContactMask;
+        // Active contact safety for the last parrier; -1 after the projectile
+        // clears that fighter's expanded parry radius. This is not permanent ownership.
         public int LastParrierId = -1;
 
         public ProjectileState Clone() => (ProjectileState)MemberwiseClone();
@@ -90,7 +92,7 @@ namespace Game.Core
     /// <summary>Versioned, deep-clonable state for same-runtime replay comparison.</summary>
     public sealed class SimulationState
     {
-        public const int SnapshotVersion = 6;
+        public const int SnapshotVersion = 7;
         public const int LeftFighterId = 0;
         public const int RightFighterId = 1;
 
