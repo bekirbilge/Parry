@@ -88,10 +88,10 @@ internal static class ProjectileTests
             state.Tick++;
         }
         Assert(projectile.PowerLevel == 3 && projectile.DecayTicksRemaining == 240 &&
-            Math.Abs(projectile.Velocity.Length - 24 * 2.0) < 1e-10,
+            Math.Abs(projectile.Velocity.Length - 24 * 4.0) < 1e-10,
             "Power must cap at three and apply the configured critical speed multiplier.");
         projectile.Position = new Vec2(50, 30);
-        projectile.Velocity = new Vec2(24 * 2.0, 0);
+        projectile.Velocity = new Vec2(24 * 4.0, 0);
         for (int tick = 0; tick < 239; tick++)
         {
             Advance(state);
@@ -100,7 +100,7 @@ internal static class ProjectileTests
         Assert(projectile.PowerLevel == 3, "Power must not decay before four full seconds.");
         Advance(state);
         state.Tick++;
-        Assert(projectile.PowerLevel == 2 && Math.Abs(projectile.Velocity.Length - 24 * 1.75) < 1e-10,
+        Assert(projectile.PowerLevel == 2 && Math.Abs(projectile.Velocity.Length - 24 * 3.5) < 1e-10,
             "Power must lose exactly one level at four seconds and rescale speed.");
         for (int tick = 0; tick < 480; tick++)
         {
