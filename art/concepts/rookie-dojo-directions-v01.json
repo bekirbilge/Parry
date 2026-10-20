@@ -1,0 +1,38 @@
+{
+  "asset_id": "rookie_dojo_style_comparison_v01",
+  "status": "concept_preview_pending_human_direction",
+  "image_path": "art/concepts/rookie-dojo-directions-v01.png",
+  "tool": "built-in image_gen",
+  "model": "not exposed by tool",
+  "generated_date": "2026-10-20",
+  "prompt": "Use case: stylized-concept. Asset type: one visual-direction comparison board for an original landscape pixel-art two-player arcade parry game, preview only. Create a polished, clearly organized WIDE board with THREE equal columns labelled only A, B, C. Each column contains a small 16:9 side-view playable arena composition above and ONE larger full-body side-view ninja character study below, plus a small circular projectile study. All three explore the same Rookie Dojo, same compact masked ninja, same flat floor/ceiling/left/right enclosed playfield, same full-height elastic rope anchored exactly at the horizontal center, subtly bent by a fighter near it. Show two small ninjas at believable mobile-game scale in each arena, one blue-accented and one red-accented; exact same combat silhouettes and body scale. Background detail subdued, center playfield mostly open, bright round projectiles and fighters clearly readable. Arena bounds rectangular, no platforms/obstacles or added gameplay. Each larger ninja study faces right in a ready stance, no weapon held, compact readable limbs, expressive eyes, scarf short enough not to confuse collision. A: restrained crisp retro pixel art, large clean pixel clusters, warm timber dojo, simple indigo ninja. B: expressive modern pixel art, slightly richer controlled shading, warm wooden dojo with cool dusk courtyard beyond its rear windows, rounded appealing compact ninja. C: graphic high-contrast pixel art, sparse darker dojo and lantern accents, angular ninja silhouette with restrained luminous accents. Genuine pixel-art appearance with sharp square clusters; not smooth vector, not 3D, no painted blur or anti-aliased sprite edges. Reference concepts only, not a production sprite sheet. Preserve readable quiet backgrounds, clear circular projectile core, same symmetric gameplay area across variants. No logos, no franchise likenesses, no decorative text, no invented meters or equipment, no watermark. Only column letters A B C are text.",
+  "input_images": [],
+  "revision": 1,
+  "intended_use": "Style discussion only; not a sprite sheet, collision reference or imported playable asset.",
+  "options": {
+    "A": "Crisp retro pixel art",
+    "B": "Expressive modern pixel art",
+    "C": "Graphic high-contrast pixel art"
+  },
+  "provider_terms_review": {
+    "url": "https://openai.com/policies/row-terms-of-use/",
+    "reviewed_date": "2026-10-20",
+    "effective_date": "2026-01-01",
+    "scope": "Reviewed individual-service output ownership and non-uniqueness provisions; account-specific agreement and production asset suitability not approved."
+  },
+  "human_approval": {
+    "gameplay": "approved 2026-10-20",
+    "visual_direction": "C selected2026-10-20",
+    "production_assets": "pending"
+  },
+  "actual_image_dimensions": {
+    "width": 1774,
+    "height": 887
+  },
+  "sha256": "4c9d6dfcf6dc3079a65310959f6b099a9ef235ff6f5086f6cf0c3a4452c390ab",
+  "review_notes": [
+    "Visual direction only; generated character/gameplay scale is not authoritative. Preserve current 3-unit fighter diameter in the 100-unit-wide arena.",
+    "Generated pixel clusters, palette, team indicators and frame consistency require manual cleanup/validation before any playable import.",
+    "Projectile power colors and temporary safety ring must follow simulation; blue/red concept projectiles are not permanent ownership indicators."
+  ]
+}
