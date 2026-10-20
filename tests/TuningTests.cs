@@ -23,6 +23,12 @@ internal static class TuningTests
             "Playtest movement control defaults must preserve gravity and faster response.");
         Assert(tuning.Movement.DashDurationSeconds == 0.30, "Powered boost duration must match the playtest tuning.");
         Assert(tuning.Movement.DashInvulnerabilitySeconds == 0.08, "Dash invulnerability baseline must match the design.");
+        Assert(tuning.Movement.MaximumUpwardBoostSpeedUnitsPerSecond == 40 &&
+            tuning.Defense.ParryExtraReachUnits == 1.5, "The area and upward-height trial defaults must be applied.");
+        Assert(tuning.Movement.PerfectParryWindowSeconds == .16 &&
+            tuning.Defense.GuardHoldThresholdSeconds == .10 &&
+            tuning.Defense.HitRecoveryDelaySeconds == .25 && tuning.Defense.GuardBreakDurationSeconds == .6,
+            "Increasing parry area must not change timing or recovery windows.");
         Assert(tuning.Projectile.SpawnIntervalSeconds == 15 && tuning.Projectile.MaximumActiveCount == 6, "Projectile schedule must match the design baseline.");
         Assert(tuning.Projectile.SpawnWarningSeconds == 3, "Projectile warning baseline must match the design.");
         Assert(tuning.Projectile.SpeedMultiplierAtLevel(3) == 4.0, "Critical projectile speed multiplier must match the design.");
