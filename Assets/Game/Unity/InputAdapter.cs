@@ -108,17 +108,19 @@ namespace Game.Unity
             _touchScreenHeight = 0;
         }
 
-        public void SampleTouches(Rect arena, bool mouseWidgets, bool tuningOpen = false)
+        public void SampleTouches(Rect arena, bool mouseWidgets, bool tuningOpen = false,
+            bool mobileUi = false)
         {
             if (_fighterId != 0) return;
             _touchScreenHeight = Screen.height;
             foreach (Touch touch in Input.touches)
-                SampleTouch(touch.fingerId, touch.phase, touch.position, arena, Screen.height, tuningOpen);
+                SampleTouch(touch.fingerId, touch.phase, touch.position, arena, Screen.height,
+                    tuningOpen, mobileUi);
             if (!mouseWidgets) return;
             if (Input.GetMouseButtonDown(0))
             {
                 Vector2 p = Input.mousePosition;
-                int zone = ArenaLayout.TouchAction(arena, p, Screen.height, tuningOpen);
+                int zone = ArenaLayout.TouchAction(arena, p, Screen.height, tuningOpen, mobileUi);
                 _mouseStick = zone == 0; _mouseDash = zone == 1; _mouseDefense = zone == 2;
                 if (_mouseDash) _dashPending = true;
                 if (_mouseDefense) _defensePending = true;
@@ -131,13 +133,13 @@ namespace Game.Unity
 
         /// <summary>Feeds one touch transition. Finger roles remain fixed until release.</summary>
         public void SampleTouch(int fingerId, TouchPhase phase, Vector2 position, Rect arena, int screenHeight,
-            bool tuningOpen = false)
+            bool tuningOpen = false, bool mobileUi = false)
         {
             if (_fighterId != 0) return;
             _touchScreenHeight = screenHeight;
             if (phase == TouchPhase.Began)
             {
-                int action = ArenaLayout.TouchAction(arena, position, screenHeight, tuningOpen);
+                int action = ArenaLayout.TouchAction(arena, position, screenHeight, tuningOpen, mobileUi);
                 if (action == 0 && _stickFinger < 0) { _stickFinger = fingerId; _stickOrigin = _stickPoint = position; }
                 if (action == 1 && _dashFinger < 0) { _dashFinger = fingerId; _dashPending = true; }
                 if (action == 2 && _defenseFinger < 0) { _defenseFinger = fingerId; _defensePending = true; }
