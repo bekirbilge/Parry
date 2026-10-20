@@ -22,7 +22,7 @@ namespace Game.Unity
         private AudioSource _audio;
         private AudioClip _tone;
         private GUIStyle _label, _large, _small;
-        private bool _paused, _slow, _showTuning, _showColliders, _showTouchWidgets;
+        private bool _paused, _slow, _showTuning, _showColliders, _showTouchWidgets, _forceTouchPreview;
         private bool _localTwoPlayer;
         private bool _prototypeInstantTestingStart = true;
         private bool _prototypeFuelBoost = true;
@@ -91,6 +91,7 @@ namespace Game.Unity
 
         private string BotDifficultyName => _botDifficulty == 0 ? "Easy" :
             _botDifficulty == 1 ? "Normal" : "Hard";
+        private bool PhoneUi => Application.isMobilePlatform || _showTouchWidgets || _forceTouchPreview;
         public void RestartMatch()
         {
             var movement = new MovementTuning(runSpeedUnitsPerSecond: _runSpeed,
@@ -123,6 +124,7 @@ namespace Game.Unity
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "--parry-smoke") _smoke = true;
+                if (args[i] == "--parry-touch") _forceTouchPreview = true;
                 if (args[i] == "--parry-output" && i + 1 < args.Length) _capturePath = args[++i];
             }
             Application.targetFrameRate = 60;
@@ -178,13 +180,14 @@ namespace Game.Unity
                 _inputs[0].Clear();
             }
             if (Input.GetKeyDown(KeyCode.F12)) CaptureScreenshot();
-            Rect arena = ArenaLayout.Compute(Screen.width, Screen.height, Screen.safeArea);
+            Rect arena = ArenaLayout.Compute(Screen.width, Screen.height, Screen.safeArea, PhoneUi);
             if (Input.touchSupported)
                 foreach (Touch touchEvent in Input.touches)
                     if (touchEvent.phase == TouchPhase.Began) HandleToolbar(arena, touchEvent.position);
-            if (_showTouchWidgets && Input.GetMouseButtonDown(0)) HandleToolbar(arena, Input.mousePosition);
-            bool touch = Input.touchSupported || _showTouchWidgets;
-            _inputs[0].SampleTouches(arena, _showTouchWidgets, _showTuning);
+            if ((_showTouchWidgets || _forceTouchPreview) && Input.GetMouseButtonDown(0)) HandleToolbar(arena, Input.mousePosition);
+            bool touch = Input.touchSupported || _showTouchWidgets || _forceTouchPreview;
+            _inputs[0].SampleTouches(arena, _showTouchWidgets || _forceTouchPreview, _showTuning,
+                PhoneUi);
             _inputs[0].SampleFrame(touch);
             if (_localTwoPlayer) _inputs[1].SampleFrame(false);
         }
@@ -213,7 +216,7 @@ namespace Game.Unity
             Vector2 point = new Vector2(bottomLeftPosition.x, Screen.height - bottomLeftPosition.y);
             for (int i = 0; i < 4; i++)
             {
-                if (!ArenaLayout.ToolbarButton(arena, i).Contains(point)) continue;
+                if (!ArenaLayout.ToolbarButton(arena, i, PhoneUi).Contains(point)) continue;
                 if (i == 0) TogglePause();
                 if (i == 1) ToggleMode();
                 if (i == 2) ToggleTuning();
@@ -297,7 +300,7 @@ namespace Game.Unity
         private void OnGUI()
         {
             if (_sim == null || _pixel == null) return;
-            Rect arena = ArenaLayout.Compute(Screen.width, Screen.height, Screen.safeArea);
+            Rect arena = ArenaLayout.Compute(Screen.width, Screen.height, Screen.safeArea, PhoneUi);
             if (_label == null)
             {
                 _label = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter,
@@ -306,9 +309,19 @@ namespace Game.Unity
                 _large = new GUIStyle(_label);
                 _small = new GUIStyle(_label);
             }
-            _label.fontSize = Mathf.Clamp(Mathf.RoundToInt(arena.height * .028f), 12, 20);
-            _large.fontSize = Mathf.Clamp(Mathf.RoundToInt(arena.height * .048f), 20, 34);
-            _small.fontSize = Mathf.Clamp(Mathf.RoundToInt(arena.height * .018f), 10, 13);
+            if (PhoneUi)
+            {
+                float scale = arena.height / 360f;
+                _label.fontSize = Mathf.Max(12, Mathf.RoundToInt(18 * scale));
+                _large.fontSize = Mathf.Max(20, Mathf.RoundToInt(29 * scale));
+                _small.fontSize = Mathf.Max(10, Mathf.RoundToInt(14 * scale));
+            }
+            else
+            {
+                _label.fontSize = Mathf.Clamp(Mathf.RoundToInt(arena.height * .028f), 12, 20);
+                _large.fontSize = Mathf.Clamp(Mathf.RoundToInt(arena.height * .048f), 20, 34);
+                _small.fontSize = Mathf.Clamp(Mathf.RoundToInt(arena.height * .018f), 10, 13);
+            }
             Box(new Rect(0, 0, Screen.width, Screen.height), new Color(.035f, .045f, .07f));
             Box(arena, new Color(.09f, .12f, .17f));
             if (_referenceArtEnabled && _referenceArena != null)
@@ -327,8 +340,8 @@ namespace Game.Unity
             foreach (ProjectileState p in state.Projectiles) DrawProjectile(arena, p, unit);
             foreach (FighterState f in state.Fighters) DrawFighter(arena, f, unit);
             DrawHud(arena, state);
-            DrawInstructions(ArenaLayout.Footer(Screen.width, Screen.height, Screen.safeArea));
-            if (Input.touchSupported || _showTouchWidgets)
+            DrawInstructions(ArenaLayout.Footer(Screen.width, Screen.height, Screen.safeArea, PhoneUi));
+            if (Input.touchSupported || _showTouchWidgets || _forceTouchPreview)
             {
                 DrawToolbar(arena);
                 if (!_showTuning) DrawTouch(arena);
@@ -463,6 +476,7 @@ namespace Game.Unity
 
         private void DrawHud(Rect a, SimulationState s)
         {
+            if (PhoneUi) { DrawPhoneHud(a, s); return; }
             float pad = Mathf.Max(8, a.width * .015f);
             float barWidth = a.width * .25f;
             for (int i = 0; i < 2; i++)
@@ -506,10 +520,74 @@ namespace Game.Unity
             if (_showColliders) Label(new Rect(a.xMin+4, a.yMin+70, 110, 20), "FPS " + (1f/Mathf.Max(.0001f, Time.unscaledDeltaTime)).ToString("0") + "  T" + s.Tick, _small);
         }
 
+        private void DrawPhoneHud(Rect a, SimulationState s)
+        {
+            float unit = a.height / 360f;
+            float pad = a.width * .015f;
+            float barWidth = a.width * .27f;
+            for (int i = 0; i < 2; i++)
+            {
+                FighterState f = s.Fighter(i);
+                float x = i == 0 ? a.xMin + pad : a.xMax - pad - barWidth;
+                Label(new Rect(x, a.yMin + 4 * unit, barWidth, 27 * unit),
+                    "P" + (i + 1) + "  " + f.RoundWins + "/2", _label);
+                Box(new Rect(x, a.yMin + 32 * unit, barWidth, 10 * unit), new Color(.04f, .05f, .08f));
+                Box(new Rect(x, a.yMin + 32 * unit,
+                    barWidth * Mathf.Clamp01((float)(f.Posture / Tuning.Defense.MaximumPosture)), 10 * unit),
+                    f.Posture > 75 ? new Color(1, .22f, .2f) : new Color(.98f, .77f, .27f));
+                if (Tuning.Movement.UseFuelBoost)
+                {
+                    float fraction = Mathf.Clamp01((float)(f.FuelSeconds / Tuning.Movement.FuelCapacitySeconds));
+                    Rect fuel = new Rect(x, a.yMin + 48 * unit, barWidth, 8 * unit);
+                    Box(fuel, new Color(.10f, .16f, .19f));
+                    Box(new Rect(fuel.x, fuel.y, fuel.width * fraction, fuel.height),
+                        f.FuelBoostActive ? new Color(.35f, 1f, .78f) : new Color(.35f, .95f, 1f));
+                    string fuelState = f.FuelBoostActive ? "BOOST" :
+                        f.FuelBoostNeedsRelease ? "RELEASE" :
+                        f.FuelRegenDelayTicksRemaining > 0 ? "COOLING" :
+                        fraction < .999f ? "REFILL" : "READY";
+                    Label(new Rect(x, a.yMin + 58 * unit, barWidth, 18 * unit),
+                        "FUEL " + (fraction * 100).ToString("0") + "% " + fuelState, _small);
+                }
+                else
+                    for (int j = 0; j < MovementTuning.MaximumDashCharges; j++)
+                        Circle(new Rect(x + j * 18 * unit, a.yMin + 48 * unit, 12 * unit, 12 * unit),
+                            j < f.DashCharges ? new Color(.35f, .95f, 1) : new Color(.3f, .35f, .4f));
+            }
+            string center = "ROUND " + s.RoundNumber;
+            if (s.Phase == MatchPhase.Countdown) center = "READY " + Math.Ceiling(s.PhaseTicksRemaining * _sim.Config.TickDurationSeconds);
+            if (s.Phase == MatchPhase.RoundResult) center = s.RoundWinnerId < 0 ? "DRAW" : "P" + (s.RoundWinnerId + 1) + " ROUND";
+            if (s.Phase == MatchPhase.MatchComplete) center = "P" + (s.MatchWinnerId + 1) + " WINS";
+            Label(new Rect(a.center.x - a.width * .23f, a.yMin + 4 * unit,
+                a.width * .46f, 42 * unit), center, _large);
+            if (s.Phase == MatchPhase.MatchComplete)
+                Label(new Rect(a.center.x - a.width * .20f, a.yMin + 48 * unit,
+                    a.width * .40f, 20 * unit), "TAP RESTART", _small);
+            else if (s.Phase == MatchPhase.Active && s.Projectiles.Count < Tuning.Projectile.MaximumActiveCount)
+                Label(new Rect(a.center.x - a.width * .20f, a.yMin + 48 * unit,
+                    a.width * .40f, 20 * unit), "NEXT " +
+                    Math.Max(0, (s.NextSpawnTick - s.Tick) * _sim.Config.TickDurationSeconds).ToString("0.0") + "s", _small);
+            if (Time.unscaledTime < _lastEventUntil)
+                Label(new Rect(a.center.x - a.width * .23f, a.center.y - 22 * unit,
+                    a.width * .46f, 44 * unit), _lastEvent, _large);
+            if (_paused) Label(new Rect(a.center.x - 100 * unit, a.center.y + 30 * unit,
+                200 * unit, 35 * unit), "PAUSED", _large);
+            if (_showColliders) Label(new Rect(a.xMin + 4 * unit, a.yMin + 76 * unit,
+                120 * unit, 20 * unit), "FPS " + (1f / Mathf.Max(.0001f, Time.unscaledDeltaTime)).ToString("0") +
+                " T" + s.Tick, _small);
+        }
+
         private void DrawInstructions(Rect footer)
         {
             if (footer.height < 16) return;
             Box(footer, new Color(.055f, .075f, .10f));
+            if (PhoneUi)
+            {
+                Label(new Rect(footer.xMin + 4, footer.yMin, footer.width - 8, footer.height),
+                    "MOVE · HOLD BOOST · TAP/HOLD DEF  |  " +
+                    (_localTwoPlayer ? "LOCAL 2P" : "P1 VS BOT " + BotDifficultyName.ToUpperInvariant()), _small);
+                return;
+            }
             float row = footer.height * .5f;
             string boostLabel = Tuning.Movement.UseFuelBoost ? "hold thrust" : "boost";
             string p1Controls = "P1 WASD aim/move · Space/Shift " + boostLabel + " · E parry/guard";
@@ -545,7 +623,7 @@ namespace Game.Unity
                 "TUNE", "RESTART" };
             for (int i = 0; i < 4; i++)
             {
-                Rect button = ArenaLayout.ToolbarButton(a, i);
+                Rect button = ArenaLayout.ToolbarButton(a, i, PhoneUi);
                 Box(button, new Color(.16f, .27f, .35f, .82f));
                 Label(button, names[i], _small);
             }
@@ -553,7 +631,7 @@ namespace Game.Unity
 
         private void DrawTuning(Rect a)
         {
-            Rect box = ArenaLayout.TuningPanel(a);
+            Rect box = ArenaLayout.TuningPanel(a, PhoneUi);
             Box(box, new Color(.025f, .04f, .07f, .96f));
             float padding = Mathf.Clamp(box.width * .025f, 7, 14);
             GUILayout.BeginArea(new Rect(box.x+padding, box.y+padding, box.width-2*padding, box.height-2*padding));
