@@ -3,7 +3,7 @@
 Execute `IMPLEMENTATION_PLAN.md` from the first incomplete verified milestone. Read `PROJECT_STATUS.md` first, then the relevant plan section and `GAME_DESIGN_DOCUMENT.md`.
 
 - GDD locked rules govern gameplay. Record conflicts and tuning choices in `DECISIONS.md`.
-- Pull main before work when a remote exists; use a dedicated issue branch from updated main. No remote or issue number exists at bootstrap; use `bootstrap/p0`.
+- Pull main before work; use a dedicated issue/feedback branch from updated main. Remote `origin` is https://github.com/bekirbilge/Parry.git. No issue number has been supplied; do not invent one.
 - Recheck the current code before implementing. Preserve useful existing work.
 - Keep tests in `tests/`; never create `docs/`. Maintain only the explicitly requested root Markdown files.
 - Use pure C# fixed-step authoritative logic, separate from Unity presentation. Centralize tunable values.
