@@ -8,41 +8,50 @@ namespace Game.Unity.Tests
     {
         [TestCase(2868, 1320, 100, 35, 2668, 1250)]
         [TestCase(640, 360, 20, 0, 600, 350)]
-        public void PhoneControlsFitSafeAreaAndRemainSeparate(int width, int height,
+        public void PhoneArenaFillsSafeAreaAndControlsRemainSeparate(int width, int height,
             int safeX, int safeY, int safeWidth, int safeHeight)
         {
             Rect safe = new Rect(safeX, safeY, safeWidth, safeHeight);
             Rect arena = ArenaLayout.Compute(width, height, safe, true);
             Rect footer = ArenaLayout.Footer(width, height, safe, true);
-            Assert.That(arena.width / arena.height, Is.EqualTo(16f / 9f).Within(.0001f));
-            Assert.That(arena.xMin, Is.GreaterThanOrEqualTo(safe.xMin));
-            Assert.That(arena.xMax, Is.LessThanOrEqualTo(safe.xMax));
-            Assert.That(arena.yMin, Is.GreaterThanOrEqualTo(height - safe.yMax));
-            Assert.That(footer.yMax, Is.LessThanOrEqualTo(height - safe.yMin + .01f));
-            Assert.That(footer.yMin, Is.GreaterThan(arena.yMax));
+            Assert.That(arena, Is.EqualTo(new Rect(safeX, height - safeY - safeHeight,
+                safeWidth, safeHeight)));
+            Assert.That(footer, Is.EqualTo(Rect.zero));
+
+            Rect pause = ArenaLayout.PauseButton(arena);
+            Rect panel = ArenaLayout.PauseMenuPanel(arena);
+            Assert.That(arena.Contains(pause.min) && arena.Contains(pause.max - Vector2.one), Is.True);
+            Assert.That(arena.Contains(panel.min) && arena.Contains(panel.max - Vector2.one), Is.True);
+            Assert.That(pause.height, Is.EqualTo(arena.height * .10f).Within(.01f));
+            Assert.That(pause.width, Is.EqualTo(arena.height * .18f).Within(.01f));
+            Assert.That(pause.xMax, Is.GreaterThan(arena.center.x));
+            Vector2 pauseTouch = new Vector2(pause.center.x, height - pause.center.y);
+            Assert.That(ArenaLayout.TouchAction(arena, pauseTouch, height, false, true), Is.EqualTo(-1));
 
             Rect previous = Rect.zero;
             for (int i = 0; i < 4; i++)
             {
-                Rect button = ArenaLayout.ToolbarButton(arena, i, true);
-                Assert.That(arena.Contains(button.min) && arena.Contains(button.max - Vector2.one), Is.True);
-                Assert.That(button.yMin, Is.GreaterThan(arena.yMin + arena.height * 76f / 360f),
-                    "Toolbar should clear the phone HUD's fuel label.");
-                Assert.That(button.height, Is.GreaterThanOrEqualTo(arena.height * .119f));
-                Vector2 buttonTouch = new Vector2(button.center.x, height - button.center.y);
-                Assert.That(ArenaLayout.TouchAction(arena, buttonTouch, height, false, true), Is.EqualTo(-1));
-                if (i > 0) Assert.That(button.xMin, Is.GreaterThan(previous.xMax));
+                Rect button = ArenaLayout.PauseMenuButton(arena, i);
+                Assert.That(panel.Contains(button.min) && panel.Contains(button.max - Vector2.one), Is.True);
+                Assert.That(button.width, Is.GreaterThan(button.height));
+                Assert.That(button.Overlaps(pause), Is.False);
+                Assert.That(ArenaLayout.ToolbarButton(arena, i, true), Is.EqualTo(button));
+                if (i > 0) Assert.That(button.yMin, Is.GreaterThan(previous.yMax));
                 previous = button;
             }
+            Assert.That(ArenaLayout.PauseMenuButton(arena, 4), Is.EqualTo(Rect.zero));
 
             for (int action = 0; action < 3; action++)
             {
                 Rect target = ArenaLayout.TouchControl(arena, action);
                 Assert.That(arena.Contains(target.center), Is.True);
+                Assert.That(target.height, Is.LessThanOrEqualTo(arena.height * .125f + .01f));
                 Vector2 bottomLeft = new Vector2(target.center.x, height - target.center.y);
                 Assert.That(ArenaLayout.TouchAction(arena, bottomLeft, height, false, true), Is.EqualTo(action));
+                Assert.That(ArenaLayout.TouchAction(arena, bottomLeft, height, false, true, true), Is.EqualTo(-1));
+                Assert.That(target.Overlaps(pause), Is.False);
                 for (int i = 0; i < 4; i++)
-                    Assert.That(target.Overlaps(ArenaLayout.ToolbarButton(arena, i, true)), Is.False);
+                    Assert.That(target.Overlaps(ArenaLayout.PauseMenuButton(arena, i)), Is.False);
             }
         }
 
@@ -59,22 +68,20 @@ namespace Game.Unity.Tests
         }
 
         [Test]
-        public void MobileTouchInputUsesPhoneLayoutForToolbarAndActions()
+        public void MobileTouchInputKeepsSimultaneousActionsAndClearsThemForMenu()
         {
             const int width = 2868, height = 1320;
             Rect arena = ArenaLayout.Compute(width, height, new Rect(100, 35, 2668, 1250), true);
             var adapter = new InputAdapter(0);
-            for (int i = 0; i < 4; i++)
-            {
-                Vector2 center = ArenaLayout.ToolbarButton(arena, i, true).center;
-                Vector2 point = new Vector2(center.x, height - center.y);
-                adapter.SampleTouch(i, TouchPhase.Began, point, arena, height, false, true);
-                adapter.SampleTouch(i, TouchPhase.Ended, point, arena, height, false, true);
-            }
-            FighterInput toolbarInput = adapter.ConsumeTick();
-            Assert.That(toolbarInput.DashPressed || toolbarInput.DefensePressed, Is.False);
-            Assert.That(toolbarInput.Move.X, Is.EqualTo(0));
+            Rect pause = ArenaLayout.PauseButton(arena);
+            Vector2 pausePoint = new Vector2(pause.center.x, height - pause.center.y);
+            adapter.SampleTouch(5, TouchPhase.Began, pausePoint, arena, height, false, true);
+            Assert.That(adapter.ConsumeTick().DashPressed, Is.False);
 
+            Rect stick = ArenaLayout.TouchControl(arena, 0);
+            Vector2 stickPoint = new Vector2(stick.center.x, height - stick.center.y);
+            adapter.SampleTouch(10, TouchPhase.Began, stickPoint, arena, height, false, true);
+            adapter.SampleTouch(10, TouchPhase.Moved, stickPoint + new Vector2(60, 0), arena, height, false, true);
             for (int action = 1; action <= 2; action++)
             {
                 Vector2 center = ArenaLayout.TouchControl(arena, action).center;
@@ -83,6 +90,23 @@ namespace Game.Unity.Tests
             }
             FighterInput actionInput = adapter.ConsumeTick();
             Assert.That(actionInput.DashPressed && actionInput.DefensePressed, Is.True);
+            Assert.That(actionInput.Move.X, Is.GreaterThan(0));
+
+            adapter.SampleTouch(12, TouchPhase.Stationary, pausePoint, arena, height,
+                false, true, true);
+            FighterInput menuInput = adapter.ConsumeTick();
+            Assert.That(menuInput.Move.X, Is.EqualTo(0));
+            Assert.That(menuInput.DashPressed || menuInput.DefensePressed ||
+                menuInput.DashHeld || menuInput.DefenseHeld, Is.False);
+
+            Vector2 dash = ArenaLayout.TouchControl(arena, 1).center;
+            adapter.SampleTouch(13, TouchPhase.Began, new Vector2(dash.x, height - dash.y),
+                arena, height, false, true, true);
+            Assert.That(adapter.ConsumeTick().DashPressed, Is.False);
+
+            adapter.SampleTouch(14, TouchPhase.Began, new Vector2(dash.x, height - dash.y),
+                arena, height, false, true);
+            Assert.That(adapter.ConsumeTick().DashPressed, Is.True);
         }
     }
 }
