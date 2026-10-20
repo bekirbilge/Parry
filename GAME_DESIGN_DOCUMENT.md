@@ -19,7 +19,7 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 ## 3. Movement — LOCKED mechanics, TUNE numbers
 - Continuous horizontal run and air steering. One movement action: neutral stick boosts straight up; aiming boosts in that direction immediately, on ground or in air. No separate jump button; upward boost consumes a normal charge. Parry remains available throughout boost/loading/recoil. Legacy jump commands remain internal for prototype regression/replay compatibility, not in the playable controls.
 - Three dash charges, refilling sequentially at approximately **1.0 s per charge** (**TUNE**). Perfect parry instantly restores **one** dash charge, capped at three. No automatic extra restoration at critical projectile level unless separately approved.
-- Directional rocket boost (dash), initially eight-way snapped from movement stick, ~0.30 s powered duration and ~0.08 s invulnerability (**TUNE**). Invulnerability rules must be specified in the prototype and tested against projectile and body collisions. Avoid unintended invincible dash chains.
+- Directional rocket boost (dash), using continuous normalized movement-stick aim (no eight-way snapping), ~0.30 s powered duration and ~0.08 s invulnerability (**TUNE**). Invulnerability rules must be specified in the prototype and tested against projectile and body collisions. Avoid unintended invincible dash chains.
 - Jump buffering, coyote time, acceleration, friction, air steering, dash cancel windows, and jump arc are **TUNE**. Ground movement should be crisp, never slippery. Preserve controllability in rebounds/knockback; no long helpless stun.
 - Design target: responsive to mobile latency and touch imprecision, without auto-aiming parries.
 
@@ -39,11 +39,11 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 | Level | Name | Speed multiplier | Block posture multiplier |
 |---|---|---:|---:|
 | 0 | Normal | 1.00× | 1.00× |
-| 1 | Charged | 1.50× | 1.25× |
-| 2 | Overcharged | 1.75× | 1.50× |
-| 3 | Critical | 2.00× | 2.00× |
+| 1 | Charged | 3.00× | 1.25× |
+| 2 | Overcharged | 3.50× | 1.50× |
+| 3 | Critical | 4.00× | 2.00× |
 
-- Only the most recent perfect parrier is immune to that projectile until the opponent perfect-parries it back. Wall bounces, ordinary guard and power decay do not transfer or remove immunity. Owned projectiles pass through their owner without damage, posture impact or repeated parry benefits. Unclaimed projectiles remain dangerous to both players. Show ownership with an owner-colored ring while keeping the power color visible.
+- Only the most recent perfect parrier is immune to that projectile until the opponent perfect-parries it back. Wall bounces, ordinary guard and power decay do not transfer or remove immunity. Owned projectiles pass through their owner without damage or posture impact unless a valid timed defense press redirects them. This owned redirect preserves speed, power, ownership and decay schedule, grants no charge, and is distinct from an enemy perfect parry. Held guard alone does not redirect owned shots. Unclaimed projectiles remain dangerous to both players. Show ownership with an owner-colored ring while keeping the power color visible.
 - Keep visual states obvious through glow/trail/impact/audio, without obscuring exact hitbox. Speed can transition smoothly while level-based posture values switch at decay thresholds; implement deterministically.
 - Perfect parries **never** reduce posture and remain possible even at 99/100 posture. The guard-break state at exactly 100 must be handled explicitly (see §6).
 
