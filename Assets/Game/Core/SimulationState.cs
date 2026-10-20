@@ -55,6 +55,9 @@ namespace Game.Core
         public long LastContactTick = -1;
         public int LastContactFighterId = -1;
         public int ReflectedContactMask;
+        // A parry can reach beyond the physical hit radius. Track that overlap
+        // separately so it cannot repeat while a later physical hit stays legal.
+        public int ParryContactMask;
         public int LastParrierId = -1;
 
         public ProjectileState Clone() => (ProjectileState)MemberwiseClone();
@@ -80,7 +83,7 @@ namespace Game.Core
     /// <summary>Versioned, deep-clonable state for same-runtime replay comparison.</summary>
     public sealed class SimulationState
     {
-        public const int SnapshotVersion = 3;
+        public const int SnapshotVersion = 4;
         public const int LeftFighterId = 0;
         public const int RightFighterId = 1;
 
@@ -192,6 +195,7 @@ namespace Game.Core
                 hash.Add(projectile.LastContactTick);
                 hash.Add(projectile.LastContactFighterId);
                 hash.Add(projectile.ReflectedContactMask);
+                hash.Add(projectile.ParryContactMask);
                 hash.Add(projectile.LastParrierId);
             }
 
