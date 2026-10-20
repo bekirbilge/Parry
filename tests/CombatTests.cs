@@ -17,6 +17,9 @@ internal static class CombatTests
         BodyShoveCanCauseProjectileDeathLaterInSameTick();
         BodyDamageCanBreakPostureWithoutDirectDeath();
         SimultaneousWallParryEscapesAlongWall();
+        SimultaneousWallOwnedRedirectEscapesAlongWall();
+        FastOpponentProjectileHitsMovingBoostPath();
+        OwnedRedirectCannotRepeatDuringOverlap();
         DashChaseCannotFarmOverlappingParries();
         DashChaseCannotRepeatOverlappingGuardBlocks();
         InvulnerabilityOverlapIsLethalAfterExpiry();
@@ -322,6 +325,83 @@ internal static class CombatTests
         Assert(Math.Abs(state.Projectiles[0].Velocity.X) < 1e-8 &&
             state.Projectiles[0].Velocity.Y > 0 && !defender.Eliminated,
             "The compound reflection must leave along the wall away from the fighter.");
+    }
+
+    private static void SimultaneousWallOwnedRedirectEscapesAlongWall()
+    {
+        SimulationState state = State();
+        FighterState owner = state.Fighter(1);
+        owner.Position = owner.PreviousPosition = new Vec2(98.5, 10);
+        double atWallY = 10 + Math.Sqrt(2.1 * 2.1 - 0.9 * 0.9);
+        state.Projectiles.Add(new ProjectileState
+        {
+            Id = 32, Position = new Vec2(99.2, atWallY + 0.2),
+            Velocity = new Vec2(24, -24), LastParrierId = owner.Id,
+            PowerLevel = 1, DecayTicksRemaining = 50
+        });
+        var events = new List<SimulationEvent>();
+        CombatSystem.Advance(state, new SimulationInput(state.Tick, default,
+            new FighterInput(Vec2.Zero, defensePressed: true)),
+            CombatTuning.Default, new SimulationConfig(), events);
+        ProjectileState shot = state.Projectiles[0];
+        Assert(Count(events, SimulationEventType.OwnedProjectileRedirected) == 1 &&
+            Count(events, SimulationEventType.ProjectileBounced) == 1 &&
+            Count(events, SimulationEventType.PerfectParry) == 0,
+            "Owned redirect and wall bounce must both resolve at their shared contact time.");
+        Assert(Math.Abs(shot.Velocity.X) < 1e-8 && shot.Velocity.Y > 0 &&
+            shot.LastParrierId == owner.Id && shot.PowerLevel == 1 &&
+            shot.DecayTicksRemaining == 49 && !owner.Eliminated,
+            "Compound owned redirect must escape along wall without parry rewards.");
+    }
+
+    private static void FastOpponentProjectileHitsMovingBoostPath()
+    {
+        foreach (bool pressDefense in new[] { false, true })
+        {
+            SimulationState state = State();
+            FighterState fighter = state.Fighter(0);
+            fighter.PreviousPosition = new Vec2(25, 10);
+            fighter.Position = fighter.PreviousPosition +
+                new Vec2(CombatTuning.Default.Movement.DashSpeedUnitsPerSecond / 60, 0);
+            fighter.DashTicksRemaining = 2;
+            state.Projectiles.Add(new ProjectileState
+            {
+                Id = 33, Position = new Vec2(33, 10), Velocity = new Vec2(-300, 0),
+                LastParrierId = 1
+            });
+            List<SimulationEvent> events = Advance(state,
+                pressDefense ? new FighterInput(Vec2.Zero, defensePressed: true) : default);
+            Assert(pressDefense
+                    ? Count(events, SimulationEventType.PerfectParry) == 1 &&
+                      Count(events, SimulationEventType.OwnedProjectileRedirected) == 0 &&
+                      !fighter.Eliminated && state.Projectiles[0].LastParrierId == 0
+                    : Count(events, SimulationEventType.FighterEliminated) == 1 && fighter.Eliminated,
+                "Swept contacts must resolve a fast opponent shot against a moving boost path.");
+        }
+    }
+
+    private static void OwnedRedirectCannotRepeatDuringOverlap()
+    {
+        SimulationState state = State();
+        FighterState owner = state.Fighter(0);
+        owner.DashCharges = 0;
+        state.Projectiles.Add(new ProjectileState
+        {
+            Id = 34, Position = new Vec2(26, 10), Velocity = new Vec2(-24, 0),
+            LastParrierId = owner.Id, PowerLevel = 1, DecayTicksRemaining = 50
+        });
+        List<SimulationEvent> first = Advance(state,
+            new FighterInput(Vec2.Zero, defensePressed: true));
+        Assert(Count(first, SimulationEventType.OwnedProjectileRedirected) == 1 &&
+            state.Projectiles[0].ReflectedContactMask == 1,
+            "First owned redirect must mark its continuous overlap.");
+        state.Tick++;
+        List<SimulationEvent> second = Advance(state,
+            new FighterInput(Vec2.Zero, defensePressed: true));
+        Assert(Count(second, SimulationEventType.OwnedProjectileRedirected) == 0 &&
+            Count(second, SimulationEventType.PerfectParry) == 0 &&
+            owner.DashCharges == 0 && state.Projectiles[0].PowerLevel == 1,
+            "Repeated presses during one overlap must not redirect or reward it again.");
     }
 
     private static void DashChaseCannotFarmOverlappingParries()
