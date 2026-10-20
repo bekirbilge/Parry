@@ -197,6 +197,38 @@ namespace Game.Unity.Tests
         }
 
         [Test]
+        public void BoostParryCatchesGrazingShotOutsideBodyWithoutChangingTiming()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.RestartMatch();
+            SimulationState state = controller.CaptureSnapshot();
+            Vec2 fighter = state.Fighter(0).Position;
+            state.Projectiles.Add(new ProjectileState { Id = 951,
+                Position = fighter + new Vec2(4, 2.8), Velocity = new Vec2(-96, 0),
+                PowerLevel = 3, DecayTicksRemaining = 200 });
+            controller.Sim.RestoreSnapshot(state);
+            Gamepad pad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                var adapter = new InputAdapter(0);
+                Sample(adapter, pad, new GamepadState { leftStick = Vector2.right }
+                    .WithButton(GamepadButton.South).WithButton(GamepadButton.West));
+                var events = controller.StepOnce(new SimulationInput(controller.Sim.Tick, adapter.ConsumeTick(), default));
+                bool parried = false;
+                foreach (SimulationEvent e in events)
+                    if (e.Type == SimulationEventType.PerfectParry) parried = true;
+                Assert.That(parried, Is.True, "Active boost immunity must not hide a larger-area parry.");
+                Assert.That(controller.CaptureSnapshot().Projectiles[0].Velocity.X, Is.GreaterThan(0));
+                Assert.That(controller.Tuning.Movement.PerfectParryWindowSeconds, Is.EqualTo(.16));
+                Assert.That(controller.Tuning.Movement.DashInvulnerabilitySeconds, Is.EqualTo(.08));
+                Assert.That(controller.Tuning.Defense.ParryExtraReachUnits, Is.EqualTo(1.5));
+            }
+            finally { InputSystem.RemoveDevice(pad); }
+        }
+
+        [Test]
         public void GamepadLaunchKeepsFreeAngleAndOwnedSquareRedirectHasNoReward()
         {
             BootstrapPipeline.EnsureBootstrapScene();
