@@ -13,8 +13,9 @@ internal static class MovementTests
         VariableJumpAndNoDoubleJump();
         CoyoteAndLandingBuffer();
         DirectionalDashAndSequentialRecharge();
-        BoostFollowsContinuousAimAtFullSpeed();
+        BoostFollowsContinuousAimWithUpwardCap();
         NeutralBoostLaunchesUpward();
+        NeutralBoostApexIsLowerThanOriginalSpeed();
         GuardBreakLeavesRunAndJumpAvailable();
     }
 
@@ -25,8 +26,40 @@ internal static class MovementTests
         Tick(state, new FighterInput(Vec2.Zero, dashPressed: true));
         Assert(Math.Abs(fighter.DashDirection.X) < 1e-12 && fighter.DashDirection.Y == 1 &&
             Math.Abs(fighter.Position.X - 25) < 1e-9 &&
+            Math.Abs(fighter.Velocity.Y - Tuning.Movement.MaximumUpwardBoostSpeedUnitsPerSecond) < 1e-9 &&
             fighter.Position.Y > Tuning.Arena.FighterRadiusUnits,
             "A neutral boost must launch straight upward without horizontal drift.");
+    }
+
+    private static void NeutralBoostApexIsLowerThanOriginalSpeed()
+    {
+        CombatTuning tallArena = new CombatTuning(new MovementTuning(), Tuning.Projectile,
+            Tuning.Defense, Tuning.Divider, new ArenaTuning(heightUnits: 120), Tuning.Match);
+        CombatTuning originalSpeed = new CombatTuning(
+            new MovementTuning(maximumUpwardBoostSpeedUnitsPerSecond: 80), Tuning.Projectile,
+            Tuning.Defense, Tuning.Divider, tallArena.Arena, Tuning.Match);
+        double cappedRise = NeutralBoostRise(tallArena);
+        double originalRise = NeutralBoostRise(originalSpeed);
+        Assert(cappedRise > 17 && cappedRise < 20 && originalRise > 48 && originalRise < 53 &&
+            cappedRise < originalRise * 0.45,
+            "The capped neutral boost must peak near 18 units above the floor, versus roughly 50 at the original speed.");
+    }
+
+    private static double NeutralBoostRise(CombatTuning tuning)
+    {
+        SimulationState state = Fresh();
+        FighterState fighter = state.Fighter(0);
+        double floor = tuning.Arena.FighterRadiusUnits;
+        double apex = floor;
+        for (int tick = 0; tick < 120; tick++)
+        {
+            MovementSystem.AdvanceKinematics(state,
+                new SimulationInput(state.Tick, new FighterInput(Vec2.Zero, dashPressed: tick == 0), default),
+                tuning, Config, new List<SimulationEvent>());
+            apex = Math.Max(apex, fighter.Position.Y);
+            state.Tick++;
+        }
+        return apex - floor;
     }
 
     private static void RunAccelerationAndAirSteering()
@@ -120,12 +153,14 @@ internal static class MovementTests
             "Third charge must refill sequentially and stop recharge at the cap.");
     }
 
-    private static void BoostFollowsContinuousAimAtFullSpeed()
+    private static void BoostFollowsContinuousAimWithUpwardCap()
     {
-        double[] angles = { 1, 10, 20, 37, 89, -1, -10, -20, -37, -89 };
+        double[] angles = { 0, 1, 10, 20, 37, 89, 90, -1, -10, -20, -37, -89, -90 };
         foreach (double angle in angles)
         {
             AssertBoostAim(angle, 1);
+            AssertBoostAim(angle, 0.25);
+            AssertBoostAim(180 - angle, 1);
             AssertBoostAim(180 - angle, 0.25);
         }
     }
@@ -141,12 +176,18 @@ internal static class MovementTests
         Tick(state, new FighterInput(expected * stickMagnitude, dashPressed: true));
         Assert((fighter.DashDirection - expected).Length < 1e-9,
             "Boost aim must retain non-cardinal and mirrored angles.");
-        Assert(Math.Abs(fighter.Velocity.Length - Tuning.Movement.DashSpeedUnitsPerSecond) < 1e-9,
-            "Boost speed must be independent of aim angle and stick magnitude.");
+        double expectedSpeed = expected.Y > 0
+            ? Math.Min(Tuning.Movement.DashSpeedUnitsPerSecond,
+                Tuning.Movement.MaximumUpwardBoostSpeedUnitsPerSecond / expected.Y)
+            : Tuning.Movement.DashSpeedUnitsPerSecond;
+        Assert((fighter.Velocity - expected * expectedSpeed).Length < 1e-9,
+            "Boost launch must preserve exact aim and stick-independent speed while capping upward velocity.");
+        Assert(fighter.Velocity.Y <= Tuning.Movement.MaximumUpwardBoostSpeedUnitsPerSecond + 1e-9,
+            "An upward boost may not exceed its vertical speed cap.");
 
         Tick(state, new FighterInput(-expected));
         Assert((fighter.DashDirection - expected).Length < 1e-9 &&
-            (fighter.Velocity - expected * Tuning.Movement.DashSpeedUnitsPerSecond).Length < 1e-9,
+            (fighter.Velocity - expected * expectedSpeed).Length < 1e-9,
             "A boost must keep its initial direction when the stick changes mid-boost.");
     }
 
