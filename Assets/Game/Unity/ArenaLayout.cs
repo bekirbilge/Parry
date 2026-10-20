@@ -14,7 +14,7 @@ namespace Game.Unity
             float availableWidth = right - left;
             float availableHeight = top - bottom;
             if (availableWidth <= 0 || availableHeight <= 0) return new Rect(0, 0, 0, 0);
-            if (mobileUi) return new Rect(left, height - top, availableWidth, availableHeight);
+            if (mobileUi) return new Rect(left, height - top, availableWidth, availableHeight * .78f);
             float footerHeight = Mathf.Min(Mathf.Clamp(height * .078f, 44, 72), availableHeight * .25f);
             availableHeight -= footerHeight;
             float fittedWidth = Mathf.Min(availableWidth, availableHeight * 16f / 9f);
@@ -33,9 +33,30 @@ namespace Game.Unity
             return new Rect(arena.xMin, y, arena.width, Mathf.Max(0, height - bottom - y));
         }
 
-        public static Rect TouchControl(Rect arena, int action)
+        /// <summary>Dedicated mobile controls below the combat arena, in GUI coordinates.</summary>
+        public static Rect ControlStrip(Rect arena)
+        {
+            return new Rect(arena.xMin, arena.yMax, arena.width, arena.height * (22f / 78f));
+        }
+
+        /// <summary>Distance from a floating joystick origin to full directional input.</summary>
+        public static float JoystickTravel(Rect arena, bool mobileUi = false)
+        {
+            return mobileUi ? Mathf.Max(1, ControlStrip(arena).height * .35f) :
+                Mathf.Max(40, arena.height * .12f);
+        }
+
+        public static Rect TouchControl(Rect arena, int action, bool mobileUi = false)
         {
             if (action < 0 || action > 2) return Rect.zero;
+            if (mobileUi)
+            {
+                Rect strip = ControlStrip(arena);
+                float mobileSize = Mathf.Min(strip.height * .65f, strip.width * .12f);
+                float mobileX = strip.xMin + strip.width * (action == 0 ? .22f : action == 1 ? .76f : .90f);
+                return new Rect(mobileX - mobileSize * .5f, strip.center.y - mobileSize * .5f,
+                    mobileSize, mobileSize);
+            }
             float size = Mathf.Min(arena.height * .125f, arena.width * .12f);
             float x = arena.xMin + arena.width * (action == 0 ? .14f : action == 1 ? .76f : .90f);
             float y = arena.yMax - arena.height * .21f;
@@ -80,6 +101,9 @@ namespace Game.Unity
 
         public static Rect TuningPanel(Rect arena, bool mobileUi = false)
         {
+            if (mobileUi)
+                return new Rect(arena.xMin + arena.width * .06f, arena.yMin + arena.height * .16f,
+                    arena.width * .88f, arena.height / .78f - arena.height * .21f);
             float top = Mathf.Max(arena.height * .19f, ToolbarButton(arena, 0, mobileUi).yMax - arena.yMin + 8);
             return new Rect(arena.xMin + arena.width * .22f, arena.yMin + top,
                 arena.width * .56f, Mathf.Max(0, arena.height - top - arena.height * .05f));
@@ -89,16 +113,17 @@ namespace Game.Unity
             bool mobileUi = false, bool menuOpen = false)
         {
             Vector2 p = new Vector2(bottomLeftPosition.x, screenHeight - bottomLeftPosition.y);
-            if (!arena.Contains(p)) return -1;
             if (tuningOpen || menuOpen) return -1;
             if (mobileUi)
             {
-                if (PauseButton(arena).Contains(p)) return -1;
+                Rect strip = ControlStrip(arena);
+                if (!strip.Contains(p)) return -1;
+                for (int i = 1; i <= 2; i++)
+                    if (TouchControl(arena, i, true).Contains(p)) return i;
+                return p.x < strip.center.x ? 0 : -1;
             }
-            else
-            {
-                for (int i = 0; i < 4; i++) if (ToolbarButton(arena, i).Contains(p)) return -1;
-            }
+            if (!arena.Contains(p)) return -1;
+            for (int i = 0; i < 4; i++) if (ToolbarButton(arena, i).Contains(p)) return -1;
             for (int i = 1; i <= 2; i++) if (TouchControl(arena, i).Contains(p)) return i;
             Rect stick = TouchControl(arena, 0);
             Rect hit = new Rect(stick.center.x - stick.width * .8f, stick.center.y - stick.height * .8f,
