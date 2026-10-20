@@ -197,6 +197,50 @@ namespace Game.Unity.Tests
         }
 
         [Test]
+        public void GamepadLaunchKeepsFreeAngleAndOwnedSquareRedirectHasNoReward()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.RestartMatch();
+            Gamepad pad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                var adapter = new InputAdapter(0);
+                Sample(adapter, pad, new GamepadState { leftStick = new Vector2(.9f, .3f) }
+                    .WithButton(GamepadButton.South));
+                controller.StepOnce(new SimulationInput(controller.Sim.Tick, adapter.ConsumeTick(), default));
+                FighterState boosted = controller.CaptureSnapshot().Fighter(0);
+                Assert.That(boosted.DashDirection.Y / boosted.DashDirection.X, Is.EqualTo(1.0 / 3).Within(.0001));
+
+                controller.RestartMatch();
+                adapter.Clear();
+                SimulationState state = controller.CaptureSnapshot();
+                state.Fighter(0).DashCharges = 1;
+                state.Projectiles.Add(new ProjectileState { Id = 950,
+                    Position = state.Fighter(0).Position + new Vec2(2.3, 0),
+                    Velocity = new Vec2(-72, 0), PowerLevel = 1,
+                    DecayTicksRemaining = 200, LastParrierId = 0 });
+                controller.Sim.RestoreSnapshot(state);
+                Sample(adapter, pad, new GamepadState().WithButton(GamepadButton.West));
+                var events = controller.StepOnce(new SimulationInput(controller.Sim.Tick, adapter.ConsumeTick(), default));
+                bool redirected = false;
+                foreach (SimulationEvent e in events)
+                {
+                    Assert.That(e.Type, Is.Not.EqualTo(SimulationEventType.PerfectParry));
+                    if (e.Type == SimulationEventType.OwnedProjectileRedirected) redirected = true;
+                }
+                SimulationState after = controller.CaptureSnapshot();
+                Assert.That(redirected, Is.True);
+                Assert.That(after.Projectiles[0].Velocity.X, Is.GreaterThan(0));
+                Assert.That(after.Projectiles[0].PowerLevel, Is.EqualTo(1));
+                Assert.That(after.Projectiles[0].DecayTicksRemaining, Is.EqualTo(199));
+                Assert.That(after.Fighter(0).DashCharges, Is.EqualTo(1));
+            }
+            finally { InputSystem.RemoveDevice(pad); }
+        }
+
+        [Test]
         public void GamepadCrossAndSquareInOneTickBoostsAndParriesWithoutJumping()
         {
             Gamepad pad = InputSystem.AddDevice<Gamepad>();
