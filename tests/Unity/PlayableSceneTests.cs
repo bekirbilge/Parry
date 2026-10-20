@@ -63,6 +63,9 @@ namespace Game.Unity.Tests
             Assert.That(capture, Does.Contain("\"boostLoadDuration\""));
             Assert.That(capture, Does.Contain("\"projectileDecaySecondsPerLevel\""));
             Assert.That(capture, Does.Contain("\"projectileLevel3Speed\""));
+            Assert.That(capture, Does.Contain("\"projectileSpeedDecay\": 12"));
+            Assert.That(capture, Does.Contain("\"projectileRadius\": 0.9"));
+            Assert.That(controller.Tuning.Arena.ProjectileRadiusUnits, Is.EqualTo(.9));
 
             SimulationState before = controller.CaptureSnapshot();
             Assert.That(before.Fighter(0).DashCharges, Is.EqualTo(3));
