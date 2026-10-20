@@ -1,56 +1,34 @@
 # Project status
 
 Date: 2026-10-20 (Europe/Istanbul)
-Milestone: phone screen/control/pause-menu feedback implemented, installed and launched
-Branch: mobile/phone-screen-menu (pulled origin/main before work; prior tested work retained; no issue supplied)
+Milestone: phone control-strip, tuning and larger-parry feedback trial
+Branch: mobile/phone-controls-tuning (origin/main refreshed; prior tested work retained; no issue supplied)
 Remote: https://github.com/bekirbilge/Parry.git
 
-Unity6000.3.26f1 LTS, macOS arm64, .NET10.0.101 and active Unity Personal license. Git/Unity/native execution require sandbox escalation.
+## Current playable configuration
 
-## Approved gameplay baseline
+Unity6000.3.26f1 LTS, macOS arm64, .NET10.0.101; Unity Personal active. iOS support installed. Xcode27.1/iPhoneOS27.1 SDK available. iPhone17 Pro Max paired, iOS26.6.2, Developer Mode enabled, local development identity/profile trusted. App bundle com.bekirbilge.parry.playtest, minimum iOS15, landscape orientations. Personal Team provisioning expires2026-10-27.
 
-P0 tooling, P1 fixed-step combat/replay and P2 playable graybox are complete. User passed Gate A on2026-10-20: “ok this is fine now, i think the game is at a good place. whats next??”
+P0/P1/P2 complete; user passed gameplay Gate A. Fuel-based boost remains selected: tank0.9s, regeneration0.3/s after0.35s delay, perfect-parry refund one-third. Display resource name is now BOOST; internal fuel/config/snapshot names preserved. F1 retains three-charge comparison. Fighter radius2.5; latest explicit feedback increases playable parry radius4→6 (extra reach3.5), projectile radius0.9 =>contact6.9. Window0.16s unchanged. Safety expires on projectile separation. Projectile speeds24/72/84/96, four-second thresholds, gradual12units/s² slowdown; snapshotversion7. GDD governs remaining rules.
 
-Keep fuel movement/current tuning: tank0.9s, refill0.3/s after0.35s pause, enemy parry refunds one-third; upward cap40, horizontal80. Playable body radius2.5 (five-unit diameter,67% larger), parry radius4 plus projectile radius0.9, window0.16s; speed levels24/72/84/96 with4s power thresholds and12units/s² slowdown. Parry safety ends on separation, not permanent ownership. Snapshotversion7. F1 retains three charges for comparison; actual rope/collision geometry remains authoritative. See GDD for complete rules.
+## Phone feedback implementation
 
-Last full core suite:240 fuel rounds/683,400 ticks and240 legacy rounds/223,598 ticks plus replay/fuzz. No Core runtime files changed; new larger-config tests cover the applied2.5-radius bodies.
+Upper78% of safe-area height is combat; lower22% is a solid black control strip. Physics/world bounds unchanged. The entire authoritative arena maps to the available phone rectangle (horizontal presentation stretch); art extends behind system insets. BOOST/DEF use bright opaque fills below combat. Left-half-strip first touch anchors a floating joystick until release/cancel; finger ownership is stable, visuals clip at strip edges without moving the origin. Desktop layout remains unchanged.
 
-## Current visual proof
+Only top-right PAUSE during play. Modal RESUME/MODE/TUNING/RESTART clears held input and blocks gameplay. Restart resumes tick0. Match-complete TAP TO RESTART now has a shared visible hit target. Phone tuning uses large text/sliders/state buttons, touch scroll and fixed BACK/APPLY controls; slider/button pointer ownership suppresses manual scroll. Tuning spans the control-strip area while paused. --parry-tuning-preview supports native screenshot checks.
 
-User selected directionC: darker high-contrast pixel art. One static ninja and one empty Rookie Dojo background are imported with point filtering, no mipmaps, uncompressed textures and preserved source dimensions. The projectile/rope/HUD/effects remain procedural. Static art reads simulation snapshots only. F6 toggles art/graybox without reset; missing resources fall back to shapes.
+## Validation and artifacts
 
-Sources: Assets/Game/Resources/Art/. Exact prompts, hashes, measured character bounds, source floor line and pending approval: art/reference/manifest.json. Layout JSON aligns visible character height/feet and crops the background's decorative lower strip without changing gameplay bounds. Style comparison and provenance: art/concepts/.
+Core suite PASS including expanded parry range, exact refund/no posture healing, separation safety expiry and lethal return.240 fuel rounds/683,400 ticks and240 legacy rounds/223,598 ticks plus replay/fuzz PASS. Unity scene validation/macOS build and40/40 EditMode tests PASS. Desktop, touch-strip and tuning native smokes PASS900 steps/3 callbacks; same checksumA8EAD925C985E90B. Applied capture confirms extraReach3.5/body2.5/window0.16. Final strip/tuning screenshots inspected. Independent source review passed after origin/gesture fixes; physical slider/scroll feel remains unverified.
 
-Verified: real manifest validator;12/12 Python tests; Unity scene validation, final30/30 EditMode tests and macOS build; native900-step/3-driver-callback smoke at desktop and1280×720. All art/layout loaded. Both checksumsA8EAD925C985E90B match each other; the expected change from the earlier baseline reflects the larger physical body tuning. Rope intrusion4.4846,bend7.3044,recoil18.75 retains prior acceptance limits. Independent source review and diff checks passed. Phone-sized screenshot inspected; this is not physical mobile validation.
+macOS app: artifacts/build/ElasticArena.app
+Xcode project: artifacts/build/ios/Unity-iPhone.xcodeproj
+Device app: artifacts/build/ios-derived/Build/Products/Debug-iphoneos/ElasticArena.app
+Previews: artifacts/runtime-touch/smoke.png, artifacts/runtime-tuning/smoke.png
+Test report: artifacts/test-results/editmode.xml. Run/control instructions: PLAYTEST_NOTES.md.
 
-Build: artifacts/build/ElasticArena.app
-Preview: artifacts/runtime-phone/smoke.png
-Reports: artifacts/runtime/smoke.json and artifacts/runtime-phone/smoke.json; artifacts/test-results/editmode.xml
-Run/controls/checklist: PLAYTEST_NOTES.md
-Validation: python3 tools/assets/validate.py; python3 -m unittest discover -s tests -p 'test_*.py'; bash tools/test-unity.sh; bash tools/test-runtime.sh
+Final iOS export, device-specific Xcode build, codesign verification, installation and launch PASS. The updated playtest is running on the paired iPhone. Logs: artifacts/logs/xcode-ios-device-build.log, iphone-install.log, iphone-launch.log.
 
-## Human gate and next work
+## Next human gate
 
-Request approval of the ninja and arena appearance/readability in the playable sample. No animation sets or bulk assets approved yet. Current pose is static; pixel-grid/export conventions are proposals. Source/provider provenance is recorded; no blanket commercial clearance or paid service purchase asserted. Real controller/mobile performance and physical-device validation remain unverified.
-
-User explicitly pulled physical phone testing forward before animation. Install the compiled playtest on the selected iPhone17 Pro Max after pairing/signing, collect size/readability feedback and reference approval, then finish the one-character animation/import proof and planP4 effects/audio/HUD polish. PlanP5 networking architecture follows the polished slice; economy and release remain later phases. Preserve current gameplay while working on presentation. A bare continue does not approve reference visuals or bulk generation.
-
-## Phone build preparation
-
-Larger characters are implemented: radius2.5 shared by both players, art/physical body matched; F5 slider1.5–3.5 and applied capture available. Grounding tests cover old/new sizes. New iOS unsigned Xcode-export and Android debug-APK helpers compile; landscape, IL2CPP/ARM64 and safe settings restoration tests pass. Raw PlayerSettings restoration preserves unset/default signing/maps exactly, and ProjectSettings.asset remains unchanged after tests.
-
-Selected phone: iPhone17 Pro Max. Now connected and paired; device reports iOS26.6.2 and Developer Mode enabled and development services ready. Unity6000.3.26f1 iOS module installed successfully at /Applications/Unity/Hub/Editor/6000.3.26f1/PlaybackEngines/iOSSupport. Actual Unity iOS export and unsigned Xcode27.1/iPhoneOS27.1 native compilation PASS, including the final phone UI changes. Xcode project: artifacts/build/ios/Unity-iPhone.xcodeproj. Unsigned app: artifacts/build/ios-derived/Build/Products/Debug-iphoneos/ElasticArena.app. Bundle com.bekirbilge.parry.playtest, iOS15 minimum, both landscape orientations.
-
-Phone HUD/toolbar text scales with arena height, toolbar hit/render geometry agrees, footer uses touch instructions. MOVE/BOOST/DEF retain the existing multitouch behavior. --parry-touch previews phone UI on desktop. Unity validation/macOS build and34/34 EditMode tests pass. Desktop and1280×590 touch-preview native smokes each pass900 steps/3 callbacks with unchanged checksumA8EAD925C985E90B. Synthetic notched/high-density and small-phone safe-area tests pass; preview screenshot inspected. Independent source review passed. TUNE remains a desktop-oriented debug panel; use desktop tuning for this first phone playtest.
-
-Device-specific build, signing and installation PASS. Verified the development provisioning profile includes the connected phone; codesign deep/strict verification passes. Free development provisioning expires2026-10-27. App installed as ElasticArena (com.bekirbilge.parry.playtest). Initial iOS security launch block resolved by user trusting the developer profile. User confirms game opens; devicectl process listing independently confirms ElasticArena running. Logs: artifacts/logs/xcode-ios-device-build.log, iphone-install.log, iphone-launch.log (initial trust failure), iphone-processes.log. No private keys exported, no credentials requested.
-
-Next human gate: play in landscape; evaluate MOVE+BOOST+DEF simultaneously, fuel release/refill, notch clearance in both orientations, larger-character readability, missed touches and stutter/heat. Physical launch is verified; gameplay quality/performance and visual reference Gate B await user feedback. No additional production art/animation authorized yet. Continue from this installed build after feedback.
-
-## Phone feedback update
-
-User reported black borders, Restart failing, oversized translucent controls and an intrusive toolbar. Mobile now uses the full safe-area rectangle without the fixed-aspect letterbox/footer; scenery extends behind device insets. The complete fixed gameplay world maps to the phone aspect using presentation scaling (horizontal stretch on wide phones), keeping all combat visible and simulation unchanged. Desktop remains16:9. Rope/line transforms compose correctly under the phone scale.
-
-Touch controls shrink from17% to12.5% of arena height with opaque fills. Only top-right PAUSE appears during play. Pausing clears held input and opens RESUME/MODE/TUNING/RESTART; tuning blocks hidden menu actions. Restart clears pause/tuning and resumes from tick0. Main phone text is less intrusive and HUD clears the pause button.
-
-Final35/35 Unity tests, scene validation/macOS build, desktop/touch900-step smokes, iOS export and device-specific signed Xcode build PASS. Both smokes retain checksumA8EAD925C985E90B. Full-screen preview inspected and independent source review passed after tuning-layer fix. Updated app installed and launched on the paired iPhone successfully. Await actual phone screen/control/menu feedback; broader mobile performance and visual-reference approval remain pending.
+Test thumb clearance, joystick starting anywhere in the left strip, simultaneous boost/parry, larger parry forgiveness, end-match restart, and tuning slider versus scroll gestures. Actual phone feel/readability/thermals await feedback. User chose dark high-contrast art directionC; current single static ninja and Rookie Dojo references await visual Gate B. No animation set or bulk art approved. Preserve gameplay except explicit tuning feedback; defer networking/economy/release. No App Store/TestFlight authorization or paid service needed here.
