@@ -75,7 +75,7 @@ Mobile/readability feedback: characters are67% larger in both visual height and 
 
 ## iPhone17 Pro Max installation
 
-Unity iOS support is installed. The final landscape playtest exported and compiled successfully with Xcode, unsigned. The phone has not yet been connected/trusted; signing and device play remain pending.
+Unity iOS support is installed. The final landscape playtest exported and compiled successfully with Xcode, unsigned. The phone is now paired with Developer Mode enabled. A device-specific signed build is installed. User trusted the developer profile and confirms the game opens; device process listing confirms it running. Physical gameplay feedback remains pending.
 
 1. Connect the iPhone by USB, unlock it and accept Trust This Computer.
 2. Open the project:
@@ -86,7 +86,7 @@ open /Users/bekir/Code/Parry/artifacts/build/ios/Unity-iPhone.xcodeproj
 
 3. In Xcode > Settings > Apple Accounts, sign in locally. Select the Unity-iPhone target > Signing & Capabilities, enable Automatically manage signing and choose your Personal Team. Use a unique bundle identifier if Xcode requests one.
 4. Select the connected iPhone as the run destination. When prompted, enable Settings > Privacy & Security > Developer Mode on the phone, restart and confirm. If it is not visible yet, pair the phone with Xcode first.
-5. Product > Run. Approve any device trust/developer prompts. A free Personal Team supports local testing; provisioning expires after seven days. No account password or certificates should be sent in chat.
+5. Product > Run. If iOS blocks launch as untrusted, open Settings > General > VPN & Device Management > Developer App, select your developer account, and Trust or Allow & Restart as offered. Then open ElasticArena. Approve any device trust/developer prompts. A free Personal Team supports local testing; provisioning expires after seven days. No account password or certificates should be sent in chat.
 
 Apple: [run on a device](https://developer.apple.com/documentation/Xcode/running-your-app-on-simulated-or-physical-devices), [Developer Mode](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device), [Personal Team limits](https://developer.apple.com/help/account/basics/about-your-developer-account).
 
