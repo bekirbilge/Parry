@@ -9,6 +9,8 @@ internal static class ParryOwnershipTests
         OwnershipTransfersOnlyOnParry();
         OwnedShotsPassThroughWithoutAnActiveParry();
         RedirectKeepsOwnershipSpeedAndNaturalDecay();
+        DecayRampSurvivesOwnedRedirectGuardAndWall();
+        EnemyParryResetsDecayRamp();
         ImmunitySurvivesWallsAndDecay();
         OwnershipSnapshotsAreIndependent();
         ChargedSpeedCoversScreenBeforeDecay();
@@ -123,8 +125,70 @@ internal static class ParryOwnershipTests
             shot.Velocity.X > 0 && owner.DashCharges == 0 && owner.Posture == 99,
             "Steered owned redirect preserves speed, owner and remaining decay time.");
         Step(state);
-        Assert(shot.PowerLevel == 1 && shot.LastParrierId == owner.Id,
-            "Redirected power must decay on its original schedule.");
+        Assert(shot.PowerLevel == 1 && shot.LastParrierId == owner.Id &&
+            shot.SpeedDecaying && Math.Abs(shot.Velocity.Length - 83.8) < 1e-9,
+            "Redirected power must decay on its original schedule and begin easing speed.");
+    }
+
+    private static void DecayRampSurvivesOwnedRedirectGuardAndWall()
+    {
+        SimulationState owned = Fresh();
+        ProjectileState shot = owned.Projectiles[0];
+        shot.LastParrierId = 0;
+        shot.PowerLevel = 1;
+        shot.DecayTicksRemaining = 1;
+        shot.Velocity = new Vec2(-72, 0);
+        List<SimulationEvent> events = Step(owned,
+            new FighterInput(Vec2.Zero, defensePressed: true));
+        Assert(Count(events, SimulationEventType.OwnedProjectileRedirected) == 1 &&
+            shot.LastParrierId == 0 && shot.PowerLevel == 0 && shot.SpeedDecaying &&
+            Math.Abs(shot.Velocity.Length - 71.8) < 1e-9 && shot.Velocity.X > 0,
+            "Owned redirect must preserve the active ramp, speed, ownership and level.");
+
+        SimulationState guarded = Fresh();
+        shot = guarded.Projectiles[0];
+        shot.LastParrierId = 1;
+        shot.PowerLevel = 1;
+        shot.DecayTicksRemaining = 1;
+        shot.Velocity = new Vec2(-72, 0);
+        guarded.Fighter(0).DefenseHeldPrevious = true;
+        guarded.Fighter(0).DefenseHoldTicks = 30;
+        events = Step(guarded, new FighterInput(Vec2.Zero, defenseHeld: true));
+        Assert(Count(events, SimulationEventType.GuardBlocked) == 1 &&
+            shot.LastParrierId == 1 && shot.PowerLevel == 0 && shot.SpeedDecaying &&
+            Math.Abs(shot.Velocity.Length - 71.8) < 1e-9 && shot.Velocity.X > 0,
+            "Guard reflection must retain the active speed ramp and owner.");
+
+        SimulationState wall = Fresh();
+        shot = wall.Projectiles[0];
+        shot.Position = new Vec2(0.9, 30);
+        shot.Velocity = new Vec2(-72, 0);
+        shot.LastParrierId = 0;
+        shot.PowerLevel = 1;
+        shot.DecayTicksRemaining = 1;
+        events = Step(wall);
+        Assert(Count(events, SimulationEventType.ProjectileBounced) == 1 &&
+            shot.LastParrierId == 0 && shot.PowerLevel == 0 && shot.SpeedDecaying &&
+            Math.Abs(shot.Velocity.Length - 71.8) < 1e-9 && shot.Velocity.X > 0,
+            "Wall reflection must retain the active speed ramp and owner.");
+    }
+
+    private static void EnemyParryResetsDecayRamp()
+    {
+        SimulationState state = Fresh();
+        ProjectileState shot = state.Projectiles[0];
+        shot.LastParrierId = 1;
+        shot.PowerLevel = 2;
+        shot.DecayTicksRemaining = 100;
+        shot.SpeedDecaying = true;
+        shot.Velocity = new Vec2(-95, 0);
+        List<SimulationEvent> events = Step(state,
+            new FighterInput(Vec2.Zero, defensePressed: true));
+        Assert(Count(events, SimulationEventType.PerfectParry) == 1 &&
+            shot.LastParrierId == 0 && shot.PowerLevel == 3 &&
+            shot.DecayTicksRemaining == 240 && !shot.SpeedDecaying &&
+            Math.Abs(shot.Velocity.Length - 96) < 1e-9,
+            "An enemy parry must immediately apply the new level speed and reset the ramp timer.");
     }
 
     private static int Count(List<SimulationEvent> events, SimulationEventType type)
