@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "usage": "proof",
+  "approval_status": "proof_pending",
+  "direction": "C \u2014 darker high-contrast pixel art; user selected2026-10-20",
+  "assets": [
+    {
+      "path": "Assets/Game/Resources/Art/char_ninja_idle_v01.png",
+      "resources_path": "Art/char_ninja_idle_v01",
+      "role": "character",
+      "width": 1254,
+      "height": 1254,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "sha256": "47da571ea3660405806cf55a47fe274f60a054743dd49c315085385507ad4ddb",
+      "prompt": "Use case: stylized-concept. Asset type: ONE replaceable static ninja sprite reference for a playable pixel-art game. Use ONLY column C of the supplied comparison board as the visual reference; ignore A and B. Same original compact charcoal/navy masked ninja, bright readable pale eyes, short cobalt scarf and sash, restrained warm edge highlights. One full body, facing RIGHT in a side-view ready stance, empty hands, no sword, no projectile, no props. Keep the character expressive and compact, with clearly separated arms/legs, bold clean square pixel clusters, sharp pixel-art edges, restrained high-contrast shading. No blurry brushwork, no soft 3D rendering, no franchise likeness. Output SQUARE canvas with a genuinely transparent background, no checkerboard painted in, no ground shadow or floor. Center the character's body at the exact center of canvas. Entire ninja including short scarf must stay inside the middle 75% of the canvas; top of head around12.5% from top and soles exactly around87.5% from top, leaving transparent12.5% bottom padding. This padding establishes an in-game pivot; don't crop tight. Show ONE character, ONE idle pose, not a sheet, no labels/text/watermark, no border. All opaque pixels should be the character only. Legible at small phone-game scale.",
+      "tool": "built-in image_gen",
+      "created_utc": "2026-10-20",
+      "provenance": {
+        "terms_url": "https://openai.com/policies/row-terms-of-use/",
+        "reviewed_date": "2026-10-20",
+        "reference": "art/concepts/rookie-dojo-directions-v01.png",
+        "human_direction": "C approved2026-10-20",
+        "production_approval": "pending"
+      },
+      "visible_alpha_threshold": 32,
+      "visible_bounds": [
+        247,
+        264,
+        970,
+        1083
+      ]
+    },
+    {
+      "path": "Assets/Game/Resources/Art/arena_rookie_dojo_background_v01.png",
+      "resources_path": "Art/arena_rookie_dojo_background_v01",
+      "role": "arena",
+      "width": 1672,
+      "height": 941,
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "sha256": "9bdd2a8a381d109d1fa726bdc07d8245000b90114a31afda1120ac6df76d47ed",
+      "prompt": "Use case: stylized-concept. Asset type: ONE empty Rookie Dojo background reference for a landscape side-view pixel-art duel game. Use ONLY column C of supplied comparison board for dark high-contrast visual direction; ignore A/B and all characters/projectiles/ropes. Empty rectangular wooden dojo, charcoal/navy subdued back wall, lanterns and warm amber wood framing restricted near left and right edges, sparse stylized silhouettes beyond rear windows. VERY WIDE16:9 composition, straight-on side view, quiet uncluttered open playable area through the entire center. A thin continuous flat wooden fighting floor at the very BOTTOM edge, no stepped surfaces, no raised platforms, no deep perspective floor plane, no foreground obstacles. Ceiling edge at TOP, vertical symmetric edge framing. Center should remain low-contrast so tiny bright fighters, round projectiles and a cyan moving rope remain visible when the game draws them separately. NO characters, NO projectiles, NO rope or divider, NO HUD/meters/text/labels/symbols/logos/watermarks, NO lights or foreground decoration crossing central playfield. Crisp square pixel clusters and restrained texture, not smooth painted/3D/vector art. Opaque background. One backdrop only, no comparison panels or frames. Preserve functional rectangular arena geometry; decoration is entirely cosmetic.",
+      "tool": "built-in image_gen",
+      "created_utc": "2026-10-20",
+      "provenance": {
+        "terms_url": "https://openai.com/policies/row-terms-of-use/",
+        "reviewed_date": "2026-10-20",
+        "reference": "art/concepts/rookie-dojo-directions-v01.png",
+        "human_direction": "C approved2026-10-20",
+        "production_approval": "pending"
+      },
+      "ground_line_y_px": 891
+    }
+  ],
+  "layout_path": "Assets/Game/Resources/Art/reference_art_layout_v01.json",
+  "notes": [
+    "Static unanimated proof only; reference appearance awaits user approval.",
+    "World hitboxes, projectile rules, input and simulation remain unchanged.",
+    "No animation sheets, bulk characters, paid providers or services selected.",
+    "Arena layout crops the bottom50/941 of the source image as a cosmetic UV crop to align the painted floor with the authoritative ground. Original PNG preserved."
+  ]
+}
