@@ -230,20 +230,24 @@ namespace Game.Unity
             var events = _sim.Step(input);
             foreach (SimulationEvent e in events)
             {
-                if (e.Type == SimulationEventType.PerfectParry || e.Type == SimulationEventType.GuardBroken ||
+                if (e.Type == SimulationEventType.PerfectParry || e.Type == SimulationEventType.OwnedProjectileRedirected ||
+                    e.Type == SimulationEventType.GuardBroken ||
                     e.Type == SimulationEventType.FighterEliminated ||
                     (e.Type == SimulationEventType.BodyImpact && e.Value > 0))
                 {
-                    _hitstopTicks = Math.Max(_hitstopTicks, e.Type == SimulationEventType.PerfectParry ? 3 : 2);
+                    _hitstopTicks = Math.Max(_hitstopTicks, e.Type == SimulationEventType.PerfectParry ? 3 :
+                        e.Type == SimulationEventType.OwnedProjectileRedirected ? 1 : 2);
                     if (!_smoke && _audio != null && _tone != null) _audio.PlayOneShot(_tone, .22f);
                 }
-                if (e.Type == SimulationEventType.PerfectParry || e.Type == SimulationEventType.GuardBroken ||
+                if (e.Type == SimulationEventType.PerfectParry || e.Type == SimulationEventType.OwnedProjectileRedirected ||
+                    e.Type == SimulationEventType.GuardBroken ||
                     e.Type == SimulationEventType.RoundDraw || e.Type == SimulationEventType.RoundWon ||
                     e.Type == SimulationEventType.MatchWon || e.Type == SimulationEventType.DividerRebound)
                 {
                     _lastEvent = e.Type == SimulationEventType.RoundDraw ? "DOUBLE K.O. / DRAW" :
                         e.Type == SimulationEventType.RoundWon ? "P" + (e.EntityId + 1) + " ROUND" :
                         e.Type == SimulationEventType.MatchWon ? "P" + (e.EntityId + 1) + " MATCH" :
+                        e.Type == SimulationEventType.OwnedProjectileRedirected ? "SAFE REDIRECT" :
                         e.Type.ToString().ToUpperInvariant();
                     _lastEventUntil = Time.unscaledTime + 1.2f;
                 }
