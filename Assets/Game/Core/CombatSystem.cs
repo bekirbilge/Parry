@@ -287,7 +287,11 @@ namespace Game.Core
                 ReflectFromFighter(projectile, contact.Normal, input.ForFighter(fighter.Id).Move,
                     tuning.Projectile.MaximumParrySteeringDegrees);
                 SetProjectileSpeed(projectile, tuning);
-                fighter.DashCharges = Math.Min(MovementTuning.MaximumDashCharges, fighter.DashCharges + 1);
+                if (tuning.Movement.UseFuelBoost)
+                    fighter.FuelSeconds = Math.Min(tuning.Movement.FuelCapacitySeconds,
+                        fighter.FuelSeconds + tuning.Movement.FuelCapacitySeconds / 3.0);
+                else
+                    fighter.DashCharges = Math.Min(MovementTuning.MaximumDashCharges, fighter.DashCharges + 1);
                 events.Add(new SimulationEvent(state.Tick, SimulationEventType.PerfectParry,
                     projectile.Id, fighter.Id, impact, projectile.PowerLevel));
             }
