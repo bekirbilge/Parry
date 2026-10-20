@@ -85,6 +85,13 @@ namespace Game.Core
         public double CoyoteTimeSeconds { get; }
         public double JumpBufferSeconds { get; }
         public double DashCancelAfterSeconds { get; }
+        public bool UseFuelBoost { get; }
+        public double FuelCapacitySeconds { get; }
+        public double FuelRegenerationPerSecond { get; }
+        public double FuelRegenerationDelaySeconds { get; }
+        public double FuelIgnitionCostSeconds { get; }
+        public double FuelSteeringAccelerationUnitsPerSecondSquared { get; }
+        public double FuelInvulnerabilityRearmSeconds { get; }
 
         public MovementTuning(
             double runSpeedUnitsPerSecond = 24.0,
@@ -102,7 +109,14 @@ namespace Game.Core
             double coyoteTimeSeconds = 0.08,
             double jumpBufferSeconds = 0.10,
             double dashCancelAfterSeconds = 0.08,
-            double maximumUpwardBoostSpeedUnitsPerSecond = 40.0)
+            double maximumUpwardBoostSpeedUnitsPerSecond = 40.0,
+            bool useFuelBoost = false,
+            double fuelCapacitySeconds = 0.9,
+            double fuelRegenerationPerSecond = 0.3,
+            double fuelRegenerationDelaySeconds = 0.35,
+            double fuelIgnitionCostSeconds = 0.04,
+            double fuelSteeringAccelerationUnitsPerSecondSquared = 360.0,
+            double fuelInvulnerabilityRearmSeconds = 0.35)
         {
             RunSpeedUnitsPerSecond = TuningValidation.InRange(runSpeedUnitsPerSecond, nameof(runSpeedUnitsPerSecond), 0.1, 100.0);
             JumpSpeedUnitsPerSecond = TuningValidation.InRange(jumpSpeedUnitsPerSecond, nameof(jumpSpeedUnitsPerSecond), 0.1, 100.0);
@@ -125,6 +139,15 @@ namespace Game.Core
             CoyoteTimeSeconds = TuningValidation.InRange(coyoteTimeSeconds, nameof(coyoteTimeSeconds), 0.0, 1.0);
             JumpBufferSeconds = TuningValidation.InRange(jumpBufferSeconds, nameof(jumpBufferSeconds), 0.0, 1.0);
             DashCancelAfterSeconds = TuningValidation.InRange(dashCancelAfterSeconds, nameof(dashCancelAfterSeconds), 0.0, DashDurationSeconds);
+            UseFuelBoost = useFuelBoost;
+            FuelCapacitySeconds = TuningValidation.InRange(fuelCapacitySeconds, nameof(fuelCapacitySeconds), 0.05, 10.0);
+            FuelRegenerationPerSecond = TuningValidation.InRange(fuelRegenerationPerSecond, nameof(fuelRegenerationPerSecond), 0.001, 10.0);
+            FuelRegenerationDelaySeconds = TuningValidation.InRange(fuelRegenerationDelaySeconds, nameof(fuelRegenerationDelaySeconds), 0.0, 10.0);
+            FuelIgnitionCostSeconds = TuningValidation.InRange(fuelIgnitionCostSeconds, nameof(fuelIgnitionCostSeconds), 0.0, FuelCapacitySeconds);
+            FuelSteeringAccelerationUnitsPerSecondSquared = TuningValidation.InRange(fuelSteeringAccelerationUnitsPerSecondSquared,
+                nameof(fuelSteeringAccelerationUnitsPerSecondSquared), 0.1, 10000.0);
+            FuelInvulnerabilityRearmSeconds = TuningValidation.InRange(fuelInvulnerabilityRearmSeconds,
+                nameof(fuelInvulnerabilityRearmSeconds), 0.0, 10.0);
         }
         public double BoostSpeedForDirection(Vec2 direction)
         {
