@@ -3,7 +3,7 @@
 Date: 2026-10-20 (Europe/Istanbul)
 Milestone: HUMAN GATE A — core gameplay playtest/approval
 Last verified milestone: P2 playable graybox, with approved feedback iterations
-Branch: playtest/parry-contact-safety (prior feedback retained; pulled origin/main before work; no issue supplied)
+Branch: playtest/fuel-selected (prior tested feedback retained; pulled origin/main before work; no issue supplied)
 
 Unity 6000.3.26f1 LTS is installed and pinned per user instruction. macOS arm64, .NET SDK 10.0.101, Xcode 27.1, active Unity Personal license. Remote origin: https://github.com/bekirbilge/Parry.git. Tested checkpoint `3c3efec` pushed to main and playtest/parry-area-upward-height before this experiment. Git metadata and Unity execution require sandbox escalation.
 
@@ -33,3 +33,5 @@ Blocker: mandatory human gameplay approval. Next: user tests the combined boost/
 Latest feedback VERIFIED: projectile radius0.6→0.9 (50% larger diameter), matching visuals/collision; speed decays gradually at12 units/s² after each four-second power threshold. Snapshot version6 preserves ramp state. Full core suite PASS:240 fuel rounds/1,305,600 ticks,240 legacy rounds/230,912 ticks plus replay/fuzz. Unity validation,23/23 tests,macOS build,native900 steps/3callbacks PASS; checksumB6D8344A194382A5. Independent source review/diff checks PASS. Capture confirms radius0.9/slowdown12/fuel mode; screenshot inspected. Fuel trial and F1 comparison retained; ready for user playtest.
 
 Current feedback implemented: user revoked lasting parrier immunity. Immediate contact-only protection ends after separation beyond expanded parry contact range (default3.9 units), including inside a simulation step; returns are dangerous. Snapshot version7; LastParrierId means active protection only. Other projectiles stay dangerous. User likes three-charge movement; comparison preserved. Full core suite PASS:240 fuel rounds/683,400 ticks and240 legacy rounds/223,598 ticks plus replay/fuzz; independent source review PASS. Final Unity scene validation,23/23 EditMode tests,macOS build and native900-step/3-callback smoke PASS; checksum93367EB12312CE78. Rope intrusion5.6126,bend7.3044,recoil18.75 retained. Screenshot inspected and diff check PASS. Ready for human gameplay feedback; quit older running app before opening the rebuild.
+
+Latest human decision: user played the fuel version, liked it and requested keeping the current version unchanged. Fuel selected as playable default (already configured); retain existing tuning/projectile/contact-safety behavior and legacy comparison. Documentation-only checkpoint; no runtime changes or test reruns needed. Last verified build/results above still apply. Gate A movement selection is recorded; explicit overall production approval remains outstanding.
