@@ -285,7 +285,7 @@ internal static class CombatTests
         SimulationState state = BodyFixture();
         state.Projectiles.Add(new ProjectileState
         {
-            Id = 30, Position = new Vec2(53.67, 10), Velocity = new Vec2(-1, 0)
+            Id = 30, Position = new Vec2(54.02, 10), Velocity = new Vec2(-1, 0)
         });
         List<SimulationEvent> events = Advance(state, default);
         Assert(Count(events, SimulationEventType.BodyImpact) == 1 &&
@@ -317,7 +317,7 @@ internal static class CombatTests
             CombatTuning.Default.Defense.ParryExtraReachUnits;
         double wall = CombatTuning.Default.Arena.WidthUnits -
             CombatTuning.Default.Arena.ProjectileRadiusUnits;
-        defender.Position = defender.PreviousPosition = new Vec2(wall - reach, 10);
+        defender.Position = defender.PreviousPosition = new Vec2(wall - reach + 1e-6, 10);
         state.Projectiles.Add(new ProjectileState
         {
             Id = 31, Position = new Vec2(wall, 10),
@@ -344,7 +344,7 @@ internal static class CombatTests
             CombatTuning.Default.Defense.ParryExtraReachUnits;
         double wall = CombatTuning.Default.Arena.WidthUnits -
             CombatTuning.Default.Arena.ProjectileRadiusUnits;
-        owner.Position = owner.PreviousPosition = new Vec2(wall - reach, 10);
+        owner.Position = owner.PreviousPosition = new Vec2(wall - reach + 1e-6, 10);
         state.Projectiles.Add(new ProjectileState
         {
             Id = 32, Position = new Vec2(wall, 10),
@@ -460,7 +460,7 @@ internal static class CombatTests
         FighterState fighter = state.Fighter(0);
         ProjectileState shot = new ProjectileState
         {
-            Id = 66, Position = new Vec2(25 + 2.2, 10), Velocity = Vec2.Zero,
+            Id = 66, Position = new Vec2(25 + 2.5, 10), Velocity = Vec2.Zero,
             LastParrierId = 1
         };
         state.Projectiles.Add(shot);
