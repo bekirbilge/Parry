@@ -81,3 +81,10 @@ Fuel trial verified on 2026-10-20:
 - Unity LTS scene validation,23/23 EditMode tests and macOS build PASS after fixes. Virtual Cross hold, steering while held, Square during thrust, release, buffered tap and fuel/three-charge mode reset/capture are covered.
 - Final native graphical smoke PASS:900 steps /3 live fixed callbacks; checksum9E2541FD7938FCFA. Rope preview intrusion5.6126,bend7.3044,recoil18.75. Fuel HUD screenshot inspected. Python log tests5/5 and git diff check PASS.
 - Subjective fuel feel, physical controller/mobile behavior and gameplay approval remain at Gate A. Previous tested three-charge state remains on origin/main; fuel experiment stays on playtest/fuel-boost.
+
+Projectile readability iteration (2026-10-20):
+
+- Radius0.9 (50% larger diameter) shared by drawing and collision. Fixed-step deceleration12 units/s² starts after each four-second power threshold, persists after level0, and ends at the new target. Snapshot version6 hashes the ramp flag.
+- Unity LTS scene validation,23/23 EditMode tests and macOS build PASS. Applied capture confirms radius0.9, slowdown12, level decay4s, fuel mode.
+- Native graphical smoke PASS:900 steps/3 live callbacks, checksumB6D8344A194382A5; rope intrusion5.6126,bend7.3044,recoil18.75 unchanged. Larger-ball screenshot inspected. Independent source review found no material issues after two radius-sensitive fixture updates; diff check clean.
+- Final full core suite PASS:240 fuel bot rounds/1,305,600 ticks and240 legacy rounds/230,912 ticks, including existing fuel/legacy replay and fuzz. New regressions cover bounded monotonic speed loss, final level0 ramp completion, snapshot/hash replay, immediate enemy parry reset and ongoing ramp through owned redirect/guard/wall. Radius-sensitive fixtures preserve expanded-only parry and body-shove collision ordering. Human gameplay/fuel feedback remains required.
