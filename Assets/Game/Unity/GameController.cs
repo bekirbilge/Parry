@@ -480,7 +480,7 @@ namespace Game.Unity
             Label(new Rect(footer.xMin+4, footer.yMin+row, footer.width-8, row),
                 (_localTwoPlayer ? "LOCAL 2P" : "P1 VS BOT " + BotDifficultyName.ToUpperInvariant()) +
                 "  |  " + (Tuning.Movement.UseFuelBoost ? "FUEL" : "3 CHARGES") +
-                " · Neutral boost rises · Projectile ring shows last parrier  |  B mode  P pause  N step  R restart  F1 fuel/charges  F5 tune  F12 capture", _small);
+                " · Neutral boost rises · Ring = temporary parry safety  |  B mode  P pause  N step  R restart  F1 fuel/charges  F5 tune  F12 capture", _small);
         }
 
         private void DrawTouch(Rect a)
@@ -534,7 +534,7 @@ namespace Game.Unity
             Slider("Rope boost load", ref _boostLoadDuration, .05f, .35f);
             Slider("Rope load spring", ref _boostLoadSpring, 50, 400);
             Slider("Rope load damping", ref _boostLoadDamping, 2, 60);
-            GUILayout.Label("Neutral boost rises; aim with move stick. Projectile ring: blue P1, red P2 owner.");
+            GUILayout.Label("Neutral boost rises; aim with move stick. Ring: temporary contact safety (blue P1, red P2); return hits are dangerous.");
             if (GUILayout.Button("Bot difficulty: " + BotDifficultyName + " (tap to change)"))
                 SetBotDifficulty((_botDifficulty + 1) % 3);
             _prototypeInstantTestingStart = GUILayout.Toggle(_prototypeInstantTestingStart,
