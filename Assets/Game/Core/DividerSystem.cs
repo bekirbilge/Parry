@@ -231,6 +231,11 @@ namespace Game.Core
             // Collision classification still sees this tick's powered motion.
             // MovementSystem clears the dash on the following recoil tick.
             fighter.DashTicksRemaining = Math.Max(1, fighter.DashTicksRemaining);
+            if (tuning.Movement.UseFuelBoost)
+            {
+                fighter.FuelBoostActive = false;
+                fighter.FuelBoostNeedsRelease = true;
+            }
             fighter.Velocity = new Vec2(-inward * tuning.Divider.DashReboundSpeedUnitsPerSecond,
                 fighter.Velocity.Y);
             fighter.DividerReboundDistanceRemaining = tuning.Divider.DashReboundDistanceUnits;
