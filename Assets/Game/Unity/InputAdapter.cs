@@ -109,18 +109,19 @@ namespace Game.Unity
         }
 
         public void SampleTouches(Rect arena, bool mouseWidgets, bool tuningOpen = false,
-            bool mobileUi = false)
+            bool mobileUi = false, bool menuOpen = false)
         {
             if (_fighterId != 0) return;
+            if (menuOpen || tuningOpen) { Clear(); return; }
             _touchScreenHeight = Screen.height;
             foreach (Touch touch in Input.touches)
                 SampleTouch(touch.fingerId, touch.phase, touch.position, arena, Screen.height,
-                    tuningOpen, mobileUi);
+                    tuningOpen, mobileUi, menuOpen);
             if (!mouseWidgets) return;
             if (Input.GetMouseButtonDown(0))
             {
                 Vector2 p = Input.mousePosition;
-                int zone = ArenaLayout.TouchAction(arena, p, Screen.height, tuningOpen, mobileUi);
+                int zone = ArenaLayout.TouchAction(arena, p, Screen.height, tuningOpen, mobileUi, menuOpen);
                 _mouseStick = zone == 0; _mouseDash = zone == 1; _mouseDefense = zone == 2;
                 if (_mouseDash) _dashPending = true;
                 if (_mouseDefense) _defensePending = true;
@@ -133,13 +134,14 @@ namespace Game.Unity
 
         /// <summary>Feeds one touch transition. Finger roles remain fixed until release.</summary>
         public void SampleTouch(int fingerId, TouchPhase phase, Vector2 position, Rect arena, int screenHeight,
-            bool tuningOpen = false, bool mobileUi = false)
+            bool tuningOpen = false, bool mobileUi = false, bool menuOpen = false)
         {
             if (_fighterId != 0) return;
+            if (menuOpen || tuningOpen) { Clear(); return; }
             _touchScreenHeight = screenHeight;
             if (phase == TouchPhase.Began)
             {
-                int action = ArenaLayout.TouchAction(arena, position, screenHeight, tuningOpen, mobileUi);
+                int action = ArenaLayout.TouchAction(arena, position, screenHeight, tuningOpen, mobileUi, menuOpen);
                 if (action == 0 && _stickFinger < 0) { _stickFinger = fingerId; _stickOrigin = _stickPoint = position; }
                 if (action == 1 && _dashFinger < 0) { _dashFinger = fingerId; _dashPending = true; }
                 if (action == 2 && _defenseFinger < 0) { _defenseFinger = fingerId; _defensePending = true; }
