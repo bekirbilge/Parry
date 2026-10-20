@@ -19,6 +19,10 @@ internal static class CombatTests
         SimultaneousWallParryEscapesAlongWall();
         SimultaneousWallOwnedRedirectEscapesAlongWall();
         FastOpponentProjectileHitsMovingBoostPath();
+        MovingBoostGrazeUsesParryReachOnlyDuringActiveWindow();
+        ParryReachBoundaryAndExpiredWindowKeepPhysicalHits();
+        ExpandedParryOverlapDoesNotHideLaterPhysicalGuard();
+        CloseOpponentReturnClearsPriorParryOverlap();
         OwnedRedirectCannotRepeatDuringOverlap();
         DashChaseCannotFarmOverlappingParries();
         DashChaseCannotRepeatOverlappingGuardBlocks();
@@ -308,12 +312,16 @@ internal static class CombatTests
     {
         SimulationState state = State();
         FighterState defender = state.Fighter(1);
-        defender.Position = defender.PreviousPosition = new Vec2(98.5, 10);
-        double atWallY = 10 + Math.Sqrt(2.1 * 2.1 - 0.9 * 0.9);
+        double reach = CombatTuning.Default.Arena.ProjectileRadiusUnits +
+            CombatTuning.Default.Arena.FighterRadiusUnits +
+            CombatTuning.Default.Defense.ParryExtraReachUnits;
+        double wall = CombatTuning.Default.Arena.WidthUnits -
+            CombatTuning.Default.Arena.ProjectileRadiusUnits;
+        defender.Position = defender.PreviousPosition = new Vec2(wall - reach, 10);
         state.Projectiles.Add(new ProjectileState
         {
-            Id = 31, Position = new Vec2(99.2, atWallY + 0.2),
-            Velocity = new Vec2(24, -24)
+            Id = 31, Position = new Vec2(wall, 10),
+            Velocity = new Vec2(24, 0)
         });
         var events = new List<SimulationEvent>();
         CombatSystem.Advance(state, new SimulationInput(state.Tick, default,
@@ -331,12 +339,16 @@ internal static class CombatTests
     {
         SimulationState state = State();
         FighterState owner = state.Fighter(1);
-        owner.Position = owner.PreviousPosition = new Vec2(98.5, 10);
-        double atWallY = 10 + Math.Sqrt(2.1 * 2.1 - 0.9 * 0.9);
+        double reach = CombatTuning.Default.Arena.ProjectileRadiusUnits +
+            CombatTuning.Default.Arena.FighterRadiusUnits +
+            CombatTuning.Default.Defense.ParryExtraReachUnits;
+        double wall = CombatTuning.Default.Arena.WidthUnits -
+            CombatTuning.Default.Arena.ProjectileRadiusUnits;
+        owner.Position = owner.PreviousPosition = new Vec2(wall - reach, 10);
         state.Projectiles.Add(new ProjectileState
         {
-            Id = 32, Position = new Vec2(99.2, atWallY + 0.2),
-            Velocity = new Vec2(24, -24), LastParrierId = owner.Id,
+            Id = 32, Position = new Vec2(wall, 10),
+            Velocity = new Vec2(24, 0), LastParrierId = owner.Id,
             PowerLevel = 1, DecayTicksRemaining = 50
         });
         var events = new List<SimulationEvent>();
@@ -380,6 +392,137 @@ internal static class CombatTests
         }
     }
 
+    private static void MovingBoostGrazeUsesParryReachOnlyDuringActiveWindow()
+    {
+        foreach (bool invulnerable in new[] { false, true })
+        {
+            foreach (bool pressDefense in new[] { false, true })
+            {
+                SimulationState state = State();
+                FighterState fighter = state.Fighter(0);
+                fighter.PreviousPosition = new Vec2(25, 10);
+                fighter.Position = new Vec2(25 + CombatTuning.Default.Movement.DashSpeedUnitsPerSecond / 60, 10);
+                fighter.DashTicksRemaining = 2;
+                fighter.DashInvulnerabilityTicksRemaining = invulnerable ? 2 : 0;
+                state.Projectiles.Add(new ProjectileState
+                {
+                    Id = 63, Position = new Vec2(33, 12.5), Velocity = new Vec2(-300, 0),
+                    LastParrierId = 1
+                });
+                List<SimulationEvent> events = Advance(state,
+                    pressDefense ? new FighterInput(Vec2.Zero, defensePressed: true) : default);
+                Assert(Count(events, SimulationEventType.PerfectParry) == (pressDefense ? 1 : 0) &&
+                    Count(events, SimulationEventType.FighterEliminated) == 0 &&
+                    Count(events, SimulationEventType.GuardBlocked) == 0 && !fighter.Eliminated,
+                    "Swept parry reach must catch a moving boost graze during or after invulnerability; " +
+                    "the same graze without parry must stay outside the physical hitbox.");
+            }
+        }
+    }
+
+    private static void ParryReachBoundaryAndExpiredWindowKeepPhysicalHits()
+    {
+        double physical = CombatTuning.Default.Arena.FighterRadiusUnits +
+            CombatTuning.Default.Arena.ProjectileRadiusUnits;
+        double reach = physical + CombatTuning.Default.Defense.ParryExtraReachUnits;
+        foreach (bool inside in new[] { false, true })
+        {
+            SimulationState state = State();
+            state.Projectiles.Add(new ProjectileState
+            {
+                Id = 64, Position = new Vec2(25 + reach + (inside ? -0.01 : 0.01), 10),
+                Velocity = Vec2.Zero
+            });
+            List<SimulationEvent> events = Advance(state,
+                new FighterInput(Vec2.Zero, defensePressed: true));
+            Assert(Count(events, SimulationEventType.PerfectParry) == (inside ? 1 : 0),
+                "Parry reach must have a sharp configured boundary.");
+        }
+
+        SimulationState expired = State();
+        expired.Projectiles.Add(new ProjectileState
+        {
+            Id = 65, Position = new Vec2(25 + physical + 0.2, 10), Velocity = Vec2.Zero
+        });
+        Advance(expired, default);
+        Assert(!expired.Fighter(0).Eliminated,
+            "Expired parry must not turn the enlarged radius into a lethal body hitbox.");
+        expired.Projectiles[0].Position = new Vec2(25 + physical - 0.1, 10);
+        expired.Tick++;
+        List<SimulationEvent> physicalHit = Advance(expired, default);
+        Assert(expired.Fighter(0).Eliminated && Count(physicalHit, SimulationEventType.FighterEliminated) == 1,
+            "The original physical radius must remain lethal after the parry window expires.");
+    }
+
+    private static void ExpandedParryOverlapDoesNotHideLaterPhysicalGuard()
+    {
+        SimulationState state = State();
+        FighterState fighter = state.Fighter(0);
+        ProjectileState shot = new ProjectileState
+        {
+            Id = 66, Position = new Vec2(25 + 2.2, 10), Velocity = Vec2.Zero,
+            LastParrierId = 1
+        };
+        state.Projectiles.Add(shot);
+        List<SimulationEvent> parry = Advance(state,
+            new FighterInput(Vec2.Zero, defensePressed: true));
+        Assert(Count(parry, SimulationEventType.PerfectParry) == 1 &&
+            shot.ParryContactMask == 1 && shot.ReflectedContactMask == 0,
+            "An expanded parry must mark only its expanded overlap when bodies did not touch.");
+        fighter.ParryTicksRemaining = 0;
+        fighter.DefenseHeldPrevious = true;
+        fighter.DefenseHoldTicks = 6;
+        shot.LastParrierId = 1;
+        shot.Position = new Vec2(25 + 2.0, 10);
+        shot.Velocity = Vec2.Zero;
+        state.Tick++;
+        List<SimulationEvent> guard = Advance(state,
+            new FighterInput(Vec2.Zero, defenseHeld: true));
+        Assert(Count(guard, SimulationEventType.GuardBlocked) == 1 &&
+            !fighter.Eliminated && shot.ReflectedContactMask == 1,
+            "After parry expires, a new physical guard contact inside the larger overlap must still resolve.");
+    }
+
+    private static void CloseOpponentReturnClearsPriorParryOverlap()
+    {
+        SimulationState state = State();
+        FighterState left = state.Fighter(0);
+        FighterState right = state.Fighter(1);
+        var config = new SimulationConfig(tickRateHz: 120);
+        left.Position = left.PreviousPosition = new Vec2(48.5, 10);
+        right.Position = right.PreviousPosition = new Vec2(51.5, 10);
+        right.DashInvulnerabilityTicksRemaining = 1;
+        state.Projectiles.Add(new ProjectileState
+        {
+            Id = 67, Position = new Vec2(50.7, 10), Velocity = new Vec2(-24, 0)
+        });
+        List<SimulationEvent> first = Advance(state,
+            new FighterInput(Vec2.Zero, defensePressed: true), config: config);
+        ProjectileState shot = state.Projectiles[0];
+        Assert(Count(first, SimulationEventType.PerfectParry) == 1 &&
+            shot.ParryContactMask == 1 && !right.Eliminated,
+            "The first close-range parry must leave an expanded overlap at the left fighter.");
+
+        left.ParryTicksRemaining = 0;
+        left.DashInvulnerabilityTicksRemaining = 1;
+        state.Tick++;
+        var second = new List<SimulationEvent>();
+        CombatSystem.Advance(state, new SimulationInput(state.Tick, default,
+            new FighterInput(Vec2.Zero, defensePressed: true)),
+            CombatTuning.Default, config, second);
+        Assert(Count(second, SimulationEventType.PerfectParry) == 1 &&
+            shot.LastParrierId == 1 && (shot.ParryContactMask & 1) == 0,
+            "An opponent return must clear the first fighter's stale expanded overlap.");
+
+        state.Tick++;
+        right.ParryTicksRemaining = 0;
+        List<SimulationEvent> returned = Advance(state,
+            new FighterInput(Vec2.Zero, defensePressed: true), config: config);
+        Assert(Count(returned, SimulationEventType.PerfectParry) == 1 &&
+            shot.LastParrierId == 0 && !left.Eliminated,
+            "The first fighter must be able to parry a returned shot while both reach zones overlap.");
+    }
+
     private static void OwnedRedirectCannotRepeatDuringOverlap()
     {
         SimulationState state = State();
@@ -393,7 +536,7 @@ internal static class CombatTests
         List<SimulationEvent> first = Advance(state,
             new FighterInput(Vec2.Zero, defensePressed: true));
         Assert(Count(first, SimulationEventType.OwnedProjectileRedirected) == 1 &&
-            state.Projectiles[0].ReflectedContactMask == 1,
+            state.Projectiles[0].ParryContactMask == 1,
             "First owned redirect must mark its continuous overlap.");
         state.Tick++;
         List<SimulationEvent> second = Advance(state,
@@ -423,7 +566,7 @@ internal static class CombatTests
                 new FighterInput(new Vec2(1, 0), dashPressed: true, defensePressed: true, defenseHeld: true),
                 default), CombatTuning.Default, config, events);
         Assert(Count(events, SimulationEventType.PerfectParry) == 1 &&
-            state.Projectiles[0].PowerLevel == 1 && state.Projectiles[0].ReflectedContactMask == 1,
+            state.Projectiles[0].PowerLevel == 1 && state.Projectiles[0].ParryContactMask == 1,
             "Initial dash parry must charge once and retain its overlapping contact marker.");
         int charges = fighter.DashCharges;
         for (int tick = 0; tick < 3; tick++)
@@ -447,7 +590,8 @@ internal static class CombatTests
         state.Projectiles[0].Velocity = new Vec2(27.6, 0);
         state.Tick++;
         Advance(state, default);
-        Assert(state.Projectiles[0].ReflectedContactMask == 0,
+        Assert(state.Projectiles[0].ReflectedContactMask == 0 &&
+            state.Projectiles[0].ParryContactMask == 0,
             "Reflected contact must clear only after actual geometric separation.");
         state.Projectiles[0].Position = new Vec2(22.7, 10);
         state.Projectiles[0].Velocity = new Vec2(24, 0);
@@ -510,6 +654,20 @@ internal static class CombatTests
         List<SimulationEvent> next = Advance(state, default);
         Assert(fighter.Eliminated && Count(next, SimulationEventType.FighterEliminated) == 1,
             "An overlapping projectile must become lethal when invulnerability expires.");
+
+        SimulationState parrying = State();
+        parrying.Fighter(0).DashInvulnerabilityTicksRemaining = 1;
+        parrying.Projectiles.Add(new ProjectileState
+        {
+            Id = 68, Position = new Vec2(26, 10), Velocity = Vec2.Zero
+        });
+        Advance(parrying, default);
+        parrying.Tick++;
+        List<SimulationEvent> saved = Advance(parrying,
+            new FighterInput(Vec2.Zero, defensePressed: true));
+        Assert(Count(saved, SimulationEventType.PerfectParry) == 1 &&
+            !parrying.Fighter(0).Eliminated,
+            "An invulnerable physical overlap must remain parryable on the next tick.");
     }
 
     private static int Count(List<SimulationEvent> events, SimulationEventType type)
