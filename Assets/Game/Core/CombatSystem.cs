@@ -52,6 +52,7 @@ namespace Game.Core
             {
                 projectile.PreviousPosition = projectile.Position;
                 DecayPower(projectile, tuning, config);
+                EaseDecayingSpeed(projectile, tuning, config);
             }
 
             double now = 0;
@@ -164,7 +165,23 @@ namespace Game.Core
             projectile.PowerLevel--;
             projectile.DecayTicksRemaining = projectile.PowerLevel == 0 ? 0 :
                 Math.Max(1, SimMath.SecondsToTicks(tuning.Projectile.PowerDecaySecondsPerLevel, config.TickRateHz));
-            SetProjectileSpeed(projectile, tuning);
+            projectile.SpeedDecaying = true;
+        }
+
+        private static void EaseDecayingSpeed(ProjectileState projectile, CombatTuning tuning, SimulationConfig config)
+        {
+            if (!projectile.SpeedDecaying) return;
+            double targetSpeed = tuning.Projectile.BaseSpeedUnitsPerSecond *
+                tuning.Projectile.SpeedMultiplierAtLevel(projectile.PowerLevel);
+            double currentSpeed = projectile.Velocity.Length;
+            double nextSpeed = Math.Max(targetSpeed, currentSpeed -
+                tuning.Projectile.SpeedDecayUnitsPerSecondSquared * config.TickDurationSeconds);
+            if (currentSpeed <= targetSpeed || nextSpeed <= targetSpeed)
+            {
+                nextSpeed = targetSpeed;
+                projectile.SpeedDecaying = false;
+            }
+            projectile.Velocity = projectile.Velocity.NormalizedOr(new Vec2(1, 0)) * nextSpeed;
         }
 
         private static void SetProjectileSpeed(ProjectileState projectile, CombatTuning tuning)
@@ -284,6 +301,7 @@ namespace Game.Core
                 projectile.PowerLevel = Math.Min(ProjectileTuning.MaximumPowerLevel, projectile.PowerLevel + 1);
                 projectile.DecayTicksRemaining = Math.Max(1,
                     SimMath.SecondsToTicks(tuning.Projectile.PowerDecaySecondsPerLevel, config.TickRateHz));
+                projectile.SpeedDecaying = false;
                 ReflectFromFighter(projectile, contact.Normal, input.ForFighter(fighter.Id).Move,
                     tuning.Projectile.MaximumParrySteeringDegrees);
                 SetProjectileSpeed(projectile, tuning);
