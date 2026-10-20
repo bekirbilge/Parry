@@ -195,7 +195,8 @@ namespace Game.Core
             {
                 Id = id, Position = position, PreviousPosition = position, TickStartPosition = position,
                 FacingSign = id == 0 ? 1 : -1, Grounded = true,
-                DashCharges = MovementTuning.MaximumDashCharges, RoundWins = wins
+                DashCharges = MovementTuning.MaximumDashCharges,
+                FuelSeconds = Tuning.Movement.FuelCapacitySeconds, RoundWins = wins
             };
         }
 
@@ -207,7 +208,7 @@ namespace Game.Core
                 throw new ArgumentException("Movement input must be finite.", nameof(input));
             Vec2 move = new Vec2(SimMath.Clamp(input.Move.X, -1, 1), SimMath.Clamp(input.Move.Y, -1, 1));
             return new FighterInput(move, input.JumpPressed, input.JumpHeld, input.DashPressed,
-                input.DefensePressed, input.DefenseHeld);
+                input.DefensePressed, input.DefenseHeld, input.DashHeld);
         }
     }
 }
