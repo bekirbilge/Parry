@@ -14,9 +14,27 @@ namespace Game.Unity.Tests
             adapter.SampleRaw(new Vec2(0, 0), false, false, false);
             FighterInput tick = adapter.ConsumeTick();
             Assert.That(tick.JumpPressed && tick.DashPressed && tick.DefensePressed, Is.True);
-            Assert.That(tick.JumpHeld || tick.DefenseHeld, Is.False);
+            Assert.That(tick.JumpHeld || tick.DashHeld || tick.DefenseHeld, Is.False);
             FighterInput next = adapter.ConsumeTick();
-            Assert.That(next.JumpPressed || next.DashPressed || next.DefensePressed, Is.False);
+            Assert.That(next.JumpPressed || next.DashPressed || next.DashHeld || next.DefensePressed, Is.False);
+        }
+
+        [Test]
+        public void HeldBoostStaysHeldAcrossTicksAndReleaseClearsIt()
+        {
+            var adapter = new InputAdapter(0);
+            adapter.SampleRaw(new Vec2(1, 0), false, true, false);
+            FighterInput first = adapter.ConsumeTick();
+            Assert.That(first.DashPressed && first.DashHeld, Is.True);
+            for (int i = 0; i < 3; i++)
+            {
+                FighterInput held = adapter.ConsumeTick();
+                Assert.That(held.DashHeld, Is.True);
+                Assert.That(held.DashPressed, Is.False);
+            }
+            adapter.SampleRaw(default(Vec2), false, false, false);
+            FighterInput released = adapter.ConsumeTick();
+            Assert.That(released.DashHeld || released.DashPressed, Is.False);
         }
 
         [Test]
@@ -51,12 +69,14 @@ namespace Game.Unity.Tests
             FighterInput first = adapter.ConsumeTick();
             Assert.That(first.Move.X, Is.GreaterThan(0.5));
             Assert.That(first.DashPressed, Is.True);
+            Assert.That(first.DashHeld, Is.True);
             Assert.That(first.JumpPressed || first.JumpHeld, Is.False);
             Assert.That(first.DefensePressed && first.DefenseHeld, Is.True);
 
             adapter.SampleTouch(12, TouchPhase.Ended, boost, arena, height);
             FighterInput second = adapter.ConsumeTick();
             Assert.That(second.DashPressed, Is.False);
+            Assert.That(second.DashHeld, Is.False);
             Assert.That(second.DefenseHeld, Is.True);
             Assert.That(second.Move.X, Is.GreaterThan(0.5));
             Assert.That(second.DefensePressed, Is.False);
