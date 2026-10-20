@@ -14,7 +14,8 @@ namespace Game.Core
         DividerRebound,
         RoundDraw,
         RoundWon,
-        MatchWon
+        MatchWon,
+        OwnedProjectileRedirected
     }
 
     /// <summary>Transient tick output; events are ordered by the simulation step.</summary>
