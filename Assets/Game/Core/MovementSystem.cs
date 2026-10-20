@@ -64,7 +64,7 @@ namespace Game.Core
 
             int dashDuration = SimMath.SecondsToTicks(movement.DashDurationSeconds, config.TickRateHz);
             int cancelTicks = SimMath.SecondsToTicks(movement.DashCancelAfterSeconds, config.TickRateHz);
-            Vec2 requestedDashDirection = SnapEightWay(stick, fighter.FacingSign);
+            Vec2 requestedDashDirection = stick.NormalizedOr(new Vec2(0, 1));
             int inward = fighter.Id == SimulationState.LeftFighterId ? 1 : -1;
             // A fresh inward press cannot restart the rope loading clock.
             // Outward or vertical dashes still let the fighter escape it.
@@ -175,15 +175,6 @@ namespace Game.Core
         {
             if (current < target) return Math.Min(current + delta, target);
             return Math.Max(current - delta, target);
-        }
-
-        private static Vec2 SnapEightWay(Vec2 input, int facingSign)
-        {
-            if (input.LengthSquared < 1e-12) return new Vec2(0, 1);
-            double eighth = Math.PI / 4.0;
-            double angle = Math.Round(Math.Atan2(input.Y, input.X) / eighth,
-                MidpointRounding.AwayFromZero) * eighth;
-            return new Vec2(Math.Cos(angle), Math.Sin(angle));
         }
     }
 }
