@@ -20,27 +20,27 @@ Default: blue P1 versus Easy debug bot. B toggles local two-player. Editor: Unit
 | Boost | X/Cross | Shift or Space | I or U |
 | Tap parry / hold guard | Square | E | O |
 
-Neutral-stick boost goes straight up; aiming boosts immediately at the exact normalized stick angle, without eight-way snapping. Aim is locked for that powered burst; the next boost can change it. There is no separate jump button; Triangle is unassigned. Xbox equivalents: A boost, X defense. Three charges, sequential one-second recharge; perfect parry restores one up to three. The debug bot uses these same movement actions.
+Neutral-stick boost goes straight up; aiming boosts immediately at the exact normalized stick angle, without eight-way snapping. Fuel mode lets you steer continuously while holding boost; release to coast. F1 switches to the previous three-charge mode, where each burst retains its launch direction. There is no separate jump button; Triangle is unassigned. Xbox equivalents: A boost, X defense. Fuel mode starts with a 0.9-second tank. Thrust burns fuel; regeneration starts after a 0.35-second pause and fills an empty tank in three seconds. Enemy perfect parry restores one-third tank. Exhaustion or rope recoil requires releasing boost before another ignition. The comparison mode has three charges, sequential one-second recharge, and one charge restored per enemy perfect parry. The debug bot uses these same movement actions.
 
 Touch: MOVE joystick plus BOOST and DEF. F4 shows mouse-testable touch controls on desktop. Physical gamepad and mobile behavior still need testing; virtual-device integration is covered automatically.
 
-Debug: B bot/local, R restart, P pause, N step paused, F1 tuning, F2 quarter speed, F3 collisions/FPS, F12 capture. macOS may require Fn for function keys. Tuning changes apply on Apply / reset match. Immediate test start is enabled; movement works while the first ball's three-second warning runs. F1 can restore normal countdown.
+Debug: B bot/local, R restart, P pause, N step paused, F1 fuel/charges (restarts match), F5 tuning, F2 quarter speed, F3 collisions/FPS, F12 capture. macOS may require Fn for function keys. Tuning changes apply on Apply / reset match. Immediate test start is enabled; movement works while the first ball's three-second warning runs. The F5 tuning panel can restore normal countdown.
 
 F12 saves a PNG and applied `tuning.json` in the chosen output folder; the tuning panel shows the path. Captures include boost/load timings, invulnerability, projectile decay/speeds and parry window.
 
 ## Latest changes to evaluate
 
-- Boost is a 0.30 s powered directional burst with upward speed capped at40 (horizontal/downward80), with only 0.08 s invulnerability. A rope contact loads for ~0.20 s before recoil. Fixed anchors and movable floor/ceiling hinges allow real forward stretch without crossing the rope; maximum bend remains eight units.
+- Fuel boost lasts while held and supplied, with continuous steering. Ignition costs 0.04 seconds of fuel; invulnerability remains 0.08 seconds with a 0.35-second rearm cooldown. The legacy comparison uses a 0.30 s powered directional burst with upward speed capped at40 (horizontal/downward80), with only 0.08 s invulnerability. A rope contact loads for ~0.20 s before recoil. Fixed anchors and movable floor/ceiling hinges allow real forward stretch without crossing the rope; maximum bend remains eight units.
 - Parry radius is now3 units (fighter body1.5); its visible halo matches collision. The parry window stays0.16 s, recovery timings stay unchanged, and it works during boost, rope loading and recoil. Hold defense for guard; a fresh press is needed for another parry. Parry never heals posture.
 - Charged projectile speeds are 72 / 84 / 96 units/s versus normal 24. Each power level lasts four seconds before losing one level; a perfect parry resets that timer. Critical can therefore take twelve seconds to fully return to normal without another parry.
 - Only the last perfect parrier is immune to that projectile until the opponent perfect-parries it. An owned shot passes through its owner when no timed parry is active. Press Square to redirect it safely: no extra power, charge restoration, or decay refresh. The HUD calls this SAFE REDIRECT. Ordinary held guard does not redirect your own shot. Walls, ordinary guard and decay preserve ownership. The outer ring shows which player is immune; the core color shows power. Unclaimed shots threaten both players.
 
 ## Five-minute checklist
 
-1. Boost upward from neutral and directionally while aiming. Spend three charges, then check sequential recharge; try movement without a jump button.
+1. Hold boost upward from neutral and steer while holding. Release, check delayed refill, then exhaust the tank and release before restarting. Press F1 to compare with three charges; it resets the match.
 2. Aim at shallow and steep angles to compare free-angle boosting. Press Cross + Square together, then tap Square midway through a boost. Compare parry timing while still, loading the rope, and recoiling.
 3. Boost into the rope from close range on ground and in air. Expect forward penetration into the opponent's resting half before one rebound. Check diagonal vertical momentum and escape with an outward boost.
-4. Parry a projectile, let it bounce back through you, and verify the owner ring. Press Square to deliberately redirect your own returning shot; verify no extra charge appears. Have the opponent parry it back: it should now threaten you. Compare ordinary guard with parry ownership transfer.
+4. Parry a projectile, let it bounce back through you, and verify the owner ring. Press Square to deliberately redirect your own returning shot; verify no extra fuel or charge appears. Have the opponent parry it back: it should now threaten you. Compare ordinary guard with parry ownership transfer.
 5. Judge charged speed, four-second decay, posture pressure, fairness of grazing hits, simultaneous K.O., first-to-two flow, and equal opposing boosts in local mode.
 
 Report requested changes for boost control, rope penetration/recoil, parry ease, charged speed and ownership immunity. Include any unfair-death example or captured tuning. Explicitly say when the core combat is fun enough to proceed.
@@ -57,4 +57,6 @@ Validated area-only trial: compare grazing-shot parries during boost and after i
 
 A close-range opponent return now clears stale contact suppression, so a later parry is not skipped because the projectile is still in the earlier overlap. Core tests,20/20 Unity tests and native smoke pass for this iteration.
 
-Next requested discussion: a fuel meter replacing discrete boosts. No fuel implementation or rule change yet; keep three charges for this build.
+Fuel trial authorized after pushing the tested three-charge build to GitHub. Compare sustained steering, fuel pressure, parry refunds and rope recoil against the old mode using F1. Trial values await human feedback; production approval remains outstanding.
+
+Fuel trial validation complete: core replay/stress,23/23 Unity tests, macOS build and native smoke pass. Review fixes preserve the rope-impact body hit and required release through guard break. Please compare fuel steering and refill pressure against F1's three-charge mode, especially while parrying and loading/rebounding from the rope.
