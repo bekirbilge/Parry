@@ -17,6 +17,40 @@ namespace Game.Unity.Tests
     public sealed class PlayableSceneTests
     {
         [Test]
+        public void RestartFromPausedTuningResumesAndResetsMatch()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.RestartMatch();
+            controller.StepOnce(new SimulationInput(0, default(FighterInput), default(FighterInput)));
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            typeof(GameController).GetMethod("TogglePause", flags).Invoke(controller, null);
+            typeof(GameController).GetMethod("ToggleTuning", flags).Invoke(controller, null);
+            try
+            {
+                Assert.That(Time.timeScale, Is.EqualTo(0));
+                // Close tuning with the visible pause control, reopen the menu, then tap Restart.
+                typeof(GameController).GetField("_forceTouchPreview", flags).SetValue(controller, true);
+                Rect arena = new Rect(0, 0, 1280, 590);
+                var handle = typeof(GameController).GetMethod("HandleToolbar", flags);
+                Vector2 restart = ArenaLayout.PauseMenuButton(arena, 3).center;
+                handle.Invoke(controller, new object[] { arena, new Vector2(restart.x, Screen.height - restart.y) });
+                Assert.That(controller.CaptureSnapshot().Tick, Is.EqualTo(1), "Tuning must block hidden menu buttons.");
+                Assert.That(typeof(GameController).GetField("_showTuning", flags).GetValue(controller), Is.True);
+                Vector2 pause = ArenaLayout.PauseButton(arena).center;
+                handle.Invoke(controller, new object[] { arena, new Vector2(pause.x, Screen.height - pause.y) });
+                handle.Invoke(controller, new object[] { arena, new Vector2(pause.x, Screen.height - pause.y) });
+                handle.Invoke(controller, new object[] { arena, new Vector2(restart.x, Screen.height - restart.y) });
+                Assert.That(controller.CaptureSnapshot().Tick, Is.EqualTo(0));
+                Assert.That(Time.timeScale, Is.EqualTo(1));
+                Assert.That(typeof(GameController).GetField("_paused", flags).GetValue(controller), Is.False);
+                Assert.That(typeof(GameController).GetField("_showTuning", flags).GetValue(controller), Is.False);
+            }
+            finally { Time.timeScale = 1; }
+        }
+
+        [Test]
         public void BootstrapSceneLoadsWithOneClockControllerAndOrthographicCamera()
         {
             BootstrapPipeline.EnsureBootstrapScene();
