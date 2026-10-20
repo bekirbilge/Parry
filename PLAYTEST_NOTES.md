@@ -30,8 +30,8 @@ F12 saves a PNG and applied `tuning.json` in the chosen output folder; the tunin
 
 ## Latest changes to evaluate
 
-- Boost is a 0.30 s powered directional burst, with only 0.08 s invulnerability. A rope contact loads for ~0.20 s before recoil. Fixed anchors and movable floor/ceiling hinges allow real forward stretch without crossing the rope; maximum bend remains eight units.
-- Parry window is 0.16 s and works during boost, rope loading and recoil. Hold defense for guard; a fresh press is needed for another parry. Parry never heals posture.
+- Boost is a 0.30 s powered directional burst with upward speed capped at40 (horizontal/downward80), with only 0.08 s invulnerability. A rope contact loads for ~0.20 s before recoil. Fixed anchors and movable floor/ceiling hinges allow real forward stretch without crossing the rope; maximum bend remains eight units.
+- Parry radius is now3 units (fighter body1.5); its visible halo matches collision. The parry window stays0.16 s, recovery timings stay unchanged, and it works during boost, rope loading and recoil. Hold defense for guard; a fresh press is needed for another parry. Parry never heals posture.
 - Charged projectile speeds are 72 / 84 / 96 units/s versus normal 24. Each power level lasts four seconds before losing one level; a perfect parry resets that timer. Critical can therefore take twelve seconds to fully return to normal without another parry.
 - Only the last perfect parrier is immune to that projectile until the opponent perfect-parries it. An owned shot passes through its owner when no timed parry is active. Press Square to redirect it safely: no extra power, charge restoration, or decay refresh. The HUD calls this SAFE REDIRECT. Ordinary held guard does not redirect your own shot. Walls, ordinary guard and decay preserve ownership. The outer ring shows which player is immune; the core color shows power. Unclaimed shots threaten both players.
 
@@ -52,3 +52,9 @@ Report requested changes for boost control, rope penetration/recoil, parry ease,
 2026-10-20: user requested rocket-like boost and deep rope loading, slower projectile decay, stronger charged speed, owner immunity, easier boost parry, and eliminating the jump button. User selected neutral-stick upward boost without tap/hold delay and last-parrier immunity until opponent parry. Implemented as the tunable trial above; subjective approval remains outstanding.
 
 Latest feedback iteration: user requested twice-faster parry deflections and continuous boost aim. User confirmed speed increases remain a perfect-parry reward, while owned shots can be deliberately redirected without power/charge bonuses. Automated validation and rebuild passed; these changes are ready for another feel test.
+
+Validated area-only trial: compare grazing-shot parries during boost and after invulnerability expires. Untimed boost immunity or ownership can still allow harmless pass-through. Test the larger parry radius first; timing/recovery was deliberately not increased. Also compare the lower neutral upward boost height.
+
+A close-range opponent return now clears stale contact suppression, so a later parry is not skipped because the projectile is still in the earlier overlap. Core tests,20/20 Unity tests and native smoke pass for this iteration.
+
+Next requested discussion: a fuel meter replacing discrete boosts. No fuel implementation or rule change yet; keep three charges for this build.
