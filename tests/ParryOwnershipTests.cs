@@ -53,6 +53,7 @@ internal static class ParryOwnershipTests
         shot.Position = new Vec2(27.3, 10);
         shot.Velocity = new Vec2(-36, 0);
         shot.ReflectedContactMask = 0;
+        shot.ParryContactMask = 0;
         List<SimulationEvent> ownEvents = Step(state, new FighterInput(Vec2.Zero, defensePressed: true));
         Assert(Count(ownEvents, SimulationEventType.OwnedProjectileRedirected) == 1 &&
             Count(ownEvents, SimulationEventType.PerfectParry) == 0 &&
@@ -167,6 +168,11 @@ internal static class ParryOwnershipTests
         copy.Projectiles[0].LastParrierId = 1;
         Assert(state.Projectiles[0].LastParrierId == 0 && state.ComputeChecksum() == checksum &&
             copy.ComputeChecksum() != checksum, "Ownership must be cloned and included in replay checksums.");
+        copy = state.Clone();
+        copy.Projectiles[0].ParryContactMask = 1;
+        Assert(state.Projectiles[0].ParryContactMask == 0 && state.ComputeChecksum() == checksum &&
+            copy.ComputeChecksum() != checksum,
+            "Expanded parry overlap must be cloned and included in replay checksums.");
         var resumed = new MatchSimulation();
         resumed.RestoreSnapshot(state);
         Assert(resumed.CaptureSnapshot().ComputeChecksum() == checksum,
