@@ -10,6 +10,7 @@ internal static class Program
         ProgressesOnlyAtFixedTicks();
         BoundsCatchUpAfterStall();
         TuningTests.Run();
+        LargeFighterTests.Run();
         ContractTests.Run();
         DebugBotTests.Run();
         MovementTests.Run();
