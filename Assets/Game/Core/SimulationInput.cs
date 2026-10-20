@@ -7,16 +7,19 @@ namespace Game.Core
         public readonly bool JumpPressed;
         public readonly bool JumpHeld;
         public readonly bool DashPressed;
+        public readonly bool DashHeld;
         public readonly bool DefensePressed;
         public readonly bool DefenseHeld;
 
         public FighterInput(Vec2 move, bool jumpPressed = false, bool jumpHeld = false,
-            bool dashPressed = false, bool defensePressed = false, bool defenseHeld = false)
+            bool dashPressed = false, bool defensePressed = false, bool defenseHeld = false,
+            bool dashHeld = false)
         {
             Move = move;
             JumpPressed = jumpPressed;
             JumpHeld = jumpHeld;
             DashPressed = dashPressed;
+            DashHeld = dashHeld;
             DefensePressed = defensePressed;
             DefenseHeld = defenseHeld;
         }
