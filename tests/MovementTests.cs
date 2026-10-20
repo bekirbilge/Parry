@@ -13,6 +13,7 @@ internal static class MovementTests
         VariableJumpAndNoDoubleJump();
         CoyoteAndLandingBuffer();
         DirectionalDashAndSequentialRecharge();
+        BoostFollowsContinuousAimAtFullSpeed();
         NeutralBoostLaunchesUpward();
         GuardBreakLeavesRunAndJumpAvailable();
     }
@@ -93,8 +94,9 @@ internal static class MovementTests
         Tick(state, new FighterInput(new Vec2(1, 0.8), dashPressed: true));
         Assert(fighter.DashCharges == MovementTuning.MaximumDashCharges - 1 && fighter.DashSequence == 1,
             "First dash must consume one charge.");
-        Assert(Math.Abs(fighter.DashDirection.X - fighter.DashDirection.Y) < 1e-9,
-            "Diagonal stick must snap to an eight-way direction.");
+        Vec2 firstDirection = new Vec2(1, 0.8).NormalizedOr(Vec2.Zero);
+        Assert((fighter.DashDirection - firstDirection).Length < 1e-9,
+            "Diagonal boost must retain the exact aimed direction.");
         Assert(fighter.DashInvulnerabilityTicksRemaining > 0, "Dash must start its iframe window.");
         for (int i = 0; i < 9; i++) Tick(state, new FighterInput(Vec2.Zero));
         Tick(state, new FighterInput(new Vec2(-1, 0), dashPressed: true));
@@ -116,6 +118,36 @@ internal static class MovementTests
         for (int i = 0; i < recharge; i++) Tick(state, new FighterInput(Vec2.Zero));
         Assert(fighter.DashCharges == MovementTuning.MaximumDashCharges && fighter.DashRechargeTicksRemaining == 0,
             "Third charge must refill sequentially and stop recharge at the cap.");
+    }
+
+    private static void BoostFollowsContinuousAimAtFullSpeed()
+    {
+        double[] angles = { 1, 10, 20, 37, 89, -1, -10, -20, -37, -89 };
+        foreach (double angle in angles)
+        {
+            AssertBoostAim(angle, 1);
+            AssertBoostAim(180 - angle, 0.25);
+        }
+    }
+
+    private static void AssertBoostAim(double degrees, double stickMagnitude)
+    {
+        SimulationState state = Fresh();
+        FighterState fighter = state.Fighter(0);
+        fighter.Position = new Vec2(25, Tuning.Arena.HeightUnits / 2);
+        fighter.Grounded = false;
+        double radians = degrees * Math.PI / 180;
+        Vec2 expected = new Vec2(Math.Cos(radians), Math.Sin(radians));
+        Tick(state, new FighterInput(expected * stickMagnitude, dashPressed: true));
+        Assert((fighter.DashDirection - expected).Length < 1e-9,
+            "Boost aim must retain non-cardinal and mirrored angles.");
+        Assert(Math.Abs(fighter.Velocity.Length - Tuning.Movement.DashSpeedUnitsPerSecond) < 1e-9,
+            "Boost speed must be independent of aim angle and stick magnitude.");
+
+        Tick(state, new FighterInput(-expected));
+        Assert((fighter.DashDirection - expected).Length < 1e-9 &&
+            (fighter.Velocity - expected * Tuning.Movement.DashSpeedUnitsPerSecond).Length < 1e-9,
+            "A boost must keep its initial direction when the stick changes mid-boost.");
     }
 
     private static void GuardBreakLeavesRunAndJumpAvailable()
