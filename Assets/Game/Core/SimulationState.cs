@@ -24,6 +24,12 @@ namespace Game.Core
         public int LastJumpBodyHitAirSequence = -1;
         public int DashCharges;
         public int DashRechargeTicksRemaining;
+        public double FuelSeconds;
+        public int FuelRegenDelayTicksRemaining;
+        public int FuelInvulnerabilityRearmTicksRemaining;
+        public bool FuelBoostActive;
+        public bool FuelDashHeldPrevious;
+        public bool FuelBoostNeedsRelease;
         public int DashTicksRemaining;
         public int DashInvulnerabilityTicksRemaining;
         public int DashSequence;
@@ -83,7 +89,7 @@ namespace Game.Core
     /// <summary>Versioned, deep-clonable state for same-runtime replay comparison.</summary>
     public sealed class SimulationState
     {
-        public const int SnapshotVersion = 4;
+        public const int SnapshotVersion = 5;
         public const int LeftFighterId = 0;
         public const int RightFighterId = 1;
 
@@ -159,6 +165,12 @@ namespace Game.Core
                 hash.Add(fighter.LastJumpBodyHitAirSequence);
                 hash.Add(fighter.DashCharges);
                 hash.Add(fighter.DashRechargeTicksRemaining);
+                hash.Add(fighter.FuelSeconds);
+                hash.Add(fighter.FuelRegenDelayTicksRemaining);
+                hash.Add(fighter.FuelInvulnerabilityRearmTicksRemaining);
+                hash.Add(fighter.FuelBoostActive);
+                hash.Add(fighter.FuelDashHeldPrevious);
+                hash.Add(fighter.FuelBoostNeedsRelease);
                 hash.Add(fighter.DashTicksRemaining);
                 hash.Add(fighter.DashInvulnerabilityTicksRemaining);
                 hash.Add(fighter.DashSequence);
