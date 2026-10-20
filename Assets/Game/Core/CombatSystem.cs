@@ -11,7 +11,7 @@ namespace Game.Core
         private const int MaximumContactsPerTick = 2048;
 
         private enum ContactKind { Fighter, WallX, WallY, Body }
-        private enum DefenseKind { Parry, Guard, Invulnerable, Lethal }
+        private enum DefenseKind { Parry, OwnedRedirect, Guard, Invulnerable, Lethal }
 
         private readonly struct Contact
         {
@@ -103,7 +103,9 @@ namespace Game.Core
                     if (batch[index].Kind != ContactKind.Fighter) continue;
                     FighterState fighter = state.Fighter(batch[index].FighterId);
                     FighterInput controls = input.ForFighter(fighter.Id);
-                    defenses[index] = DefenseSystem.CanParry(fighter) ? DefenseKind.Parry :
+                    defenses[index] = batch[index].Projectile.LastParrierId == fighter.Id
+                        ? DefenseKind.OwnedRedirect
+                        : DefenseSystem.CanParry(fighter) ? DefenseKind.Parry :
                         DefenseSystem.CanGuard(fighter, controls, tuning, config) ? DefenseKind.Guard :
                         fighter.DashInvulnerabilityTicksRemaining > 0 ? DefenseKind.Invulnerable : DefenseKind.Lethal;
                 }
@@ -196,9 +198,9 @@ namespace Game.Core
                 if (separationSquared <= clearRadiusSquared) return;
                 projectile.ReflectedContactMask &= ~fighterBit;
             }
-            // Ownership immunity survives walls and power decay. Own shots pass through
-            // without farming another parry; only an opponent's parry transfers ownership.
-            if (projectile.LastParrierId == fighter.Id) return;
+            // Ownership immunity survives walls and power decay. An active parry may
+            // redirect an owned shot, while all other owned contacts pass through.
+            if (projectile.LastParrierId == fighter.Id && !DefenseSystem.CanParry(fighter)) return;
             if (suppressedPairs.Contains(pair))
             {
                 if (separationSquared <= clearRadiusSquared) return;
@@ -252,7 +254,15 @@ namespace Game.Core
             projectile.LastContactTick = state.Tick;
             projectile.LastContactFighterId = fighter.Id;
             Vec2 impact = projectile.Position;
-            if (defense == DefenseKind.Parry)
+            if (defense == DefenseKind.OwnedRedirect)
+            {
+                projectile.ReflectedContactMask |= 1 << fighter.Id;
+                ReflectFromFighter(projectile, contact.Normal, input.ForFighter(fighter.Id).Move,
+                    tuning.Projectile.MaximumParrySteeringDegrees);
+                events.Add(new SimulationEvent(state.Tick, SimulationEventType.OwnedProjectileRedirected,
+                    projectile.Id, fighter.Id, impact, projectile.PowerLevel));
+            }
+            else if (defense == DefenseKind.Parry)
             {
                 projectile.ReflectedContactMask |= 1 << fighter.Id;
                 projectile.LastParrierId = fighter.Id;
@@ -351,7 +361,9 @@ namespace Game.Core
             {
                 Contact fighterContact = batch[fighterIndex];
                 if (fighterContact.Kind != ContactKind.Fighter ||
-                    (defenses[fighterIndex] != DefenseKind.Parry && defenses[fighterIndex] != DefenseKind.Guard))
+                    (defenses[fighterIndex] != DefenseKind.Parry &&
+                     defenses[fighterIndex] != DefenseKind.OwnedRedirect &&
+                     defenses[fighterIndex] != DefenseKind.Guard))
                     continue;
 
                 ProjectileState projectile = fighterContact.Projectile;
