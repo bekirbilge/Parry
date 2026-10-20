@@ -21,6 +21,7 @@ namespace Game.Unity
         private bool _paused, _slow, _showTuning, _showColliders, _showTouchWidgets;
         private bool _localTwoPlayer;
         private bool _prototypeInstantTestingStart = true;
+        private bool _prototypeFuelBoost = true;
         private int _botDifficulty;
         private bool _smoke;
         private SimulationState _smokeRenderState;
@@ -56,6 +57,16 @@ namespace Game.Unity
             get => _prototypeInstantTestingStart;
             set => _prototypeInstantTestingStart = value;
         }
+        public bool PrototypeFuelBoost
+        {
+            get => _prototypeFuelBoost;
+            set => _prototypeFuelBoost = value;
+        }
+        public void SetFuelBoostMode(bool enabled)
+        {
+            _prototypeFuelBoost = enabled;
+            RestartMatch();
+        }
         public SimulationState CaptureSnapshot() => _sim?.CaptureSnapshot();
         public void SetBotDifficulty(int difficulty)
         {
@@ -70,7 +81,8 @@ namespace Game.Unity
             var movement = new MovementTuning(runSpeedUnitsPerSecond: _runSpeed,
                 jumpSpeedUnitsPerSecond: _jumpSpeed, dashSpeedUnitsPerSecond: _dashSpeed,
                 dashDurationSeconds: _boostDuration, perfectParryWindowSeconds: _parryWindow,
-                maximumUpwardBoostSpeedUnitsPerSecond: _upwardBoostSpeed);
+                maximumUpwardBoostSpeedUnitsPerSecond: _upwardBoostSpeed,
+                useFuelBoost: _prototypeFuelBoost);
             var projectile = new ProjectileTuning(baseSpeedUnitsPerSecond: _projectileSpeed);
             var divider = new DividerTuning(springStrength: _spring, damping: _damping,
                 dashReboundSpeedUnitsPerSecond: _rebound,
@@ -131,7 +143,8 @@ namespace Game.Unity
         private void Update()
         {
             if (_smoke) return;
-            if (Input.GetKeyDown(KeyCode.F1)) ToggleTuning();
+            if (Input.GetKeyDown(KeyCode.F1)) SetFuelBoostMode(!_prototypeFuelBoost);
+            if (Input.GetKeyDown(KeyCode.F5)) ToggleTuning();
             if (Input.GetKeyDown(KeyCode.F2)) { _slow = !_slow; Time.timeScale = _slow && !_paused ? .25f : _paused ? 0 : 1; }
             if (Input.GetKeyDown(KeyCode.P)) TogglePause();
             if (Input.GetKeyDown(KeyCode.N) && _paused) StepOnce();
@@ -212,8 +225,9 @@ namespace Game.Unity
         private void StepSmokeBotTick()
         {
             SimulationState state = _sim.CaptureSnapshot();
-            StepOnce(new SimulationInput(_sim.Tick, DebugBot.Decide(state, 0, 0),
-                DebugBot.Decide(state, 1, 0)));
+            StepOnce(new SimulationInput(_sim.Tick,
+                DebugBot.Decide(state, 0, 0, Tuning.Movement.UseFuelBoost),
+                DebugBot.Decide(state, 1, 0, Tuning.Movement.UseFuelBoost)));
             ValidateBounds(_sim.CaptureSnapshot());
         }
 
@@ -222,7 +236,8 @@ namespace Game.Unity
             if (_sim == null) return;
             SimulationState before = _sim.CaptureSnapshot();
             FighterInput left = _inputs[0].ConsumeTick();
-            FighterInput right = _localTwoPlayer ? _inputs[1].ConsumeTick() : DebugBot.Decide(before, 1, _botDifficulty);
+            FighterInput right = _localTwoPlayer ? _inputs[1].ConsumeTick() :
+                DebugBot.Decide(before, 1, _botDifficulty, Tuning.Movement.UseFuelBoost);
             StepOnce(new SimulationInput(_sim.Tick, left, right));
         }
 
@@ -367,7 +382,8 @@ namespace Game.Unity
             if (f.Eliminated) c = Color.gray;
             if (PoweredBoost(f))
             {
-                Vector2 direction = new Vector2((float)f.DashDirection.X, -(float)f.DashDirection.Y);
+                Vec2 thrust = Tuning.Movement.UseFuelBoost ? f.Velocity : f.DashDirection;
+                Vector2 direction = new Vector2((float)thrust.X, -(float)thrust.Y);
                 if (direction.sqrMagnitude < .01f) direction = Vector2.right * f.FacingSign;
                 direction.Normalize();
                 Vector2 tail = p - direction * (r * 2.8f);
@@ -395,7 +411,8 @@ namespace Game.Unity
             if (_showColliders) Circle(new Rect(p.x-r, p.y-r, 2*r, 2*r), new Color(1, 0, 0, .28f));
         }
 
-        private static bool PoweredBoost(FighterState fighter) =>
+        private bool PoweredBoost(FighterState fighter) => Tuning.Movement.UseFuelBoost ?
+            fighter.FuelBoostActive :
             (fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0) &&
             fighter.DividerReboundDistanceRemaining <= 0;
 
@@ -412,8 +429,24 @@ namespace Game.Unity
                 Box(new Rect(x, a.yMin + 31, barWidth, 12), new Color(.04f, .05f, .08f));
                 Box(new Rect(x, a.yMin + 31, barWidth * Mathf.Clamp01((float)(f.Posture / Tuning.Defense.MaximumPosture)), 12),
                     f.Posture > 75 ? new Color(1, .22f, .2f) : new Color(.98f, .77f, .27f));
-                for (int j = 0; j < MovementTuning.MaximumDashCharges; j++) Circle(new Rect(x + j * 18, a.yMin + 48, 12, 12),
-                    j < f.DashCharges ? new Color(.35f, .95f, 1) : new Color(.3f, .35f, .4f));
+                if (Tuning.Movement.UseFuelBoost)
+                {
+                    float fraction = Mathf.Clamp01((float)(f.FuelSeconds / Tuning.Movement.FuelCapacitySeconds));
+                    Rect fuel = new Rect(x, a.yMin + 50, barWidth, 10);
+                    Box(fuel, new Color(.10f, .16f, .19f));
+                    Box(new Rect(fuel.x, fuel.y, fuel.width * fraction, fuel.height),
+                        f.FuelBoostActive ? new Color(.35f, 1f, .78f) : new Color(.35f, .95f, 1f));
+                    string fuelState = f.FuelBoostActive ? "BOOST" :
+                        f.FuelBoostNeedsRelease ? "RELEASE TO BOOST" :
+                        f.FuelRegenDelayTicksRemaining > 0 ? "COOLING" :
+                        fraction < .999f ? "REFILLING" : "READY";
+                    Label(new Rect(x, a.yMin + 62, barWidth, 15),
+                        "FUEL " + (fraction * 100).ToString("0") + "%  " + fuelState, _small);
+                }
+                else
+                    for (int j = 0; j < MovementTuning.MaximumDashCharges; j++)
+                        Circle(new Rect(x + j * 18, a.yMin + 48, 12, 12),
+                            j < f.DashCharges ? new Color(.35f, .95f, 1) : new Color(.3f, .35f, .4f));
             }
             string center = "ROUND " + s.RoundNumber;
             if (s.Phase == MatchPhase.Countdown) center = "READY  " + Math.Ceiling(s.PhaseTicksRemaining * _sim.Config.TickDurationSeconds);
@@ -433,16 +466,18 @@ namespace Game.Unity
             if (footer.height < 16) return;
             Box(footer, new Color(.055f, .075f, .10f));
             float row = footer.height * .5f;
-            string p1Controls = "P1 WASD aim/move · Space/Shift boost · E parry/guard";
+            string boostLabel = Tuning.Movement.UseFuelBoost ? "hold thrust" : "boost";
+            string p1Controls = "P1 WASD aim/move · Space/Shift " + boostLabel + " · E parry/guard";
             if (UnityEngine.InputSystem.Gamepad.all.Count > 0)
                 p1Controls = UnityEngine.InputSystem.Gamepad.all[0] is UnityEngine.InputSystem.DualShock.DualShockGamepad
-                    ? "P1 PAD: stick aim/move · Cross boost · Square parry/guard"
-                    : "P1 PAD: stick aim/move · A boost · X parry/guard";
+                    ? "P1 PAD: stick aim/move · Cross " + boostLabel + " · Square parry/guard"
+                    : "P1 PAD: stick aim/move · A " + boostLabel + " · X parry/guard";
             Label(new Rect(footer.xMin+4, footer.yMin, footer.width-8, row),
                 p1Controls + "     P2 arrows aim/move · U/I boost · O parry/guard", _small);
             Label(new Rect(footer.xMin+4, footer.yMin+row, footer.width-8, row),
                 (_localTwoPlayer ? "LOCAL 2P" : "P1 VS BOT " + BotDifficultyName.ToUpperInvariant()) +
-                "  |  Neutral boost rises · Projectile ring shows last parrier  |  B mode  P pause  N step  R restart  F1 tune  F12 capture", _small);
+                "  |  " + (Tuning.Movement.UseFuelBoost ? "FUEL" : "3 CHARGES") +
+                " · Neutral boost rises · Projectile ring shows last parrier  |  B mode  P pause  N step  R restart  F1 fuel/charges  F5 tune  F12 capture", _small);
         }
 
         private void DrawTouch(Rect a)
@@ -479,6 +514,8 @@ namespace Game.Unity
             GUILayout.BeginArea(new Rect(box.x+padding, box.y+padding, box.width-2*padding, box.height-2*padding));
             _tuningScroll = GUILayout.BeginScrollView(_tuningScroll);
             GUILayout.Label("TUNING · drag sliders, then Apply / reset match");
+            bool fuelMode = GUILayout.Toggle(_prototypeFuelBoost, "Fuel boost prototype (off: three charges)");
+            if (fuelMode != _prototypeFuelBoost) SetFuelBoostMode(fuelMode);
             Slider("Run speed", ref _runSpeed, 3, 40);
             Slider("Boost speed", ref _dashSpeed, 15, 120);
             Slider("Boost duration", ref _boostDuration, .15f, .5f);
@@ -521,6 +558,12 @@ namespace Game.Unity
                     jumpSpeed = Tuning.Movement.JumpSpeedUnitsPerSecond,
                     dashSpeed = Tuning.Movement.DashSpeedUnitsPerSecond,
                     boostDuration = Tuning.Movement.DashDurationSeconds,
+                    fuelCapacitySeconds = Tuning.Movement.FuelCapacitySeconds,
+                    fuelRegenerationPerSecond = Tuning.Movement.FuelRegenerationPerSecond,
+                    fuelRegenerationDelaySeconds = Tuning.Movement.FuelRegenerationDelaySeconds,
+                    fuelIgnitionCostSeconds = Tuning.Movement.FuelIgnitionCostSeconds,
+                    fuelSteeringAcceleration = Tuning.Movement.FuelSteeringAccelerationUnitsPerSecondSquared,
+                    fuelInvulnerabilityRearmSeconds = Tuning.Movement.FuelInvulnerabilityRearmSeconds,
                     boostInvulnerability = Tuning.Movement.DashInvulnerabilitySeconds,
                     parryWindow = Tuning.Movement.PerfectParryWindowSeconds,
                     upwardBoostSpeed = Tuning.Movement.MaximumUpwardBoostSpeedUnitsPerSecond,
@@ -538,6 +581,7 @@ namespace Game.Unity
                     boostLoadSpring = Tuning.Divider.BoostLoadSpringStrength,
                     boostLoadDamping = Tuning.Divider.BoostLoadDamping,
                     mode = _localTwoPlayer ? "local-2p" : "bot",
+                    boostMode = Tuning.Movement.UseFuelBoost ? "fuel" : "charges",
                     botDifficulty = _botDifficulty,
                     botDifficultyName = BotDifficultyName,
                     immediateTestStart = Tuning.Match.StartImmediatelyForTesting,
@@ -552,8 +596,10 @@ namespace Game.Unity
             public double runSpeed, jumpSpeed, dashSpeed, boostDuration, boostInvulnerability,
                 parryWindow, upwardBoostSpeed, parryExtraReach, projectileSpeed, spring, damping, rebound, boostLoadDuration,
                 boostLoadSpring, boostLoadDamping, projectileDecaySecondsPerLevel,
-                projectileLevel0Speed, projectileLevel1Speed, projectileLevel2Speed, projectileLevel3Speed;
-            public string mode, botDifficultyName;
+                projectileLevel0Speed, projectileLevel1Speed, projectileLevel2Speed, projectileLevel3Speed,
+                fuelCapacitySeconds, fuelRegenerationPerSecond, fuelRegenerationDelaySeconds,
+                fuelIgnitionCostSeconds, fuelSteeringAcceleration, fuelInvulnerabilityRearmSeconds;
+            public string mode, boostMode, botDifficultyName;
             public int botDifficulty;
             public bool immediateTestStart;
             public string checksum;
@@ -656,6 +702,7 @@ namespace Game.Unity
             SimulationState best = demo.CaptureSnapshot();
             double deepestIntrusion = double.NegativeInfinity;
             bool boosted = false;
+            int heldBoostTicks = 0;
             RopePreviewSawRebound = false;
             RopePreviewRecoilUnits = 0;
             double reboundStartX = 0;
@@ -666,7 +713,8 @@ namespace Game.Unity
                 SimulationState before = demo.CaptureSnapshot();
                 bool launch = !boosted && before.Fighter(0).Position.X >= launchX;
                 if (launch) boosted = true;
-                var left = new FighterInput(new Vec2(1, 0), dashPressed: launch);
+                var left = new FighterInput(new Vec2(1, 0), dashPressed: launch,
+                    dashHeld: boosted && heldBoostTicks++ < 65);
                 demo.Step(new SimulationInput(demo.Tick, left, default(FighterInput)));
                 SimulationState current = demo.CaptureSnapshot();
                 FighterState fighter = current.Fighter(0);
