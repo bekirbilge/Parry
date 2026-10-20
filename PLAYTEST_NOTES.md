@@ -33,27 +33,27 @@ F12 saves a PNG and applied `tuning.json` in the chosen output folder; the tunin
 - Fuel boost lasts while held and supplied, with continuous steering. Ignition costs 0.04 seconds of fuel; invulnerability remains 0.08 seconds with a 0.35-second rearm cooldown. The legacy comparison uses a 0.30 s powered directional burst with upward speed capped at40 (horizontal/downward80), with only 0.08 s invulnerability. A rope contact loads for ~0.20 s before recoil. Fixed anchors and movable floor/ceiling hinges allow real forward stretch without crossing the rope; maximum bend remains eight units.
 - Parry radius is now3 units (fighter body1.5); its visible halo matches collision. The parry window stays0.16 s, recovery timings stay unchanged, and it works during boost, rope loading and recoil. Hold defense for guard; a fresh press is needed for another parry. Parry never heals posture.
 - Charged projectile speeds are 72 / 84 / 96 units/s versus normal 24. Each power level lasts four seconds before losing one level; a perfect parry resets that timer. Speed now eases toward the next level at12 units/s² rather than snapping. In particular,72→24 takes four additional seconds after the level1→0 threshold; critical power reaches normal after12 seconds and normal speed after16 seconds without another parry. Balls are50% larger in diameter (radius0.9), with visuals matching collision. F5 exposes size and slowdown.
-- Only the last perfect parrier is immune to that projectile until the opponent perfect-parries it. An owned shot passes through its owner when no timed parry is active. Press Square to redirect it safely: no extra power, charge restoration, or decay refresh. The HUD calls this SAFE REDIRECT. Ordinary held guard does not redirect your own shot. Walls, ordinary guard and decay preserve ownership. The outer ring shows which player is immune; the core color shows power. Unclaimed shots threaten both players.
+- Parry now protects only the immediate contact with that projectile, so passing through it is safe. Once you separate beyond the parry contact area, it can hurt you again on return, even without an opponent parry. The brief player-colored ring indicates contact protection. A new return parry gives normal power/resource rewards. Redirecting a still-protected contact gives no additional rewards. Other projectiles remain dangerous.
 
 ## Five-minute checklist
 
 1. Hold boost upward from neutral and steer while holding. Release, check delayed refill, then exhaust the tank and release before restarting. Press F1 to compare with three charges; it resets the match.
 2. Aim at shallow and steep angles to compare free-angle boosting. Press Cross + Square together, then tap Square midway through a boost. Compare parry timing while still, loading the rope, and recoiling.
 3. Boost into the rope from close range on ground and in air. Expect forward penetration into the opponent's resting half before one rebound. Check diagonal vertical momentum and escape with an outward boost.
-4. Parry a projectile, let it bounce back through you, and verify the owner ring. Press Square to deliberately redirect your own returning shot; verify no extra fuel or charge appears. Have the opponent parry it back: it should now threaten you. Compare ordinary guard with parry ownership transfer.
+4. Parry while moving through a ball: the immediate overlap should be safe. Let it separate and return from a wall: it must threaten you again. Parry or guard the return; a fresh return parry should restore fuel/one charge normally. Check that another ball remains dangerous.
 5. Judge charged speed, four-second decay, posture pressure, fairness of grazing hits, simultaneous K.O., first-to-two flow, and equal opposing boosts in local mode.
 
-Report requested changes for boost control, rope penetration/recoil, parry ease, charged speed and ownership immunity. Include any unfair-death example or captured tuning. Explicitly say when the core combat is fun enough to proceed.
+Report requested changes for boost control, rope penetration/recoil, parry ease, charged speed and immediate parry protection. Include any unfair-death example or captured tuning. Explicitly say when the core combat is fun enough to proceed.
 
 ## Feedback history
 
 2026-10-19: user requested faster movement/higher jumps, immediate starts, elastic rope, three charges, and Cross boost/Square parry. Run is 24 units/s; later one-button boost supersedes the separate jump control.
 
-2026-10-20: user requested rocket-like boost and deep rope loading, slower projectile decay, stronger charged speed, owner immunity, easier boost parry, and eliminating the jump button. User selected neutral-stick upward boost without tap/hold delay and last-parrier immunity until opponent parry. Implemented as the tunable trial above; subjective approval remains outstanding.
+2026-10-20: user requested rocket-like boost and deep rope loading, slower projectile decay, stronger charged speed, owner immunity, easier boost parry, and eliminating the jump button. User selected neutral-stick upward boost without tap/hold delay and last-parrier immunity until opponent parry. Original ownership choice was later superseded by contact-only safety; subjective approval remains outstanding.
 
 Latest feedback iteration: user requested twice-faster parry deflections and continuous boost aim. User confirmed speed increases remain a perfect-parry reward, while owned shots can be deliberately redirected without power/charge bonuses. Automated validation and rebuild passed; these changes are ready for another feel test.
 
-Validated area-only trial: compare grazing-shot parries during boost and after invulnerability expires. Untimed boost immunity or ownership can still allow harmless pass-through. Test the larger parry radius first; timing/recovery was deliberately not increased. Also compare the lower neutral upward boost height.
+Validated area-only trial: compare grazing-shot parries during boost and after invulnerability expires. Boost invulnerability or immediate parry contact protection can allow harmless pass-through. Test the larger parry radius first; timing/recovery was deliberately not increased. Also compare the lower neutral upward boost height.
 
 A close-range opponent return now clears stale contact suppression, so a later parry is not skipped because the projectile is still in the earlier overlap. Core tests,20/20 Unity tests and native smoke pass for this iteration.
 
@@ -62,3 +62,5 @@ Fuel trial authorized after pushing the tested three-charge build to GitHub. Com
 Fuel trial validation complete: core replay/stress,23/23 Unity tests, macOS build and native smoke pass. Review fixes preserve the rope-impact body hit and required release through guard break. Please compare fuel steering and refill pressure against F1's three-charge mode, especially while parrying and loading/rebounding from the rope.
 
 Latest request: test larger projectiles and gradual speed loss first, then compare the fuel boost trial with the F1 three-charge mode. Power/posture thresholds stay discrete, so power color can change before speed finishes easing down.
+
+Latest feedback: permanent ownership immunity removed in favor of contact-only protection. Test fresh wall returns, boosted pass-through and repeated parries. User likes the three-charge movement; F1 retains that comparison. Close old game instances with Command-Q before opening a newly rebuilt app.
