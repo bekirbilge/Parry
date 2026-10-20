@@ -17,6 +17,86 @@ namespace Game.Unity.Tests
     public sealed class PlayableSceneTests
     {
         [Test]
+        public void PhoneMatchCompleteRestartUsesVisibleTargetOnly()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            var staticFlags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
+            var preview = typeof(GameController).GetField("_forceTouchPreview", flags);
+            var handle = typeof(GameController).GetMethod("HandleToolbar", flags);
+            var restartTarget = typeof(GameController).GetMethod("PhoneRestartButton", staticFlags);
+            preview.SetValue(controller, true);
+            controller.RestartMatch();
+            SimulationState complete = controller.CaptureSnapshot();
+            complete.Phase = MatchPhase.MatchComplete;
+            complete.MatchWinnerId = 0;
+            controller.Sim.RestoreSnapshot(complete);
+            Rect arena = new Rect(0, 0, 1280, 590);
+            Rect target = (Rect)restartTarget.Invoke(null, new object[] { arena });
+            Assert.That(target.width, Is.GreaterThan(100));
+            Assert.That(target.height, Is.GreaterThan(40));
+            Assert.That(arena.Contains(target.center), Is.True);
+            Vector2 unrelated = new Vector2(arena.center.x, arena.yMax - 30);
+            Assert.That(target.Contains(unrelated), Is.False);
+            handle.Invoke(controller, new object[] { arena,
+                new Vector2(unrelated.x, Screen.height - unrelated.y) });
+            Assert.That(controller.Sim.Phase, Is.EqualTo(MatchPhase.MatchComplete));
+            Vector2 tap = target.center;
+            var tapInput = new object[] { arena, new Vector2(tap.x, Screen.height - tap.y) };
+            try
+            {
+                typeof(GameController).GetMethod("TogglePause", flags).Invoke(controller, null);
+                handle.Invoke(controller, tapInput);
+                Assert.That(controller.Sim.Phase, Is.EqualTo(MatchPhase.MatchComplete));
+                typeof(GameController).GetMethod("ToggleTuning", flags).Invoke(controller, null);
+                handle.Invoke(controller, tapInput);
+                Assert.That(controller.Sim.Phase, Is.EqualTo(MatchPhase.MatchComplete));
+                typeof(GameController).GetMethod("TogglePause", flags).Invoke(controller, null);
+                handle.Invoke(controller, tapInput);
+                Assert.That(controller.Sim.Phase, Is.EqualTo(MatchPhase.Active));
+                Assert.That(controller.CaptureSnapshot().Tick, Is.EqualTo(0));
+            }
+            finally { Time.timeScale = 1; }
+        }
+
+        [Test]
+        public void PlayableParryRadiusIsSixWithUnchangedWindow()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.RestartMatch();
+            Assert.That(controller.Tuning.Arena.FighterRadiusUnits, Is.EqualTo(2.5));
+            Assert.That(controller.Tuning.Defense.ParryExtraReachUnits, Is.EqualTo(3.5));
+            Assert.That(controller.Tuning.Arena.FighterRadiusUnits +
+                controller.Tuning.Defense.ParryExtraReachUnits, Is.EqualTo(6));
+            Assert.That(controller.Tuning.Movement.PerfectParryWindowSeconds, Is.EqualTo(.16));
+        }
+
+        [Test]
+        public void HighDensityPhoneTuningKeepsReadableControlsAndScrollArea()
+        {
+            Rect arena = new Rect(70, 35, 2800, 975);
+            var flags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
+            Type controller = typeof(GameController);
+            Rect back = (Rect)controller.GetMethod("PhoneTuningBack", flags).Invoke(null, new object[] { arena });
+            Rect apply = (Rect)controller.GetMethod("PhoneTuningApply", flags).Invoke(null, new object[] { arena });
+            Rect scroll = (Rect)controller.GetMethod("PhoneTuningScrollArea", flags).Invoke(null, new object[] { arena });
+            int font = (int)controller.GetMethod("PhoneTuningFontSize", flags).Invoke(null, new object[] { arena });
+            float scale = arena.height / 360f;
+            Assert.That(font, Is.GreaterThanOrEqualTo(54));
+            Assert.That(back.height, Is.GreaterThanOrEqualTo(44 * scale));
+            Assert.That(apply.height, Is.GreaterThanOrEqualTo(44 * scale));
+            Assert.That(scroll.height, Is.GreaterThan(0));
+            Assert.That(scroll.yMin, Is.GreaterThan(back.yMax));
+            Assert.That(scroll.yMax, Is.LessThan(apply.yMin));
+            Assert.That(ArenaLayout.TuningPanel(arena, true).Contains(back.center), Is.True);
+            Assert.That(ArenaLayout.TuningPanel(arena, true).Contains(apply.center), Is.True);
+        }
+
+        [Test]
         public void RestartFromPausedTuningResumesAndResetsMatch()
         {
             BootstrapPipeline.EnsureBootstrapScene();
@@ -290,7 +370,7 @@ namespace Game.Unity.Tests
                 Assert.That(controller.CaptureSnapshot().Projectiles[0].Velocity.X, Is.GreaterThan(0));
                 Assert.That(controller.Tuning.Movement.PerfectParryWindowSeconds, Is.EqualTo(.16));
                 Assert.That(controller.Tuning.Movement.DashInvulnerabilitySeconds, Is.EqualTo(.08));
-                Assert.That(controller.Tuning.Defense.ParryExtraReachUnits, Is.EqualTo(1.5));
+                Assert.That(controller.Tuning.Defense.ParryExtraReachUnits, Is.EqualTo(3.5));
             }
             finally { InputSystem.RemoveDevice(pad); }
         }
