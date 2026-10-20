@@ -118,3 +118,5 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 Mark design decisions **LOCKED**, **TUNE**, or **OPEN** in a decision log. Coding agents may change **TUNE** values to meet measured acceptance tests, recording before/after and evidence. Changes to **LOCKED** rules require user approval. Art approval and playtesting remain human responsibilities. No invented approvals.
 
 User playtest selection (2026-10-20): keep the latest fuel-based playable version and its current tuning, larger projectiles, gradual speed loss and contact-only parry safety. Fuel is the selected default; three charges remain a debug comparison. This records the movement choice; overall Gate A approval is still separate.
+
+Core approval and visual direction (2026-10-20): user accepted the current game as being in a good place, passing Gate A, and chose C (dark high-contrast pixel art) for the first ninja/Rookie Dojo proof. Keep current fuel and combat tuning. Character/arena reference appearance and animation production approval remain pending a playable visual review.
