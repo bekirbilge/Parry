@@ -1,8 +1,8 @@
 # Project status
 
 Date: 2026-10-20 (Europe/Istanbul)
-Milestone: iPhone playtest installed and running; awaiting human touch/readability feedback
-Branch: mobile/iphone-playtest (pulled origin/main before work; prior tested work retained; no issue supplied)
+Milestone: phone screen/control/pause-menu feedback implemented, installed and launched
+Branch: mobile/phone-screen-menu (pulled origin/main before work; prior tested work retained; no issue supplied)
 Remote: https://github.com/bekirbilge/Parry.git
 
 Unity6000.3.26f1 LTS, macOS arm64, .NET10.0.101 and active Unity Personal license. Git/Unity/native execution require sandbox escalation.
@@ -46,3 +46,11 @@ Phone HUD/toolbar text scales with arena height, toolbar hit/render geometry agr
 Device-specific build, signing and installation PASS. Verified the development provisioning profile includes the connected phone; codesign deep/strict verification passes. Free development provisioning expires2026-10-27. App installed as ElasticArena (com.bekirbilge.parry.playtest). Initial iOS security launch block resolved by user trusting the developer profile. User confirms game opens; devicectl process listing independently confirms ElasticArena running. Logs: artifacts/logs/xcode-ios-device-build.log, iphone-install.log, iphone-launch.log (initial trust failure), iphone-processes.log. No private keys exported, no credentials requested.
 
 Next human gate: play in landscape; evaluate MOVE+BOOST+DEF simultaneously, fuel release/refill, notch clearance in both orientations, larger-character readability, missed touches and stutter/heat. Physical launch is verified; gameplay quality/performance and visual reference Gate B await user feedback. No additional production art/animation authorized yet. Continue from this installed build after feedback.
+
+## Phone feedback update
+
+User reported black borders, Restart failing, oversized translucent controls and an intrusive toolbar. Mobile now uses the full safe-area rectangle without the fixed-aspect letterbox/footer; scenery extends behind device insets. The complete fixed gameplay world maps to the phone aspect using presentation scaling (horizontal stretch on wide phones), keeping all combat visible and simulation unchanged. Desktop remains16:9. Rope/line transforms compose correctly under the phone scale.
+
+Touch controls shrink from17% to12.5% of arena height with opaque fills. Only top-right PAUSE appears during play. Pausing clears held input and opens RESUME/MODE/TUNING/RESTART; tuning blocks hidden menu actions. Restart clears pause/tuning and resumes from tick0. Main phone text is less intrusive and HUD clears the pause button.
+
+Final35/35 Unity tests, scene validation/macOS build, desktop/touch900-step smokes, iOS export and device-specific signed Xcode build PASS. Both smokes retain checksumA8EAD925C985E90B. Full-screen preview inspected and independent source review passed after tuning-layer fix. Updated app installed and launched on the paired iPhone successfully. Await actual phone screen/control/menu feedback; broader mobile performance and visual-reference approval remain pending.
