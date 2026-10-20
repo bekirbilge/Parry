@@ -13,13 +13,14 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 - Two fighters spawn on opposite halves of a symmetrical arena; full-height center membrane prevents crossing but permits stretching toward the other side. Camera fixed; landscape mobile-first.
 - A match is first to **two round wins**. No conventional health. An **unguarded projectile impact kills instantly**. A blocked impact increases posture; a perfect parry safely reflects it.
 - If both fighters are eliminated in the **same simulation tick**, declare **DOUBLE K.O. / DRAW**, award neither a round point, reset and replay. Resolve all collisions for both fighters before declaring outcome; never let iteration order pick the winner. Elimination in different ticks follows the simulation ordering; the survivor of the first lethal tick wins.
-- Each new round resets positions, velocities, posture, dash charges, projectile count/power, timers, and divider deformation. Draws do not individually grant match rewards. Winning a best-of-three match triggers a short, skippable cosmetic victory sequence.
+- Each new round resets positions, velocities, posture, dash charges/fuel, projectile count/power, timers, and divider deformation. Draws do not individually grant match rewards. Winning a best-of-three match triggers a short, skippable cosmetic victory sequence.
 - No conventional match timer in initial design; once projectile cap is reached, continue until a round resolves. A **TUNE** anti-stall fallback may be introduced only with explicit approval and fairness testing.
 
 ## 3. Movement — LOCKED mechanics, TUNE numbers
-- Continuous horizontal run and air steering. One movement action: neutral stick boosts straight up; aiming boosts in that direction immediately, on ground or in air. No separate jump button; upward boost consumes a normal charge. Parry remains available throughout boost/loading/recoil. Legacy jump commands remain internal for prototype regression/replay compatibility, not in the playable controls.
-- Three dash charges, refilling sequentially at approximately **1.0 s per charge** (**TUNE**). Perfect parry instantly restores **one** dash charge, capped at three. No automatic extra restoration at critical projectile level unless separately approved.
-- Directional rocket boost (dash), using continuous normalized movement-stick aim (no eight-way snapping), ~0.30 s powered duration, upward velocity capped at 40 units/s while preserving launch aim (horizontal/downward cap80), and ~0.08 s invulnerability (**TUNE**). Invulnerability rules must be specified in the prototype and tested against projectile and body collisions. Avoid unintended invincible dash chains.
+- Continuous horizontal run and air steering. One movement action: neutral stick boosts straight up; aiming boosts in that direction immediately, on ground or in air. No separate jump button. The fuel trial uses hold-to-thrust with continuous steering; release stops thrust and leaves controllable coast/gravity. Neutral aim requests upward thrust. Legacy upward boost consumes one normal charge in comparison mode. Parry remains available throughout boost/loading/recoil. Legacy jump commands remain internal for prototype regression/replay compatibility, not in the playable controls.
+- **Fuel trial (user-authorized):** prototype runtime defaults to a 0.9 s fuel tank. Hold boost to burn fuel, steer continuously, release to coast. Regenerate at0.3 fuel-seconds/s after0.35 s without thrust; ignition costs0.04 s. Enemy perfect parry restores0.3 s (one-third tank), capped; owned redirects give no fuel. Invulnerability lasts0.08 s only on an eligible ignition, with0.35 s rearm; holding fuel never extends it. Exhaustion or rope recoil requires release before reignition. Powered acceleration360 and all fuel values are **TUNE**. Rope loading consumes fuel and ends powered thrust on release/exhaustion. One body-attack hit per ignition, not per steering update.
+- **Legacy comparison mode:** three dash charges, refilling sequentially at approximately **1.0 s per charge** (**TUNE**). Perfect parry instantly restores **one** dash charge, capped at three. No automatic extra restoration at critical projectile level unless separately approved.
+- Directional rocket boost (dash), using continuous normalized movement-stick aim (no eight-way snapping), legacy ~0.30 s powered duration (fuel mode lasts while supplied), upward velocity capped at 40 units/s while preserving launch aim (horizontal/downward cap80), and ~0.08 s invulnerability (**TUNE**). Invulnerability rules must be specified in the prototype and tested against projectile and body collisions. Avoid unintended invincible dash chains.
 - Jump buffering, coyote time, acceleration, friction, air steering, dash cancel windows, and jump arc are **TUNE**. Ground movement should be crisp, never slippery. Preserve controllability in rebounds/knockback; no long helpless stun.
 - Design target: responsive to mobile latency and touch imprecision, without auto-aiming parries.
 
@@ -34,7 +35,7 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 - All projectiles remain **permanently until the round ends**. No lifetime or bounce-count despawn. Pass through each other and the center membrane. Bounce predictably off walls, ceiling and floor using deterministic rules; no random speed ramp.
 - Arena themes change appearance (sawblade, fireball, meteor, magic orb) but **never** hitbox, speed, bounce, parry, posture, or other competitive properties.
 - Parry outgoing angle is a controlled hybrid of incoming velocity, impact geometry and player input. Input steers within about **±30°** of natural reflection (**TUNE**); same steering at all projectile levels. No level-specific aim assistance.
-- A perfect parry increments power by one level (max 3), resets decay timer, boosts speed/posture pressure, and restores one dash charge. With no subsequent perfect parry, lose **one level every four seconds** until zero. Example multipliers (**TUNE**):
+- A perfect parry increments power by one level (max 3), resets decay timer, boosts speed/posture pressure, and restores one dash charge in legacy mode or one-third fuel tank in the trial. With no subsequent perfect parry, lose **one level every four seconds** until zero. Example multipliers (**TUNE**):
 
 | Level | Name | Speed multiplier | Block posture multiplier |
 |---|---|---:|---:|
@@ -58,7 +59,7 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 ## 7. Body attacks and contact — LOCKED
 - Walking contact: minor push, **no posture damage**.
 - Jump/body collision: moderate knockback and ~**15 posture** (**TUNE**).
-- Dash-body collision: strong knockback and ~**25 posture** (**TUNE**), consumes normal dash charge; **at most one damaging hit per dash**. Never multi-hit by remaining overlapped.
+- Dash-body collision: strong knockback and ~**25 posture** (**TUNE**), uses the active movement resource (legacy charge or trial fuel); **at most one damaging hit per dash/continuous fuel ignition**. Never multi-hit by remaining overlapped.
 - Body attacks may break posture, but cannot directly kill. Tactical goal: shove opponent into active projectiles. Preserve fair opportunities to dodge/parry during knockback.
 - Whether perfect parry directly counters a body dash is **OPEN FOR PROTOTYPE**; default first implementation: parry applies to projectiles only, with body clash resolved by momentum. Do not silently add a counter mechanic.
 
@@ -96,9 +97,9 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 - No online mode until local core passes tests and manual feel gate. Prototype AI is a test opponent, not a substitute for human PvP testing.
 
 ## 13. Prototype acceptance criteria
-1. Two equal-stat fighters can run, boost upward or directionally three times, refill, parry and guard in one fixed camera arena.
+1. Two equal-stat fighters can run, boost upward or directionally with fuel (or three legacy charges), refill, parry and guard in one fixed camera arena.
 2. Projectile trajectories are predictable and reproducible; spawn telegraphs work; up to six persist until round end.
-3. Perfect parry steers projectile, charges level, decays correctly, restores one dash and never heals posture.
+3. Perfect parry steers projectile, charges level, decays correctly, restores one legacy dash or one-third fuel tank and never heals posture.
 4. Guard recovers posture faster than unguarded idle; guard break and unguarded instant death work.
 5. Divider stretches, rebounds, respects vertical momentum and never permits full crossing.
 6. Body jump/dash contact applies knockback/posture once per attack and can force a projectile kill.
