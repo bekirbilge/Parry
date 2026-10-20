@@ -13,6 +13,7 @@ internal static class Program
         ContractTests.Run();
         DebugBotTests.Run();
         MovementTests.Run();
+        FuelTests.Run();
         DividerBodyTests.Run();
         CombatTests.Run();
         ProjectileTests.Run();
