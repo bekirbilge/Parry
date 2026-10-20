@@ -89,7 +89,8 @@ namespace Game.Unity
 
         public FighterInput ConsumeTick()
         {
-            var input = new FighterInput(_move, _jumpPending, _jumpHeld, _dashPending, _defensePending, _defenseHeld);
+            var input = new FighterInput(_move, _jumpPending, _jumpHeld, _dashPending,
+                _defensePending, _defenseHeld, _dashHeldPrevious);
             _jumpPending = _dashPending = _defensePending = false;
             return input;
         }
