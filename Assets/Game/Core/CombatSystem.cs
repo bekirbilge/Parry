@@ -132,7 +132,7 @@ namespace Game.Core
 
             if (now < 1) AdvanceProjectiles(state.Projectiles, 1 - now, config);
             ValidateProjectileBounds(state.Projectiles, tuning);
-            RefreshReflectedContactMasks(state, tuning);
+            RefreshContactMasks(state, tuning);
             DefenseSystem.EndTick(state, input, tuning, config, breakTicksAtStart);
             for (int id = 0; id < 2; id++)
             {
@@ -189,21 +189,32 @@ namespace Game.Core
             if (fighter.Eliminated) return;
             long pair = ((long)projectile.Id << 32) | (uint)fighter.Id;
             int fighterBit = 1 << fighter.Id;
-            double radius = tuning.Arena.ProjectileRadiusUnits + tuning.Arena.FighterRadiusUnits;
+            bool parryActive = DefenseSystem.CanParry(fighter);
+            double physicalRadius = tuning.Arena.ProjectileRadiusUnits + tuning.Arena.FighterRadiusUnits;
+            double parryRadius = physicalRadius + tuning.Defense.ParryExtraReachUnits;
+            double radius = parryActive ? parryRadius : physicalRadius;
             Vec2 fighterStart = SimMath.FighterPositionAt(fighter, now);
             double separationSquared = (projectile.Position - fighterStart).LengthSquared;
-            double clearRadiusSquared = (radius + SeparationEpsilon) * (radius + SeparationEpsilon);
+            double physicalClearRadius = physicalRadius + SeparationEpsilon;
+            double parryClearRadius = parryRadius + SeparationEpsilon;
             if ((projectile.ReflectedContactMask & fighterBit) != 0)
             {
-                if (separationSquared <= clearRadiusSquared) return;
+                if (separationSquared <= physicalClearRadius * physicalClearRadius) return;
                 projectile.ReflectedContactMask &= ~fighterBit;
+            }
+            if ((projectile.ParryContactMask & fighterBit) != 0)
+            {
+                if (separationSquared > parryClearRadius * parryClearRadius)
+                    projectile.ParryContactMask &= ~fighterBit;
+                else if (parryActive) return;
             }
             // Ownership immunity survives walls and power decay. An active parry may
             // redirect an owned shot, while all other owned contacts pass through.
-            if (projectile.LastParrierId == fighter.Id && !DefenseSystem.CanParry(fighter)) return;
+            if (projectile.LastParrierId == fighter.Id && !parryActive) return;
             if (suppressedPairs.Contains(pair))
             {
-                if (separationSquared <= clearRadiusSquared) return;
+                double clearRadius = radius + SeparationEpsilon;
+                if (separationSquared <= clearRadius * clearRadius) return;
                 suppressedPairs.Remove(pair);
             }
             double remaining = 1 - now;
@@ -211,7 +222,8 @@ namespace Game.Core
             Vec2 projectileDelta = projectile.Velocity * (remaining * config.TickDurationSeconds);
             Vec2 fighterDelta = SimMath.FighterPositionAt(fighter, 1) - fighterStart;
             if (!SimMath.SweepCircles(projectile.Position, projectileDelta, tuning.Arena.ProjectileRadiusUnits,
-                fighterStart, fighterDelta, tuning.Arena.FighterRadiusUnits, out double local, out Vec2 normal)) return;
+                fighterStart, fighterDelta, radius - tuning.Arena.ProjectileRadiusUnits,
+                out double local, out Vec2 normal)) return;
             contacts.Add(new Contact(now + local * remaining, ContactKind.Fighter, projectile, fighter.Id, normal));
         }
 
@@ -256,7 +268,8 @@ namespace Game.Core
             Vec2 impact = projectile.Position;
             if (defense == DefenseKind.OwnedRedirect)
             {
-                projectile.ReflectedContactMask |= 1 << fighter.Id;
+                ClearOtherFighterContact(projectile, fighter.Id);
+                MarkParryContact(projectile, fighter, contact.Fraction, tuning);
                 ReflectFromFighter(projectile, contact.Normal, input.ForFighter(fighter.Id).Move,
                     tuning.Projectile.MaximumParrySteeringDegrees);
                 events.Add(new SimulationEvent(state.Tick, SimulationEventType.OwnedProjectileRedirected,
@@ -264,7 +277,8 @@ namespace Game.Core
             }
             else if (defense == DefenseKind.Parry)
             {
-                projectile.ReflectedContactMask |= 1 << fighter.Id;
+                ClearOtherFighterContact(projectile, fighter.Id);
+                MarkParryContact(projectile, fighter, contact.Fraction, tuning);
                 projectile.LastParrierId = fighter.Id;
                 fighter.PostureTouchedTick = state.Tick;
                 projectile.PowerLevel = Math.Min(ProjectileTuning.MaximumPowerLevel, projectile.PowerLevel + 1);
@@ -279,6 +293,7 @@ namespace Game.Core
             }
             else if (defense == DefenseKind.Guard)
             {
+                ClearOtherFighterContact(projectile, fighter.Id);
                 projectile.ReflectedContactMask |= 1 << fighter.Id;
                 bool activeDash = fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0;
                 DefenseSystem.ApplyPostureDamage(state, fighter,
@@ -298,6 +313,27 @@ namespace Game.Core
                         fighter.Id, projectile.Id, impact));
                 }
             }
+        }
+
+        private static void ClearOtherFighterContact(ProjectileState projectile, int fighterId)
+        {
+            // A return from the other fighter is a fresh approach even when the
+            // two reach zones overlap near the divider.
+            int ownBit = 1 << fighterId;
+            projectile.ReflectedContactMask &= ownBit;
+            projectile.ParryContactMask &= ownBit;
+        }
+
+        private static void MarkParryContact(ProjectileState projectile, FighterState fighter,
+            double fraction, CombatTuning tuning)
+        {
+            int bit = 1 << fighter.Id;
+            projectile.ParryContactMask |= bit;
+            double physicalRadius = tuning.Arena.ProjectileRadiusUnits +
+                tuning.Arena.FighterRadiusUnits + SeparationEpsilon;
+            if ((projectile.Position - SimMath.FighterPositionAt(fighter, fraction)).LengthSquared <=
+                physicalRadius * physicalRadius)
+                projectile.ReflectedContactMask |= bit;
         }
 
         private static void ReflectFromFighter(ProjectileState projectile, Vec2 normal,
@@ -405,19 +441,24 @@ namespace Game.Core
             }
         }
 
-        private static void RefreshReflectedContactMasks(SimulationState state, CombatTuning tuning)
+        private static void RefreshContactMasks(SimulationState state, CombatTuning tuning)
         {
-            double clearRadius = tuning.Arena.ProjectileRadiusUnits +
+            double physicalClearRadius = tuning.Arena.ProjectileRadiusUnits +
                 tuning.Arena.FighterRadiusUnits + SeparationEpsilon;
-            double clearRadiusSquared = clearRadius * clearRadius;
+            double physicalClearRadiusSquared = physicalClearRadius * physicalClearRadius;
+            double parryClearRadius = physicalClearRadius + tuning.Defense.ParryExtraReachUnits;
+            double parryClearRadiusSquared = parryClearRadius * parryClearRadius;
             foreach (ProjectileState projectile in state.Projectiles)
             {
                 for (int fighterId = 0; fighterId < 2; fighterId++)
                 {
                     int bit = 1 << fighterId;
-                    if ((projectile.ReflectedContactMask & bit) == 0) continue;
-                    if ((projectile.Position - state.Fighter(fighterId).Position).LengthSquared > clearRadiusSquared)
+                    double separationSquared =
+                        (projectile.Position - state.Fighter(fighterId).Position).LengthSquared;
+                    if (separationSquared > physicalClearRadiusSquared)
                         projectile.ReflectedContactMask &= ~bit;
+                    if (separationSquared > parryClearRadiusSquared)
+                        projectile.ParryContactMask &= ~bit;
                 }
             }
         }
