@@ -9,6 +9,8 @@ internal static class ProjectileTests
         RicochetAtWallAndCornerKeepsProjectile();
         FastProjectileSweepsThroughFighterPath();
         PowerCapsAndDecaysEveryFourSeconds();
+        DecayEasesSpeedWithoutChangingDirectionOrLevelTiming();
+        DecayRampSurvivesSnapshotReplay();
         ProjectilesCrossEachOtherAndDividerWithoutInteraction();
         ContactLimitThrowsInsteadOfDroppingBounces();
     }
@@ -35,19 +37,19 @@ internal static class ProjectileTests
         SimulationState wall = State(new Vec2(25, 10), new Vec2(75, 10));
         wall.Projectiles.Add(new ProjectileState
         {
-            Id = 1, Position = new Vec2(99.2, 30), Velocity = new Vec2(24, 0)
+            Id = 1, Position = new Vec2(99.1, 30), Velocity = new Vec2(24, 0)
         });
         List<SimulationEvent> events = Advance(wall);
         Assert(wall.Projectiles.Count == 1 && events.Count == 1 &&
             events[0].Type == SimulationEventType.ProjectileBounced &&
-            Math.Abs(wall.Projectiles[0].Position.X - 99.2) < 1e-10 &&
+            Math.Abs(wall.Projectiles[0].Position.X - 98.7) < 1e-10 &&
             wall.Projectiles[0].Velocity.X == -24,
             "A wall bounce must reflect at the true contact time without despawning.");
 
         SimulationState corner = State(new Vec2(25, 10), new Vec2(75, 10));
         corner.Projectiles.Add(new ProjectileState
         {
-            Id = 2, Position = new Vec2(99.2, 55.45), Velocity = new Vec2(24, 24)
+            Id = 2, Position = new Vec2(99.1, 55.35), Velocity = new Vec2(24, 24)
         });
         List<SimulationEvent> cornerEvents = Advance(corner);
         Assert(corner.Projectiles[0].Velocity.X < 0 && corner.Projectiles[0].Velocity.Y < 0 &&
@@ -102,8 +104,9 @@ internal static class ProjectileTests
         Assert(projectile.PowerLevel == 3, "Power must not decay before four full seconds.");
         Advance(state);
         state.Tick++;
-        Assert(projectile.PowerLevel == 2 && Math.Abs(projectile.Velocity.Length - 24 * 3.5) < 1e-10,
-            "Power must lose exactly one level at four seconds and rescale speed.");
+        Assert(projectile.PowerLevel == 2 && projectile.DecayTicksRemaining == 240 &&
+            projectile.SpeedDecaying && Math.Abs(projectile.Velocity.Length - 95.8) < 1e-9,
+            "Power drops on the four-second boundary while speed begins a bounded ramp.");
         for (int tick = 0; tick < 480; tick++)
         {
             Advance(state);
@@ -111,6 +114,74 @@ internal static class ProjectileTests
         }
         Assert(projectile.PowerLevel == 0 && state.Projectiles.Count == 1,
             "Power must decay to zero while the projectile remains permanent through ricochets.");
+    }
+
+    private static void DecayEasesSpeedWithoutChangingDirectionOrLevelTiming()
+    {
+        SimulationState state = State(new Vec2(25, 10), new Vec2(75, 10));
+        var shot = new ProjectileState
+        {
+            Id = 42, Position = new Vec2(50, 30), Velocity = new Vec2(72, 0),
+            PowerLevel = 1, DecayTicksRemaining = 1
+        };
+        state.Projectiles.Add(shot);
+        Advance(state);
+        state.Tick++;
+        Assert(shot.PowerLevel == 0 && shot.DecayTicksRemaining == 0 && shot.SpeedDecaying &&
+            Math.Abs(shot.Velocity.Length - 71.8) < 1e-9,
+            "Level one reaches zero on schedule without snapping from 72 to 24.");
+        double previous = shot.Velocity.Length;
+        for (int tick = 1; tick < 240; tick++)
+        {
+            Advance(state);
+            state.Tick++;
+            double speed = shot.Velocity.Length;
+            Assert(speed <= previous + 1e-9 && previous - speed <= 0.2 + 1e-9 &&
+                speed >= 24 - 1e-9 && shot.PowerLevel == 0 && shot.Velocity.Y == 0,
+                "Each fixed tick must preserve heading and decelerate monotonically without overshoot.");
+            previous = speed;
+        }
+        Assert(Math.Abs(shot.Velocity.Length - 24) < 1e-8 && !shot.SpeedDecaying,
+            "The 72-to-24 ramp must finish in four seconds at 12 units per second squared.");
+
+        // A synthetic fast level-zero projectile has no real decay transition.
+        SimulationState synthetic = State(new Vec2(25, 10), new Vec2(75, 10));
+        synthetic.Projectiles.Add(new ProjectileState
+        {
+            Id = 43, Position = new Vec2(50, 30), Velocity = new Vec2(96, 0)
+        });
+        Advance(synthetic);
+        Assert(Math.Abs(synthetic.Projectiles[0].Velocity.Length - 96) < 1e-9,
+            "An unflagged synthetic level-zero shot must retain its requested speed.");
+    }
+
+    private static void DecayRampSurvivesSnapshotReplay()
+    {
+        SimulationState state = State(new Vec2(25, 10), new Vec2(75, 10));
+        state.Projectiles.Add(new ProjectileState
+        {
+            Id = 44, Position = new Vec2(50, 30), Velocity = new Vec2(72, 0),
+            PowerLevel = 1, DecayTicksRemaining = 1
+        });
+        Advance(state);
+        state.Tick++;
+        SimulationState snapshot = state.Clone();
+        Assert(snapshot.ComputeChecksum() == state.ComputeChecksum() &&
+            snapshot.Projectiles[0].SpeedDecaying,
+            "An active speed ramp must survive a deep snapshot copy.");
+        snapshot.Projectiles[0].SpeedDecaying = false;
+        Assert(snapshot.ComputeChecksum() != state.ComputeChecksum(),
+            "The ramp flag must contribute to the snapshot checksum.");
+        snapshot = state.Clone();
+        for (int tick = 0; tick < 80; tick++)
+        {
+            Advance(state);
+            Advance(snapshot);
+            state.Tick++;
+            snapshot.Tick++;
+            Assert(state.ComputeChecksum() == snapshot.ComputeChecksum(),
+                "Resumed speed decay must replay exactly from a captured mid-ramp state.");
+        }
     }
 
     private static void ContactLimitThrowsInsteadOfDroppingBounces()
