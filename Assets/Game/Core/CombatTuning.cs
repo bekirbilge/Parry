@@ -166,6 +166,7 @@ namespace Game.Core
         public double SpawnWarningSeconds { get; }
         public double BaseSpeedUnitsPerSecond { get; }
         public double PowerDecaySecondsPerLevel { get; }
+        public double SpeedDecayUnitsPerSecondSquared { get; }
         public double MaximumParrySteeringDegrees { get; }
         public double SpawnAngleDegrees { get; }
         public double SpawnPortalInsetUnits { get; }
@@ -191,7 +192,8 @@ namespace Game.Core
             double level2BlockPostureMultiplier = 1.50,
             double level3BlockPostureMultiplier = 2.0,
             double spawnAngleDegrees = 45.0,
-            double spawnPortalInsetUnits = 2.0)
+            double spawnPortalInsetUnits = 2.0,
+            double speedDecayUnitsPerSecondSquared = 12.0)
         {
             if (maximumActiveCount < InitialProjectileCount || maximumActiveCount > 64)
             {
@@ -203,6 +205,8 @@ namespace Game.Core
             SpawnWarningSeconds = TuningValidation.InRange(spawnWarningSeconds, nameof(spawnWarningSeconds), 0.0, SpawnIntervalSeconds);
             BaseSpeedUnitsPerSecond = TuningValidation.InRange(baseSpeedUnitsPerSecond, nameof(baseSpeedUnitsPerSecond), 0.1, 1000.0);
             PowerDecaySecondsPerLevel = TuningValidation.InRange(powerDecaySecondsPerLevel, nameof(powerDecaySecondsPerLevel), 0.01, 60.0);
+            SpeedDecayUnitsPerSecondSquared = TuningValidation.InRange(speedDecayUnitsPerSecondSquared,
+                nameof(speedDecayUnitsPerSecondSquared), 0.01, 1000.0);
             MaximumParrySteeringDegrees = TuningValidation.InRange(maximumParrySteeringDegrees, nameof(maximumParrySteeringDegrees), 0.0, 180.0);
             SpawnAngleDegrees = TuningValidation.InRange(spawnAngleDegrees, nameof(spawnAngleDegrees), 1.0, 89.0);
             SpawnPortalInsetUnits = TuningValidation.InRange(spawnPortalInsetUnits, nameof(spawnPortalInsetUnits), 0.1, 10.0);
@@ -362,7 +366,7 @@ namespace Game.Core
             double widthUnits = 100.0,
             double heightUnits = 56.25,
             double fighterRadiusUnits = 1.5,
-            double projectileRadiusUnits = 0.6)
+            double projectileRadiusUnits = 0.9)
         {
             WidthUnits = TuningValidation.InRange(widthUnits, nameof(widthUnits), 10.0, 1000.0);
             HeightUnits = TuningValidation.InRange(heightUnits, nameof(heightUnits), 10.0, 1000.0);
