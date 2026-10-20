@@ -73,4 +73,25 @@ P3 visual proof: directionC selected. The current sample adds one static ninja p
 
 Mobile/readability feedback: characters are67% larger in both visual height and body collision, with feet still anchored. F5 Fighter radius ranges1.5–3.5 (default2.5). Check closer body contacts, projectile grazing/parry fairness, and rope stretch at the new size. Desktop and phone-sized-window previews are not physical phone tests.
 
-Phone development exports: after installing the matching Unity6000.3.26f1 module, run `bash tools/test-mobile.sh ios` for an unsigned Xcode project under `artifacts/build/ios`, or `bash tools/test-mobile.sh android` for `artifacts/build/Parry-playtest.apk`. These exports have not been run yet; phone OS/model selection is pending. iOS installation still requires local device pairing and signing setup. Existing touch controls are MOVE, held BOOST and DEF; landscape safe-area layout is already present. Do not treat export helpers as a tested device build.
+## iPhone17 Pro Max installation
+
+Unity iOS support is installed. The final landscape playtest exported and compiled successfully with Xcode, unsigned. The phone has not yet been connected/trusted; signing and device play remain pending.
+
+1. Connect the iPhone by USB, unlock it and accept Trust This Computer.
+2. Open the project:
+
+```sh
+open /Users/bekir/Code/Parry/artifacts/build/ios/Unity-iPhone.xcodeproj
+```
+
+3. In Xcode > Settings > Apple Accounts, sign in locally. Select the Unity-iPhone target > Signing & Capabilities, enable Automatically manage signing and choose your Personal Team. Use a unique bundle identifier if Xcode requests one.
+4. Select the connected iPhone as the run destination. When prompted, enable Settings > Privacy & Security > Developer Mode on the phone, restart and confirm. If it is not visible yet, pair the phone with Xcode first.
+5. Product > Run. Approve any device trust/developer prompts. A free Personal Team supports local testing; provisioning expires after seven days. No account password or certificates should be sent in chat.
+
+Apple: [run on a device](https://developer.apple.com/documentation/Xcode/running-your-app-on-simulated-or-physical-devices), [Developer Mode](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device), [Personal Team limits](https://developer.apple.com/help/account/basics/about-your-developer-account).
+
+Play in landscape. Left MOVE joystick aims movement/boost/parry; hold BOOST for fuel thrust, neutral aim rises; tap DEF to parry or hold to guard. Boost and defense can be held together with separate fingers. PAUSE, BOT/LOCAL, TUNE and RESTART are touch buttons. Default is P1 versus Easy bot. Main HUD/toolbar text now scales for phones. TUNE is still a desktop-oriented debug panel; tune on the Mac for now.
+
+First device checklist: try both landscape orientations, check notch/home-indicator clearance, judge the larger characters and projectile visibility, hold MOVE+BOOST+DEF together, test release/refill, and watch for heat, stutter or missed touches over five minutes. Report touch comfort, readability and unfair misses before more art work. Physical-device behavior is not yet validated.
+
+Re-export after source changes with `bash tools/test-mobile.sh ios`; generated Xcode signing settings may need selecting again. The compiled unsigned app is under artifacts/build/ios-derived/Build/Products/Debug-iphoneos. Desktop touch preview: launch the macOS app with `--parry-touch`, or press F4. Android helper remains available but its module/export/device run is untested.
