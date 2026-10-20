@@ -46,6 +46,7 @@ namespace Game.Unity
         private double _projectileSpeed = CombatTuning.Default.Projectile.BaseSpeedUnitsPerSecond;
         private double _projectileSpeedDecay = CombatTuning.Default.Projectile.SpeedDecayUnitsPerSecondSquared;
         private double _projectileRadius = CombatTuning.Default.Arena.ProjectileRadiusUnits;
+        private double _fighterRadius = 2.5;
         private double _spring = CombatTuning.Default.Divider.SpringStrength;
         private double _damping = CombatTuning.Default.Divider.Damping;
         private double _rebound = CombatTuning.Default.Divider.DashReboundSpeedUnitsPerSecond;
@@ -108,7 +109,8 @@ namespace Game.Unity
                 new MatchTuning(roundCountdownSeconds: 0, startImmediatelyForTesting: true) :
                 new MatchTuning();
             _sim = new MatchSimulation(new SimulationConfig(), new CombatTuning(movement, projectile,
-                new DefenseTuning(parryExtraReachUnits: _parryExtraReach), divider, new ArenaTuning(projectileRadiusUnits: _projectileRadius), match));
+                new DefenseTuning(parryExtraReachUnits: _parryExtraReach), divider,
+                new ArenaTuning(fighterRadiusUnits: _fighterRadius, projectileRadiusUnits: _projectileRadius), match));
             _inputs[0].Clear(); _inputs[1].Clear();
             _lastEvent = "";
             _hitstopTicks = 0;
@@ -568,6 +570,7 @@ namespace Game.Unity
             Slider("Projectile speed", ref _projectileSpeed, 8, 60);
             Slider("Projectile slowdown (units/s²)", ref _projectileSpeedDecay, 3, 48);
             Slider("Projectile radius", ref _projectileRadius, .3f, 1.5f);
+            Slider("Fighter radius", ref _fighterRadius, 1.5f, 3.5f);
             Slider("Spring", ref _spring, 0, 80);
             Slider("Damping", ref _damping, 0, 30);
             Slider("Rebound speed", ref _rebound, 10, 85);
@@ -617,6 +620,7 @@ namespace Game.Unity
                     projectileDecaySecondsPerLevel = Tuning.Projectile.PowerDecaySecondsPerLevel,
                     projectileSpeedDecay = Tuning.Projectile.SpeedDecayUnitsPerSecondSquared,
                     projectileRadius = Tuning.Arena.ProjectileRadiusUnits,
+                    fighterRadius = Tuning.Arena.FighterRadiusUnits,
                     projectileLevel0Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond,
                     projectileLevel1Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond * Tuning.Projectile.Level1SpeedMultiplier,
                     projectileLevel2Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond * Tuning.Projectile.Level2SpeedMultiplier,
@@ -647,6 +651,7 @@ namespace Game.Unity
             public double runSpeed, jumpSpeed, dashSpeed, boostDuration, boostInvulnerability,
                 parryWindow, upwardBoostSpeed, parryExtraReach, projectileSpeed, spring, damping, rebound, boostLoadDuration,
                 boostLoadSpring, boostLoadDamping, projectileDecaySecondsPerLevel, projectileSpeedDecay, projectileRadius,
+                fighterRadius,
                 projectileLevel0Speed, projectileLevel1Speed, projectileLevel2Speed, projectileLevel3Speed,
                 fuelCapacitySeconds, fuelRegenerationPerSecond, fuelRegenerationDelaySeconds,
                 fuelIgnitionCostSeconds, fuelSteeringAcceleration, fuelInvulnerabilityRearmSeconds;
