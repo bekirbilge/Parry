@@ -192,9 +192,9 @@ Resume instruction: read both root MD files and this status; run first unchecked
 ### `docs/TASK_BOARD.md`
 ```md
 # Task board
-- [ ] P0 toolchain/repo/CI
-- [ ] P1 headless combat simulation
-- [ ] P2 playable graybox — HUMAN GAMEPLAY GATE
+- [x] P0 toolchain/repo/CI
+- [x] P1 headless combat simulation
+- [x] P2 playable graybox — HUMAN GAMEPLAY GATE passed2026-10-20
 - [ ] P3 AI art pipeline — HUMAN ART GATE
 - [ ] P4 production-feel vertical slice
 - [ ] P5 online PvP — HUMAN NETWORK TEST
