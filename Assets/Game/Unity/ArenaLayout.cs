@@ -5,7 +5,7 @@ namespace Game.Unity
     /// <summary>Fits the fixed 16:9 playfield into the device safe area. Rect uses GUI top-left coordinates.</summary>
     public static class ArenaLayout
     {
-        public static Rect Compute(int width, int height, Rect safeArea)
+        public static Rect Compute(int width, int height, Rect safeArea, bool mobileUi = false)
         {
             float left = Mathf.Clamp(safeArea.xMin, 0, width);
             float right = Mathf.Clamp(safeArea.xMax, left, width);
@@ -14,7 +14,8 @@ namespace Game.Unity
             float availableWidth = right - left;
             float availableHeight = top - bottom;
             if (availableWidth <= 0 || availableHeight <= 0) return new Rect(0, 0, 0, 0);
-            float footerHeight = Mathf.Min(Mathf.Clamp(height * .078f, 44, 72), availableHeight * .25f);
+            float footerHeight = Mathf.Min(mobileUi ? Mathf.Clamp(height * .065f, 30, 90) :
+                Mathf.Clamp(height * .078f, 44, 72), availableHeight * .25f);
             availableHeight -= footerHeight;
             float fittedWidth = Mathf.Min(availableWidth, availableHeight * 16f / 9f);
             float fittedHeight = fittedWidth * 9f / 16f;
@@ -23,9 +24,9 @@ namespace Game.Unity
                 fittedWidth, fittedHeight);
         }
 
-        public static Rect Footer(int width, int height, Rect safeArea)
+        public static Rect Footer(int width, int height, Rect safeArea, bool mobileUi = false)
         {
-            Rect arena = Compute(width, height, safeArea);
+            Rect arena = Compute(width, height, safeArea, mobileUi);
             float bottom = Mathf.Clamp(safeArea.yMin, 0, height);
             float y = arena.yMax + 2;
             return new Rect(arena.xMin, y, arena.width, Mathf.Max(0, height - bottom - y));
@@ -40,26 +41,28 @@ namespace Game.Unity
             return new Rect(x - size * .5f, y - size * .5f, size, size);
         }
 
-        public static Rect ToolbarButton(Rect arena, int index)
+        public static Rect ToolbarButton(Rect arena, int index, bool mobileUi = false)
         {
             float width = arena.width * .12f;
             float gap = arena.width * .01f;
             return new Rect(arena.center.x - (4 * width + 3 * gap) * .5f + index * (width + gap),
-                arena.yMin + Mathf.Max(62, arena.height * .10f), width, Mathf.Clamp(arena.height * .065f, 30, 46));
+                arena.yMin + (mobileUi ? arena.height * .245f : Mathf.Max(62, arena.height * .10f)),
+                width, mobileUi ? arena.height * .12f : Mathf.Clamp(arena.height * .065f, 30, 46));
         }
 
-        public static Rect TuningPanel(Rect arena)
+        public static Rect TuningPanel(Rect arena, bool mobileUi = false)
         {
-            float top = Mathf.Max(arena.height * .19f, ToolbarButton(arena, 0).yMax - arena.yMin + 8);
+            float top = Mathf.Max(arena.height * .19f, ToolbarButton(arena, 0, mobileUi).yMax - arena.yMin + 8);
             return new Rect(arena.xMin + arena.width * .22f, arena.yMin + top,
                 arena.width * .56f, Mathf.Max(0, arena.height - top - arena.height * .05f));
         }
 
-        public static int TouchAction(Rect arena, Vector2 bottomLeftPosition, int screenHeight, bool tuningOpen)
+        public static int TouchAction(Rect arena, Vector2 bottomLeftPosition, int screenHeight, bool tuningOpen,
+            bool mobileUi = false)
         {
             Vector2 p = new Vector2(bottomLeftPosition.x, screenHeight - bottomLeftPosition.y);
             if (!arena.Contains(p)) return -1;
-            for (int i = 0; i < 4; i++) if (ToolbarButton(arena, i).Contains(p)) return -1;
+            for (int i = 0; i < 4; i++) if (ToolbarButton(arena, i, mobileUi).Contains(p)) return -1;
             if (tuningOpen) return -1;
             for (int i = 1; i <= 2; i++) if (TouchControl(arena, i).Contains(p)) return i;
             Rect stick = TouchControl(arena, 0);
