@@ -21,8 +21,8 @@ namespace Game.Unity
         private bool _referenceArtEnabled = true;
         private AudioSource _audio;
         private AudioClip _tone;
-        private GUIStyle _label, _large, _small;
-        private bool _paused, _slow, _showTuning, _showColliders, _showTouchWidgets, _forceTouchPreview;
+        private GUIStyle _label, _large, _small, _phoneTuningLabel;
+        private bool _paused, _slow, _showTuning, _showColliders, _showTouchWidgets, _forceTouchPreview, _tuningPreview;
         private bool _localTwoPlayer;
         private bool _prototypeInstantTestingStart = true;
         private bool _prototypeFuelBoost = true;
@@ -36,12 +36,14 @@ namespace Game.Unity
         private float _lastEventUntil;
         private int _hitstopTicks;
         private Vector2 _tuningScroll;
+        private GUISkin _phoneTuningSkin;
+        private int _tuningScrollFinger = -1;
         private double _runSpeed = CombatTuning.Default.Movement.RunSpeedUnitsPerSecond;
         private double _jumpSpeed = CombatTuning.Default.Movement.JumpSpeedUnitsPerSecond;
         private double _dashSpeed = CombatTuning.Default.Movement.DashSpeedUnitsPerSecond;
         private double _boostDuration = CombatTuning.Default.Movement.DashDurationSeconds;
         private double _upwardBoostSpeed = CombatTuning.Default.Movement.MaximumUpwardBoostSpeedUnitsPerSecond;
-        private double _parryExtraReach = CombatTuning.Default.Defense.ParryExtraReachUnits;
+        private double _parryExtraReach = 3.5;
         private double _parryWindow = CombatTuning.Default.Movement.PerfectParryWindowSeconds;
         private double _projectileSpeed = CombatTuning.Default.Projectile.BaseSpeedUnitsPerSecond;
         private double _projectileSpeedDecay = CombatTuning.Default.Projectile.SpeedDecayUnitsPerSecondSquared;
@@ -128,6 +130,7 @@ namespace Game.Unity
             {
                 if (args[i] == "--parry-smoke") _smoke = true;
                 if (args[i] == "--parry-touch") _forceTouchPreview = true;
+                if (args[i] == "--parry-tuning-preview") { _forceTouchPreview = true; _tuningPreview = true; }
                 if (args[i] == "--parry-output" && i + 1 < args.Length) _capturePath = args[++i];
             }
             Application.targetFrameRate = 60;
@@ -150,6 +153,11 @@ namespace Game.Unity
         {
             _driver.TickAdvanced += OnTick;
             if (_smoke) { _smokeDriverStepsRemaining = 3; StartCoroutine(RunSmoke()); }
+            if (_tuningPreview)
+            {
+                ToggleTuning();
+                if (_smoke) Time.timeScale = 1; // Let the smoke driver complete while capturing the modal UI.
+            }
         }
 
         private void OnApplicationFocus(bool focused)
@@ -163,6 +171,7 @@ namespace Game.Unity
             if (_pixel != null) Destroy(_pixel);
             if (_circle != null) Destroy(_circle);
             if (_tone != null) Destroy(_tone);
+            if (_phoneTuningSkin != null) Destroy(_phoneTuningSkin);
         }
 
         private void Update()
@@ -184,6 +193,7 @@ namespace Game.Unity
             }
             if (Input.GetKeyDown(KeyCode.F12)) CaptureScreenshot();
             Rect arena = ArenaLayout.Compute(Screen.width, Screen.height, Screen.safeArea, PhoneUi);
+            if (PhoneUi && _showTuning) ScrollPhoneTuning(arena);
             if (Input.touchSupported)
                 foreach (Touch touchEvent in Input.touches)
                     if (touchEvent.phase == TouchPhase.Began) HandleToolbar(arena, touchEvent.position);
@@ -214,7 +224,74 @@ namespace Game.Unity
         private void ToggleTuning()
         {
             _showTuning = !_showTuning;
+            if (PhoneUi && _showTuning)
+            {
+                _paused = true;
+                Time.timeScale = 0;
+            }
+            _tuningScrollFinger = -1;
             _inputs[0].Clear(); _inputs[1].Clear();
+        }
+
+        private static Rect PhoneRestartButton(Rect arena)
+        {
+            return new Rect(arena.center.x - arena.width * .17f,
+                arena.yMin + arena.height * .29f, arena.width * .34f, arena.height * .13f);
+        }
+
+        private static Rect PhoneTuningBack(Rect arena)
+        {
+            Rect panel = ArenaLayout.TuningPanel(arena, true);
+            float edge = Mathf.Max(panel.height * .12f, 44 * PhoneTuningScale(arena));
+            return new Rect(panel.xMin + edge * .3f, panel.yMin + edge * .15f,
+                panel.width * .25f, edge);
+        }
+
+        private static Rect PhoneTuningApply(Rect arena)
+        {
+            Rect panel = ArenaLayout.TuningPanel(arena, true);
+            float edge = Mathf.Max(panel.height * .13f, 44 * PhoneTuningScale(arena));
+            return new Rect(panel.xMin + panel.width * .28f, panel.yMax - edge * 1.12f,
+                panel.width * .44f, edge);
+        }
+
+        private static Rect PhoneTuningScrollArea(Rect arena)
+        {
+            Rect panel = ArenaLayout.TuningPanel(arena, true);
+            Rect back = PhoneTuningBack(arena);
+            Rect apply = PhoneTuningApply(arena);
+            float pad = panel.width * .035f;
+            return new Rect(panel.xMin + pad, back.yMax + panel.height * .025f,
+                panel.width - 2 * pad, apply.yMin - back.yMax - panel.height * .045f);
+        }
+
+        private static float PhoneTuningScale(Rect arena) => Mathf.Max(1f, arena.height / 360f);
+
+        private static int PhoneTuningFontSize(Rect arena) =>
+            Mathf.RoundToInt(20 * PhoneTuningScale(arena));
+
+        private void ScrollPhoneTuning(Rect arena)
+        {
+            Rect scroll = PhoneTuningScrollArea(arena);
+            foreach (Touch touch in Input.touches)
+            {
+                Vector2 point = new Vector2(touch.position.x, Screen.height - touch.position.y);
+                if (touch.phase == TouchPhase.Began && scroll.Contains(point) && _tuningScrollFinger < 0)
+                    _tuningScrollFinger = touch.fingerId;
+                if (touch.fingerId != _tuningScrollFinger) continue;
+                // IMGUI sliders/buttons own their pointer until release. A gesture
+                // captured by a control must never also drag the scroll content.
+                if (GUIUtility.hotControl != 0)
+                {
+                    _tuningScrollFinger = -1;
+                    continue;
+                }
+                if (touch.phase == TouchPhase.Moved &&
+                    Mathf.Abs(touch.deltaPosition.y) > Mathf.Abs(touch.deltaPosition.x))
+                    _tuningScroll.y = Mathf.Max(0, _tuningScroll.y + touch.deltaPosition.y);
+                if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
+                    _tuningScrollFinger = -1;
+            }
         }
 
         private void HandleToolbar(Rect arena, Vector2 bottomLeftPosition)
@@ -222,8 +299,17 @@ namespace Game.Unity
             Vector2 point = new Vector2(bottomLeftPosition.x, Screen.height - bottomLeftPosition.y);
             if (PhoneUi)
             {
+                if (_showTuning)
+                {
+                    if (PhoneTuningBack(arena).Contains(point)) { ToggleTuning(); return; }
+                    if (PhoneTuningApply(arena).Contains(point)) { RestartMatch(); return; }
+                    if (ArenaLayout.PauseButton(arena).Contains(point)) { TogglePause(); return; }
+                    return;
+                }
                 if (ArenaLayout.PauseButton(arena).Contains(point)) { TogglePause(); return; }
-                if (!_paused || _showTuning) return;
+                if (!_paused && _sim.Phase == MatchPhase.MatchComplete &&
+                    PhoneRestartButton(arena).Contains(point)) { RestartMatch(); return; }
+                if (!_paused) return;
                 for (int i = 0; i < 4; i++)
                 {
                     if (!ArenaLayout.PauseMenuButton(arena, i).Contains(point)) continue;
@@ -349,6 +435,8 @@ namespace Game.Unity
                 GUI.DrawTextureWithTexCoords(new Rect(0, 0, Screen.width, Screen.height),
                     _referenceArena, _referenceCharacterLayout.ArenaUvRect, true);
             DrawCombat(arena);
+            if (PhoneUi)
+                Box(new Rect(0, arena.yMax, Screen.width, Mathf.Max(0, Screen.height - arena.yMax)), Color.black);
             var state = _smokeRenderState ?? _sim.CaptureSnapshot();
             DrawHud(arena, state);
             if (!PhoneUi) DrawInstructions(ArenaLayout.Footer(Screen.width, Screen.height, Screen.safeArea));
@@ -542,7 +630,7 @@ namespace Game.Unity
                         f.FuelRegenDelayTicksRemaining > 0 ? "COOLING" :
                         fraction < .999f ? "REFILLING" : "READY";
                     Label(new Rect(x, a.yMin + 62, barWidth, 15),
-                        "FUEL " + (fraction * 100).ToString("0") + "%  " + fuelState, _small);
+                        "BOOST " + (fraction * 100).ToString("0") + "%  " + fuelState, _small);
                 }
                 else
                     for (int j = 0; j < MovementTuning.MaximumDashCharges; j++)
@@ -590,7 +678,7 @@ namespace Game.Unity
                         f.FuelRegenDelayTicksRemaining > 0 ? "COOLING" :
                         fraction < .999f ? "REFILL" : "READY";
                     Label(new Rect(x, a.yMin + 58 * unit, barWidth, 18 * unit),
-                        "FUEL " + (fraction * 100).ToString("0") + "% " + fuelState, _small);
+                        "BOOST " + (fraction * 100).ToString("0") + "% " + fuelState, _small);
                 }
                 else
                     for (int j = 0; j < MovementTuning.MaximumDashCharges; j++)
@@ -604,8 +692,11 @@ namespace Game.Unity
             Label(new Rect(a.center.x - a.width * .23f, a.yMin + 4 * unit,
                 a.width * .46f, 42 * unit), center, _large);
             if (s.Phase == MatchPhase.MatchComplete)
-                Label(new Rect(a.center.x - a.width * .20f, a.yMin + 48 * unit,
-                    a.width * .40f, 20 * unit), "TAP RESTART", _small);
+            {
+                Rect restart = PhoneRestartButton(a);
+                Box(restart, new Color(.10f, .48f, .58f, 1));
+                Label(restart, "TAP TO RESTART", _label);
+            }
             else if (s.Phase == MatchPhase.Active && s.Projectiles.Count < Tuning.Projectile.MaximumActiveCount)
                 Label(new Rect(a.center.x - a.width * .20f, a.yMin + 48 * unit,
                     a.width * .40f, 20 * unit), "NEXT " +
@@ -641,21 +732,52 @@ namespace Game.Unity
                 p1Controls + "     P2 arrows aim/move · U/I boost · O parry/guard", _small);
             Label(new Rect(footer.xMin+4, footer.yMin+row, footer.width-8, row),
                 (_localTwoPlayer ? "LOCAL 2P" : "P1 VS BOT " + BotDifficultyName.ToUpperInvariant()) +
-                "  |  " + (Tuning.Movement.UseFuelBoost ? "FUEL" : "3 CHARGES") +
-                " · Neutral boost rises · Ring = temporary parry safety  |  B mode  P pause  N step  R restart  F1 fuel/charges  F5 tune  F6 art  F12 capture", _small);
+                "  |  " + (Tuning.Movement.UseFuelBoost ? "BOOST" : "3 CHARGES") +
+                " · Neutral boost rises · Ring = temporary parry safety  |  B mode  P pause  N step  R restart  F1 boost/charges  F5 tune  F6 art  F12 capture", _small);
         }
 
         private void DrawTouch(Rect a)
         {
-            Rect stick = ArenaLayout.TouchControl(a, 0);
-            Circle(stick, new Color(.12f, .25f, .34f, 1f));
-            Label(stick, "MOVE", _small);
+            if (PhoneUi)
+            {
+                Rect strip = ArenaLayout.ControlStrip(a);
+                if (_inputs[0].JoystickActive)
+                {
+                    float travel = ArenaLayout.JoystickTravel(a, true);
+                    Vector2 origin = _inputs[0].JoystickOrigin;
+                    Vector2 point = _inputs[0].JoystickPoint;
+                    origin.y = Screen.height - origin.y;
+                    point.y = Screen.height - point.y;
+                    float baseRadius = Mathf.Min(travel, strip.height * .42f);
+                    // Clip at the strip edges instead of moving the first-touch origin.
+                    Rect clip = new Rect(strip.xMin, strip.yMin, strip.width * .5f, strip.height);
+                    GUI.BeginGroup(clip);
+                    origin -= clip.position;
+                    Vector2 offset = Vector2.ClampMagnitude(point - new Vector2(_inputs[0].JoystickOrigin.x,
+                        Screen.height - _inputs[0].JoystickOrigin.y), travel);
+                    Vector2 knob = origin + offset;
+                    Circle(new Rect(origin.x - baseRadius, origin.y - baseRadius,
+                        baseRadius * 2, baseRadius * 2), new Color(.08f, .42f, .57f, 1));
+                    Circle(new Rect(knob.x - baseRadius * .42f, knob.y - baseRadius * .42f,
+                        baseRadius * .84f, baseRadius * .84f), new Color(.50f, .95f, 1f, 1));
+                    GUI.EndGroup();
+                }
+                else
+                    Label(ArenaLayout.TouchControl(a, 0, true), "MOVE", _label);
+            }
+            else
+            {
+                Rect stick = ArenaLayout.TouchControl(a, 0);
+                Circle(stick, new Color(.12f, .25f, .34f, 1f));
+                Label(stick, "MOVE", _small);
+            }
             string[] names = { "BOOST", "DEF" };
             for (int i = 0; i < 2; i++)
             {
-                Rect target = ArenaLayout.TouchControl(a, i + 1);
-                Circle(target, new Color(.16f, .34f, .46f, 1f));
-                Label(target, names[i], _small);
+                Rect target = ArenaLayout.TouchControl(a, i + 1, PhoneUi);
+                Circle(target, i == 0 ? new Color(.08f, .50f, .62f, 1) :
+                    new Color(.62f, .29f, .23f, 1));
+                Label(target, names[i], PhoneUi ? _label : _small);
             }
         }
 
@@ -689,19 +811,20 @@ namespace Game.Unity
 
         private void DrawTuning(Rect a)
         {
+            if (PhoneUi) { DrawPhoneTuning(a); return; }
             Rect box = ArenaLayout.TuningPanel(a, PhoneUi);
             Box(box, new Color(.025f, .04f, .07f, .96f));
             float padding = Mathf.Clamp(box.width * .025f, 7, 14);
             GUILayout.BeginArea(new Rect(box.x+padding, box.y+padding, box.width-2*padding, box.height-2*padding));
             _tuningScroll = GUILayout.BeginScrollView(_tuningScroll);
             GUILayout.Label("TUNING · drag sliders, then Apply / reset match");
-            bool fuelMode = GUILayout.Toggle(_prototypeFuelBoost, "Fuel boost prototype (off: three charges)");
+            bool fuelMode = GUILayout.Toggle(_prototypeFuelBoost, "Boost prototype (off: three charges)");
             if (fuelMode != _prototypeFuelBoost) SetFuelBoostMode(fuelMode);
             Slider("Run speed", ref _runSpeed, 3, 40);
             Slider("Boost speed", ref _dashSpeed, 15, 120);
             Slider("Boost duration", ref _boostDuration, .15f, .5f);
             Slider("Upward boost cap", ref _upwardBoostSpeed, 20, 80);
-            Slider("Parry extra reach", ref _parryExtraReach, 0, 4);
+            Slider("Parry extra reach", ref _parryExtraReach, 0, 6);
             Slider("Parry window", ref _parryWindow, .03f, .3f);
             Slider("Projectile speed", ref _projectileSpeed, 8, 60);
             Slider("Projectile slowdown (units/s²)", ref _projectileSpeedDecay, 3, 48);
@@ -722,6 +845,78 @@ namespace Game.Unity
             GUILayout.Label("Capture: " + _capturePath);
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+        }
+
+        private void DrawPhoneTuning(Rect arena)
+        {
+            Rect panel = ArenaLayout.TuningPanel(arena, true);
+            Box(new Rect(0, 0, Screen.width, arena.yMax), new Color(.015f, .025f, .04f, 1));
+            if (_phoneTuningLabel == null) _phoneTuningLabel = new GUIStyle(_label);
+            _phoneTuningLabel.fontSize = PhoneTuningFontSize(arena);
+            Rect pause = ArenaLayout.PauseButton(arena);
+            Box(pause, new Color(.10f, .19f, .26f, 1));
+            Label(pause, "X", _phoneTuningLabel);
+            Box(panel, new Color(.04f, .075f, .11f, 1));
+            Rect back = PhoneTuningBack(arena);
+            Rect apply = PhoneTuningApply(arena);
+            Box(back, new Color(.16f, .34f, .44f, 1));
+            Label(back, "BACK", _phoneTuningLabel);
+            Box(apply, new Color(.08f, .55f, .63f, 1));
+            Label(apply, "APPLY / RESET", _phoneTuningLabel);
+            Label(new Rect(panel.center.x - panel.width * .20f, back.yMin,
+                panel.width * .40f, back.height), "TUNING", _large);
+
+            if (_phoneTuningSkin == null) _phoneTuningSkin = Instantiate(GUI.skin);
+            float scale = PhoneTuningScale(arena);
+            int font = PhoneTuningFontSize(arena);
+            _phoneTuningSkin.label.fontSize = font;
+            _phoneTuningSkin.label.normal.textColor = Color.white;
+            _phoneTuningSkin.button.fontSize = font;
+            _phoneTuningSkin.button.normal.textColor = Color.white;
+            _phoneTuningSkin.toggle.fontSize = font;
+            _phoneTuningSkin.toggle.normal.textColor = Color.white;
+            _phoneTuningSkin.toggle.fixedHeight = 42 * scale;
+            _phoneTuningSkin.toggle.padding.left = Mathf.RoundToInt(40 * scale);
+            _phoneTuningSkin.horizontalSlider.fixedHeight = 34 * scale;
+            _phoneTuningSkin.horizontalSliderThumb.fixedWidth = 34 * scale;
+            _phoneTuningSkin.horizontalSliderThumb.fixedHeight = 42 * scale;
+            GUISkin previous = GUI.skin;
+            GUI.skin = _phoneTuningSkin;
+            Rect scroll = PhoneTuningScrollArea(arena);
+            GUILayout.BeginArea(scroll);
+            _tuningScroll = GUILayout.BeginScrollView(_tuningScroll, false, true);
+            if (GUILayout.Button("Movement: " + (_prototypeFuelBoost ? "CONTINUOUS BOOST" : "3 CHARGES"),
+                GUILayout.Height(44 * scale))) _prototypeFuelBoost = !_prototypeFuelBoost;
+            PhoneSlider("Run speed", ref _runSpeed, 3, 40, scale);
+            PhoneSlider("Boost speed", ref _dashSpeed, 15, 120, scale);
+            PhoneSlider("Boost duration", ref _boostDuration, .15f, .5f, scale);
+            PhoneSlider("Upward boost cap", ref _upwardBoostSpeed, 20, 80, scale);
+            PhoneSlider("Parry extra reach", ref _parryExtraReach, 0, 6, scale);
+            PhoneSlider("Parry window", ref _parryWindow, .03f, .3f, scale);
+            PhoneSlider("Projectile speed", ref _projectileSpeed, 8, 60, scale);
+            PhoneSlider("Projectile slowdown", ref _projectileSpeedDecay, 3, 48, scale);
+            PhoneSlider("Projectile radius", ref _projectileRadius, .3f, 1.5f, scale);
+            PhoneSlider("Fighter radius", ref _fighterRadius, 1.5f, 3.5f, scale);
+            PhoneSlider("Spring", ref _spring, 0, 80, scale);
+            PhoneSlider("Damping", ref _damping, 0, 30, scale);
+            PhoneSlider("Rebound speed", ref _rebound, 10, 85, scale);
+            PhoneSlider("Rope boost load", ref _boostLoadDuration, .05f, .35f, scale);
+            PhoneSlider("Rope load spring", ref _boostLoadSpring, 50, 400, scale);
+            PhoneSlider("Rope load damping", ref _boostLoadDamping, 2, 60, scale);
+            if (GUILayout.Button("Bot: " + BotDifficultyName + " (tap to change)",
+                GUILayout.Height(52 * scale))) SetBotDifficulty((_botDifficulty + 1) % 3);
+            if (GUILayout.Button("Immediate start: " + (_prototypeInstantTestingStart ? "ON" : "OFF"),
+                GUILayout.Height(44 * scale))) _prototypeInstantTestingStart = !_prototypeInstantTestingStart;
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+            GUI.skin = previous;
+        }
+
+        private static void PhoneSlider(string name, ref double value, float min, float max, float scale)
+        {
+            GUILayout.Label(name + "  " + value.ToString("0.00"), GUILayout.Height(29 * scale));
+            value = GUILayout.HorizontalSlider((float)value, min, max, GUILayout.Height(44 * scale));
+            GUILayout.Space(4 * scale);
         }
 
         private static void Slider(string name, ref double value, float min, float max)
