@@ -58,6 +58,7 @@ namespace Game.Core
         public Vec2 Velocity;
         public int PowerLevel;
         public int DecayTicksRemaining;
+        public bool SpeedDecaying;
         public long LastContactTick = -1;
         public int LastContactFighterId = -1;
         public int ReflectedContactMask;
@@ -89,7 +90,7 @@ namespace Game.Core
     /// <summary>Versioned, deep-clonable state for same-runtime replay comparison.</summary>
     public sealed class SimulationState
     {
-        public const int SnapshotVersion = 5;
+        public const int SnapshotVersion = 6;
         public const int LeftFighterId = 0;
         public const int RightFighterId = 1;
 
@@ -204,6 +205,7 @@ namespace Game.Core
                 hash.Add(projectile.Velocity);
                 hash.Add(projectile.PowerLevel);
                 hash.Add(projectile.DecayTicksRemaining);
+                hash.Add(projectile.SpeedDecaying);
                 hash.Add(projectile.LastContactTick);
                 hash.Add(projectile.LastContactFighterId);
                 hash.Add(projectile.ReflectedContactMask);
