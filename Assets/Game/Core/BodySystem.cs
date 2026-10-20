@@ -109,6 +109,10 @@ namespace Game.Core
         {
             if (fighter.DashSequence <= fighter.LastDashBodyHitSequence ||
                 fighter.DashDirection.X * towardOpponent <= 1e-9) return false;
+            if (tuning.Movement.UseFuelBoost)
+                // The rope may end thrust and begin recoil after movement, but its
+                // impact tick still carries the powered contact marker.
+                return fighter.DashTicksRemaining > 0;
             return fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0 ||
                 Math.Abs(fighter.Velocity.X) >= tuning.Movement.DashSpeedUnitsPerSecond * 0.9;
         }
