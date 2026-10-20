@@ -111,3 +111,13 @@ Larger-character and early-mobile preparation verified on2026-10-20:
 - Real art manifest validation and12/12 Python tests PASS. Native desktop and1280×720 smoke PASS,900 steps/3 live callbacks; checksumA8EAD925C985E90B on both. Capture confirms fighter radius2.5. Native rope intrusion4.4846,bend7.3044,recoil18.75 passes unchanged thresholds; enlarged-character screenshot inspected.
 - Mobile wrapper shell syntax/usage checks PASS; exporter source compiles and settings tests pass. Actual iOS/Android exports, mobile input-backend compatibility and physical device behavior remain UNTESTED: phone selection pending and required Unity modules absent. No mobile install or signing attempted.
 - Independent source review passed after raw settings restoration fix. Diff checks clean. Phone OS/model is the next required user input; visual approval and real-device feedback remain pending.
+
+
+iPhone playtest preparation verified on2026-10-20:
+
+- Installed pinned Unity6000.3.26f1 iOS support; actual final iOS export PASS via `bash tools/test-mobile.sh ios`.
+- Unsigned native device-SDK compilation PASS with Xcode27.1/iPhoneOS27.1: Unity-iPhone scheme, Debug, generic iOS destination, CODE_SIGNING_ALLOWED=NO. Final log artifacts/logs/xcode-ios-build.log reports BUILD SUCCEEDED. App metadata confirms bundle com.bekirbilge.parry.playtest, minimum iOS15, landscape left/right.
+- Unity bootstrap validation/macOS build PASS;34/34 EditMode tests PASS. New tests cover synthetic notched2868×1320 and640×360 safe areas, toolbar/control separation, phone input routing and default desktop layout.
+- Desktop and1280×590 --parry-touch native smokes PASS:900 steps/3 callbacks, both checksumA8EAD925C985E90B. Touch preview screenshot artifacts/runtime-touch/smoke.png visually inspected. No Core changes; prior full core/Python results remain applicable.
+- Independent presentation review PASS after mobile layout was threaded through InputAdapter. TUNE debug panel remains desktop-sized, documented. Initial platform switch generated empty icon/default import metadata; discarded that generated churn after export, retaining source settings.
+- Physical iPhone17 Pro Max signing/install/touch/frame pacing/thermal tests NOT RUN. User has not connected/trusted phone. Zero local signing identities; device-service discovery inconclusive. Xcode warns of stale simulator services; this did not prevent successful physical-device SDK compilation. Stop for local account/device setup, not production deployment.
