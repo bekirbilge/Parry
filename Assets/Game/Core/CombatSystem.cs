@@ -10,7 +10,7 @@ namespace Game.Core
         private const double SeparationEpsilon = 1e-8;
         private const int MaximumContactsPerTick = 2048;
 
-        private enum ContactKind { Fighter, WallX, WallY, Body }
+        private enum ContactKind { SafetyExit, Fighter, WallX, WallY, Body }
         private enum DefenseKind { Parry, OwnedRedirect, Guard, Invulnerable, Lethal }
 
         private readonly struct Contact
@@ -58,6 +58,7 @@ namespace Game.Core
             double now = 0;
             int contactsResolved = 0;
             var suppressedPairs = new HashSet<long>();
+            var lastContactFractions = new Dictionary<long, double>();
             var candidates = new List<Contact>(state.Projectiles.Count * 4 + 1);
             while (now < 1 - FractionEpsilon)
             {
@@ -68,6 +69,7 @@ namespace Game.Core
                 foreach (ProjectileState projectile in state.Projectiles)
                 {
                     AddWallContacts(candidates, projectile, now, tuning, config);
+                    AddSafetyExit(candidates, projectile, state, now, tuning, config);
                     for (int fighterId = 0; fighterId < 2; fighterId++)
                         AddFighterContact(candidates, projectile, state.Fighter(fighterId), now,
                             state, tuning, config, suppressedPairs);
@@ -97,6 +99,11 @@ namespace Game.Core
                 if (contactsResolved > MaximumContactsPerTick)
                     throw new InvalidOperationException("Contact budget exceeded; simulation refuses to lose contacts silently.");
 
+                // Clearance must take effect before simultaneous fighter contacts are classified.
+                foreach (Contact contact in batch)
+                    if (contact.Kind == ContactKind.SafetyExit)
+                        ClearContactSafety(contact.Projectile, contact.FighterId, suppressedPairs);
+
                 // Classify the entire contact-time group before any block can cause guard break.
                 var defenses = new DefenseKind[batch.Count];
                 for (int index = 0; index < batch.Count; index++)
@@ -117,13 +124,13 @@ namespace Game.Core
                     if (contact.Kind == ContactKind.Fighter)
                     {
                         ResolveFighterContact(state, input, tuning, config, events,
-                            contact, defenses[index], suppressedPairs);
+                            contact, defenses[index], suppressedPairs, lastContactFractions);
                     }
                     else if (contact.Kind == ContactKind.WallX || contact.Kind == ContactKind.WallY)
                     {
                         ResolveWallContact(state, tuning, events, contact);
                     }
-                    else
+                    else if (contact.Kind == ContactKind.Body)
                     {
                         BodySystem.ApplyContact(state, contact.Body, tuning, config, events);
                     }
@@ -214,6 +221,9 @@ namespace Game.Core
             double separationSquared = (projectile.Position - fighterStart).LengthSquared;
             double physicalClearRadius = physicalRadius + SeparationEpsilon;
             double parryClearRadius = parryRadius + SeparationEpsilon;
+            if (projectile.LastParrierId == fighter.Id &&
+                separationSquared > parryClearRadius * parryClearRadius)
+                ClearContactSafety(projectile, fighter.Id, suppressedPairs);
             if ((projectile.ReflectedContactMask & fighterBit) != 0)
             {
                 if (separationSquared <= physicalClearRadius * physicalClearRadius) return;
@@ -225,8 +235,8 @@ namespace Game.Core
                     projectile.ParryContactMask &= ~fighterBit;
                 else if (parryActive) return;
             }
-            // Ownership immunity survives walls and power decay. An active parry may
-            // redirect an owned shot, while all other owned contacts pass through.
+            // Safety lasts only through the parry overlap. A timed press may
+            // redirect during that overlap; other contacts pass through.
             if (projectile.LastParrierId == fighter.Id && !parryActive) return;
             if (suppressedPairs.Contains(pair))
             {
@@ -242,6 +252,47 @@ namespace Game.Core
                 fighterStart, fighterDelta, radius - tuning.Arena.ProjectileRadiusUnits,
                 out double local, out Vec2 normal)) return;
             contacts.Add(new Contact(now + local * remaining, ContactKind.Fighter, projectile, fighter.Id, normal));
+        }
+
+        private static void AddSafetyExit(List<Contact> contacts, ProjectileState projectile,
+            SimulationState state, double now, CombatTuning tuning, SimulationConfig config)
+        {
+            int fighterId = projectile.LastParrierId;
+            if (fighterId < 0) return;
+            FighterState fighter = state.Fighter(fighterId);
+            Vec2 start = projectile.Position - SimMath.FighterPositionAt(fighter, now);
+            double radius = tuning.Arena.ProjectileRadiusUnits + tuning.Arena.FighterRadiusUnits +
+                tuning.Defense.ParryExtraReachUnits + SeparationEpsilon;
+            if (start.LengthSquared > radius * radius)
+            {
+                contacts.Add(new Contact(now, ContactKind.SafetyExit, projectile, fighterId, Vec2.Zero));
+                return;
+            }
+            double remaining = 1 - now;
+            if (remaining <= FractionEpsilon) return;
+            Vec2 delta = projectile.Velocity * (remaining * config.TickDurationSeconds) -
+                (SimMath.FighterPositionAt(fighter, 1) - SimMath.FighterPositionAt(fighter, now));
+            double a = delta.LengthSquared;
+            if (a <= 1e-24) return;
+            double b = 2 * Vec2.Dot(start, delta);
+            double c = start.LengthSquared - radius * radius;
+            double discriminant = b * b - 4 * a * c;
+            if (discriminant < 0) return;
+            double exit = (-b + Math.Sqrt(discriminant)) / (2 * a);
+            if (exit >= 0 && exit < 1 - FractionEpsilon)
+                contacts.Add(new Contact(now + exit * remaining, ContactKind.SafetyExit,
+                    projectile, fighterId, Vec2.Zero));
+        }
+
+        private static void ClearContactSafety(ProjectileState projectile, int fighterId,
+            HashSet<long> suppressedPairs)
+        {
+            if (projectile.LastParrierId != fighterId) return;
+            projectile.LastParrierId = -1;
+            int bit = 1 << fighterId;
+            projectile.ReflectedContactMask &= ~bit;
+            projectile.ParryContactMask &= ~bit;
+            suppressedPairs.Remove(((long)projectile.Id << 32) | (uint)fighterId);
         }
 
         private static void AddWallContacts(List<Contact> contacts, ProjectileState projectile,
@@ -275,17 +326,21 @@ namespace Game.Core
 
         private static void ResolveFighterContact(SimulationState state, SimulationInput input,
             CombatTuning tuning, SimulationConfig config, IList<SimulationEvent> events,
-            Contact contact, DefenseKind defense, HashSet<long> suppressedPairs)
+            Contact contact, DefenseKind defense, HashSet<long> suppressedPairs,
+            Dictionary<long, double> lastContactFractions)
         {
             ProjectileState projectile = contact.Projectile;
             FighterState fighter = state.Fighter(contact.FighterId);
-            suppressedPairs.Add(((long)projectile.Id << 32) | (uint)fighter.Id);
+            long pair = ((long)projectile.Id << 32) | (uint)fighter.Id;
+            suppressedPairs.Add(pair);
+            lastContactFractions[pair] = contact.Fraction;
             projectile.LastContactTick = state.Tick;
             projectile.LastContactFighterId = fighter.Id;
             Vec2 impact = projectile.Position;
             if (defense == DefenseKind.OwnedRedirect)
             {
-                ClearOtherFighterContact(projectile, fighter.Id);
+                ClearOtherFighterContact(projectile, fighter.Id, contact.Fraction,
+                    suppressedPairs, lastContactFractions);
                 MarkParryContact(projectile, fighter, contact.Fraction, tuning);
                 ReflectFromFighter(projectile, contact.Normal, input.ForFighter(fighter.Id).Move,
                     tuning.Projectile.MaximumParrySteeringDegrees);
@@ -294,7 +349,8 @@ namespace Game.Core
             }
             else if (defense == DefenseKind.Parry)
             {
-                ClearOtherFighterContact(projectile, fighter.Id);
+                ClearOtherFighterContact(projectile, fighter.Id, contact.Fraction,
+                    suppressedPairs, lastContactFractions);
                 MarkParryContact(projectile, fighter, contact.Fraction, tuning);
                 projectile.LastParrierId = fighter.Id;
                 fighter.PostureTouchedTick = state.Tick;
@@ -315,7 +371,8 @@ namespace Game.Core
             }
             else if (defense == DefenseKind.Guard)
             {
-                ClearOtherFighterContact(projectile, fighter.Id);
+                ClearOtherFighterContact(projectile, fighter.Id, contact.Fraction,
+                    suppressedPairs, lastContactFractions);
                 projectile.ReflectedContactMask |= 1 << fighter.Id;
                 bool activeDash = fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0;
                 DefenseSystem.ApplyPostureDamage(state, fighter,
@@ -337,13 +394,19 @@ namespace Game.Core
             }
         }
 
-        private static void ClearOtherFighterContact(ProjectileState projectile, int fighterId)
+        private static void ClearOtherFighterContact(ProjectileState projectile, int fighterId,
+            double fraction, HashSet<long> suppressedPairs,
+            Dictionary<long, double> lastContactFractions)
         {
             // A return from the other fighter is a fresh approach even when the
             // two reach zones overlap near the divider.
             int ownBit = 1 << fighterId;
             projectile.ReflectedContactMask &= ownBit;
             projectile.ParryContactMask &= ownBit;
+            long otherPair = ((long)projectile.Id << 32) | (uint)(1 - fighterId);
+            if (lastContactFractions.TryGetValue(otherPair, out double previousFraction) &&
+                fraction > previousFraction + FractionEpsilon)
+                suppressedPairs.Remove(otherPair);
         }
 
         private static void MarkParryContact(ProjectileState projectile, FighterState fighter,
@@ -480,7 +543,11 @@ namespace Game.Core
                     if (separationSquared > physicalClearRadiusSquared)
                         projectile.ReflectedContactMask &= ~bit;
                     if (separationSquared > parryClearRadiusSquared)
+                    {
                         projectile.ParryContactMask &= ~bit;
+                        if (projectile.LastParrierId == fighterId)
+                            projectile.LastParrierId = -1;
+                    }
                 }
             }
         }
