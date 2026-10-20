@@ -16,6 +16,7 @@ internal static class LargeFighterTests
         SpawnAndFloorRespectFiveUnitDiameter();
         PhysicalHitAndParryUseEnlargedRadius();
         ParrySafetyExpiresAfterSeparation();
+        ExpandedPhoneParryCoversNewReachAndStillExpires();
         MirroredBoostsLoadAndRemainConstrainedByRope();
         EnlargedBodyDashDamagesOncePerSequence();
     }
@@ -84,6 +85,49 @@ internal static class LargeFighterTests
         List<SimulationEvent> returned = Combat(state);
         Assert(state.Fighter(0).Eliminated && Has(returned, SimulationEventType.FighterEliminated),
             "The returned shot must be lethal after enlarged contact safety clears.");
+    }
+
+    private static void ExpandedPhoneParryCoversNewReachAndStillExpires()
+    {
+        var tuning = new CombatTuning(Tuning.Movement, Tuning.Projectile,
+            new DefenseTuning(parryExtraReachUnits: 3.5), Tuning.Divider, Tuning.Arena, Tuning.Match);
+        SimulationState state = Fresh();
+        FighterState fighter = state.Fighter(0);
+        fighter.Posture = 90;
+        fighter.PostureRecoveryDelayTicksRemaining = 30;
+        fighter.FuelSeconds = 0;
+        ProjectileState shot = Shot(40, 5.5);
+        state.Projectiles.Add(shot);
+        var events = new List<SimulationEvent>();
+        CombatSystem.Advance(state, new SimulationInput(0,
+            new FighterInput(Vec2.Zero, defensePressed: true), default), tuning, Config, events);
+        Assert(Has(events, SimulationEventType.PerfectParry) && !fighter.Eliminated,
+            "The phone trial must parry within radius6 plus projectile0.9, beyond prior reach4.9.");
+        Assert(fighter.Posture == 90 && Math.Abs(fighter.FuelSeconds - 0.3) < 1e-8,
+            "Larger parry grants exactly one boost refund without posture damage or healing.");
+        Assert(shot.PowerLevel == 1 && shot.LastParrierId == 0,
+            "Expanded parry still grants normal power and immediate contact safety.");
+        state.Tick++;
+        shot.Position = new Vec2(25 + 8, 20);
+        shot.Velocity = Vec2.Zero;
+        events.Clear();
+        CombatSystem.Advance(state, new SimulationInput(state.Tick, default, default), tuning, Config, events);
+        Assert(shot.LastParrierId == -1 && shot.ParryContactMask == 0,
+            "Expanded contact safety must still expire when the shot clears radius6.9.");
+        fighter.ParryTicksRemaining = 0;
+        shot.Position = new Vec2(28.3, 20);
+        state.Tick++;
+        events.Clear();
+        CombatSystem.Advance(state, new SimulationInput(state.Tick, default, default), tuning, Config, events);
+        Assert(fighter.Eliminated, "A fresh unguarded return remains lethal after expanded safety ends.");
+
+        SimulationState outside = Fresh();
+        outside.Projectiles.Add(Shot(41, 7.5));
+        events.Clear();
+        CombatSystem.Advance(outside, new SimulationInput(0,
+            new FighterInput(Vec2.Zero, defensePressed: true), default), tuning, Config, events);
+        Assert(!Has(events, SimulationEventType.PerfectParry),
+            "The larger trial must not catch projectiles outside radius6.9.");
     }
 
     private static void MirroredBoostsLoadAndRemainConstrainedByRope()
