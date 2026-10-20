@@ -94,6 +94,9 @@ namespace Game.Unity
         private bool PhoneUi => Application.isMobilePlatform || _showTouchWidgets || _forceTouchPreview;
         public void RestartMatch()
         {
+            _paused = false;
+            _showTuning = false;
+            Time.timeScale = _slow ? .25f : 1;
             var movement = new MovementTuning(runSpeedUnitsPerSecond: _runSpeed,
                 jumpSpeedUnitsPerSecond: _jumpSpeed, dashSpeedUnitsPerSecond: _dashSpeed,
                 dashDurationSeconds: _boostDuration, perfectParryWindowSeconds: _parryWindow,
@@ -187,7 +190,8 @@ namespace Game.Unity
             if ((_showTouchWidgets || _forceTouchPreview) && Input.GetMouseButtonDown(0)) HandleToolbar(arena, Input.mousePosition);
             bool touch = Input.touchSupported || _showTouchWidgets || _forceTouchPreview;
             _inputs[0].SampleTouches(arena, _showTouchWidgets || _forceTouchPreview, _showTuning,
-                PhoneUi);
+                PhoneUi, PhoneUi && _paused);
+            if (PhoneUi && _paused) { _inputs[0].Clear(); _inputs[1].Clear(); return; }
             _inputs[0].SampleFrame(touch);
             if (_localTwoPlayer) _inputs[1].SampleFrame(false);
         }
@@ -195,6 +199,8 @@ namespace Game.Unity
         private void TogglePause()
         {
             _paused = !_paused;
+            _showTuning = false;
+            _inputs[0].Clear(); _inputs[1].Clear();
             Time.timeScale = _paused ? 0 : _slow ? .25f : 1;
         }
 
@@ -214,9 +220,24 @@ namespace Game.Unity
         private void HandleToolbar(Rect arena, Vector2 bottomLeftPosition)
         {
             Vector2 point = new Vector2(bottomLeftPosition.x, Screen.height - bottomLeftPosition.y);
+            if (PhoneUi)
+            {
+                if (ArenaLayout.PauseButton(arena).Contains(point)) { TogglePause(); return; }
+                if (!_paused || _showTuning) return;
+                for (int i = 0; i < 4; i++)
+                {
+                    if (!ArenaLayout.PauseMenuButton(arena, i).Contains(point)) continue;
+                    if (i == 0) TogglePause();
+                    if (i == 1) ToggleMode();
+                    if (i == 2) ToggleTuning();
+                    if (i == 3) RestartMatch();
+                    return;
+                }
+                return;
+            }
             for (int i = 0; i < 4; i++)
             {
-                if (!ArenaLayout.ToolbarButton(arena, i, PhoneUi).Contains(point)) continue;
+                if (!ArenaLayout.ToolbarButton(arena, i).Contains(point)) continue;
                 if (i == 0) TogglePause();
                 if (i == 1) ToggleMode();
                 if (i == 2) ToggleTuning();
@@ -312,9 +333,9 @@ namespace Game.Unity
             if (PhoneUi)
             {
                 float scale = arena.height / 360f;
-                _label.fontSize = Mathf.Max(12, Mathf.RoundToInt(18 * scale));
-                _large.fontSize = Mathf.Max(20, Mathf.RoundToInt(29 * scale));
-                _small.fontSize = Mathf.Max(10, Mathf.RoundToInt(14 * scale));
+                _label.fontSize = Mathf.Max(12, Mathf.RoundToInt(14 * scale));
+                _large.fontSize = Mathf.Max(20, Mathf.RoundToInt(22 * scale));
+                _small.fontSize = Mathf.Max(10, Mathf.RoundToInt(11 * scale));
             }
             else
             {
@@ -323,6 +344,34 @@ namespace Game.Unity
                 _small.fontSize = Mathf.Clamp(Mathf.RoundToInt(arena.height * .018f), 10, 13);
             }
             Box(new Rect(0, 0, Screen.width, Screen.height), new Color(.035f, .045f, .07f));
+            // Extend scenery behind device insets; combat and controls stay inside the safe area.
+            if (PhoneUi && _referenceArtEnabled && _referenceArena != null)
+                GUI.DrawTextureWithTexCoords(new Rect(0, 0, Screen.width, Screen.height),
+                    _referenceArena, _referenceCharacterLayout.ArenaUvRect, true);
+            DrawCombat(arena);
+            var state = _smokeRenderState ?? _sim.CaptureSnapshot();
+            DrawHud(arena, state);
+            if (!PhoneUi) DrawInstructions(ArenaLayout.Footer(Screen.width, Screen.height, Screen.safeArea));
+            if (Input.touchSupported || _showTouchWidgets || _forceTouchPreview)
+            {
+                if (!_showTuning && !(PhoneUi && _paused)) DrawTouch(arena);
+                DrawToolbar(arena);
+            }
+            if (_showTuning) DrawTuning(arena);
+        }
+
+        private void DrawCombat(Rect viewport)
+        {
+            Matrix4x4 previousMatrix = GUI.matrix;
+            Rect arena = viewport;
+            if (PhoneUi)
+            {
+                // Map the whole fixed world to the phone aspect without cropping combat.
+                arena.width = arena.height * 16f / 9f;
+                GUI.matrix = previousMatrix * Matrix4x4.Translate(viewport.position) *
+                    Matrix4x4.Scale(new Vector3(viewport.width / arena.width, 1, 1)) *
+                    Matrix4x4.Translate(-viewport.position);
+            }
             Box(arena, new Color(.09f, .12f, .17f));
             if (_referenceArtEnabled && _referenceArena != null)
                 GUI.DrawTextureWithTexCoords(arena, _referenceArena,
@@ -339,14 +388,7 @@ namespace Game.Unity
             DrawPortal(arena, state, unit);
             foreach (ProjectileState p in state.Projectiles) DrawProjectile(arena, p, unit);
             foreach (FighterState f in state.Fighters) DrawFighter(arena, f, unit);
-            DrawHud(arena, state);
-            DrawInstructions(ArenaLayout.Footer(Screen.width, Screen.height, Screen.safeArea, PhoneUi));
-            if (Input.touchSupported || _showTouchWidgets || _forceTouchPreview)
-            {
-                DrawToolbar(arena);
-                if (!_showTuning) DrawTouch(arena);
-            }
-            if (_showTuning) DrawTuning(arena);
+            GUI.matrix = previousMatrix;
         }
 
         private void DrawDivider(Rect a, SimulationState s, float u)
@@ -528,7 +570,8 @@ namespace Game.Unity
             for (int i = 0; i < 2; i++)
             {
                 FighterState f = s.Fighter(i);
-                float x = i == 0 ? a.xMin + pad : a.xMax - pad - barWidth;
+                float x = i == 0 ? a.xMin + pad : a.xMax - pad - barWidth -
+                    ArenaLayout.PauseButton(a).width - pad;
                 Label(new Rect(x, a.yMin + 4 * unit, barWidth, 27 * unit),
                     "P" + (i + 1) + "  " + f.RoundWins + "/2", _label);
                 Box(new Rect(x, a.yMin + 32 * unit, barWidth, 10 * unit), new Color(.04f, .05f, .08f));
@@ -570,8 +613,7 @@ namespace Game.Unity
             if (Time.unscaledTime < _lastEventUntil)
                 Label(new Rect(a.center.x - a.width * .23f, a.center.y - 22 * unit,
                     a.width * .46f, 44 * unit), _lastEvent, _large);
-            if (_paused) Label(new Rect(a.center.x - 100 * unit, a.center.y + 30 * unit,
-                200 * unit, 35 * unit), "PAUSED", _large);
+
             if (_showColliders) Label(new Rect(a.xMin + 4 * unit, a.yMin + 76 * unit,
                 120 * unit, 20 * unit), "FPS " + (1f / Mathf.Max(.0001f, Time.unscaledDeltaTime)).ToString("0") +
                 " T" + s.Tick, _small);
@@ -606,19 +648,35 @@ namespace Game.Unity
         private void DrawTouch(Rect a)
         {
             Rect stick = ArenaLayout.TouchControl(a, 0);
-            Circle(stick, new Color(.3f, .55f, .7f, .35f));
+            Circle(stick, new Color(.12f, .25f, .34f, 1f));
             Label(stick, "MOVE", _small);
             string[] names = { "BOOST", "DEF" };
             for (int i = 0; i < 2; i++)
             {
                 Rect target = ArenaLayout.TouchControl(a, i + 1);
-                Circle(target, new Color(.4f, .7f, .9f, .35f));
+                Circle(target, new Color(.16f, .34f, .46f, 1f));
                 Label(target, names[i], _small);
             }
         }
 
         private void DrawToolbar(Rect a)
         {
+            if (PhoneUi)
+            {
+                Rect pause = ArenaLayout.PauseButton(a);
+                Box(pause, new Color(.10f, .19f, .26f, 1));
+                Label(pause, _paused ? "CLOSE" : "PAUSE", _small);
+                if (!_paused || _showTuning) return;
+                Box(ArenaLayout.PauseMenuPanel(a), new Color(.04f, .07f, .11f, 1));
+                string[] options = { "RESUME", _localTwoPlayer ? "MODE: LOCAL 2P" : "MODE: BOT", "TUNING", "RESTART" };
+                for (int i = 0; i < options.Length; i++)
+                {
+                    Rect button = ArenaLayout.PauseMenuButton(a, i);
+                    Box(button, new Color(.16f, .27f, .35f, 1));
+                    Label(button, options[i], _label);
+                }
+                return;
+            }
             string[] names = { _paused ? "RESUME" : "PAUSE", _localTwoPlayer ? "2P" : "BOT",
                 "TUNE", "RESTART" };
             for (int i = 0; i < 4; i++)
@@ -920,8 +978,9 @@ namespace Game.Unity
             float length = Vector2.Distance(a, b);
             if (length < .01f) return;
             Matrix4x4 old = GUI.matrix;
-            GUIUtility.RotateAroundPivot(Mathf.Atan2(b.y-a.y, b.x-a.x)*Mathf.Rad2Deg, a);
-            Box(new Rect(a.x, a.y-width*.5f, length, width), c);
+            GUI.matrix = old * Matrix4x4.TRS(new Vector3(a.x, a.y, 0),
+                Quaternion.Euler(0, 0, Mathf.Atan2(b.y-a.y, b.x-a.x)*Mathf.Rad2Deg), Vector3.one);
+            Box(new Rect(0, -width*.5f, length, width), c);
             GUI.matrix = old;
         }
         private static Texture2D MakeCircle(int size)
