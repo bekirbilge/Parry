@@ -50,6 +50,7 @@ namespace Game.Unity.Tests
             BootstrapPipeline.EnsureBootstrapScene();
             Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
             GameController controller = Find<GameController>(scene);
+            controller.PrototypeFuelBoost = false;
             controller.RestartMatch();
             Assert.That(controller.PrototypeInstantTestingStart, Is.True);
             Assert.That(controller.Tuning.Match.StartImmediatelyForTesting, Is.True);
@@ -188,6 +189,7 @@ namespace Game.Unity.Tests
                 Sample(adapter, pad, new GamepadState());
                 FighterInput tick = adapter.ConsumeTick();
                 Assert.That(tick.DashPressed, Is.True);
+                Assert.That(tick.DashHeld, Is.False);
                 Assert.That(tick.Move.LengthSquared, Is.EqualTo(0));
                 Assert.That(tick.JumpPressed || tick.JumpHeld, Is.False);
                 Assert.That(tick.DefensePressed || tick.DefenseHeld, Is.False);
@@ -234,6 +236,7 @@ namespace Game.Unity.Tests
             BootstrapPipeline.EnsureBootstrapScene();
             Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
             GameController controller = Find<GameController>(scene);
+            controller.PrototypeFuelBoost = false;
             controller.RestartMatch();
             Gamepad pad = InputSystem.AddDevice<Gamepad>();
             try
@@ -285,15 +288,114 @@ namespace Game.Unity.Tests
                 Sample(adapter, pad, boostAndParry);
                 FighterInput tick = adapter.ConsumeTick();
                 Assert.That(tick.DashPressed, Is.True);
+                Assert.That(tick.DashHeld, Is.True);
                 Assert.That(tick.DefensePressed && tick.DefenseHeld, Is.True);
                 Assert.That(tick.JumpPressed || tick.JumpHeld, Is.False);
                 Assert.That(tick.Move.LengthSquared, Is.EqualTo(0));
                 Sample(adapter, pad, boostAndParry);
                 FighterInput held = adapter.ConsumeTick();
                 Assert.That(held.DashPressed || held.DefensePressed || held.JumpPressed, Is.False);
+                Assert.That(held.DashHeld, Is.True);
                 Assert.That(held.DefenseHeld, Is.True);
             }
             finally { InputSystem.RemoveDevice(pad); }
+        }
+
+        [Test]
+        public void HeldCrossConsumesFuelAcrossTicksAndSquareParriesDuringThrust()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.SetFuelBoostMode(true);
+            SimulationState setup = controller.CaptureSnapshot();
+            FighterState fighter = setup.Fighter(0);
+            fighter.Position = fighter.PreviousPosition = fighter.TickStartPosition = new Vec2(25, 10);
+            fighter.Grounded = false;
+            setup.NextSpawnTick = setup.Tick + 1000;
+            controller.Sim.RestoreSnapshot(setup);
+            double full = controller.Tuning.Movement.FuelCapacitySeconds;
+            Gamepad pad = InputSystem.AddDevice<Gamepad>();
+            try
+            {
+                var adapter = new InputAdapter(0);
+                GamepadState cross = new GamepadState { leftStick = Vector2.right }
+                    .WithButton(GamepadButton.South);
+                for (int i = 0; i < 12; i++)
+                {
+                    Sample(adapter, pad, cross);
+                    FighterInput tick = adapter.ConsumeTick();
+                    Assert.That(tick.DashHeld, Is.True);
+                    Assert.That(tick.DashPressed, Is.EqualTo(i == 0));
+                    controller.StepOnce(new SimulationInput(controller.Sim.Tick, tick, default));
+                }
+                fighter = controller.CaptureSnapshot().Fighter(0);
+                Assert.That(fighter.FuelBoostActive, Is.True);
+                Assert.That(fighter.FuelSeconds, Is.LessThan(full - .08));
+                double beforeSteerY = fighter.Velocity.Y;
+                GamepadState steerUp = new GamepadState { leftStick = Vector2.up }
+                    .WithButton(GamepadButton.South);
+                for (int i = 0; i < 3; i++)
+                {
+                    Sample(adapter, pad, steerUp);
+                    FighterInput steering = adapter.ConsumeTick();
+                    Assert.That(steering.DashHeld && !steering.DashPressed, Is.True);
+                    controller.StepOnce(new SimulationInput(controller.Sim.Tick, steering, default));
+                }
+                fighter = controller.CaptureSnapshot().Fighter(0);
+                Assert.That(fighter.Velocity.Y, Is.GreaterThan(beforeSteerY));
+
+                SimulationState beforeParry = controller.CaptureSnapshot();
+                fighter = beforeParry.Fighter(0);
+                Vec2 incoming = fighter.Position + new Vec2(2.5, 0);
+                beforeParry.Projectiles.Add(new ProjectileState
+                {
+                    Id = 703, Position = incoming, PreviousPosition = incoming,
+                    Velocity = new Vec2(-24, 0)
+                });
+                controller.Sim.RestoreSnapshot(beforeParry);
+                Sample(adapter, pad, steerUp.WithButton(GamepadButton.West));
+                FighterInput crossAndSquare = adapter.ConsumeTick();
+                Assert.That(crossAndSquare.DashHeld && crossAndSquare.DefensePressed, Is.True);
+                Assert.That(crossAndSquare.JumpPressed || crossAndSquare.JumpHeld, Is.False);
+                IReadOnlyList<SimulationEvent> events = controller.StepOnce(new SimulationInput(
+                    controller.Sim.Tick, crossAndSquare, default));
+                bool parried = false;
+                foreach (SimulationEvent item in events)
+                    if (item.Type == SimulationEventType.PerfectParry) parried = true;
+                Assert.That(parried, Is.True);
+
+                Sample(adapter, pad, new GamepadState());
+                FighterInput released = adapter.ConsumeTick();
+                Assert.That(released.DashHeld || released.DashPressed, Is.False);
+                controller.StepOnce(new SimulationInput(controller.Sim.Tick, released, default));
+                Assert.That(controller.CaptureSnapshot().Fighter(0).FuelBoostActive, Is.False);
+            }
+            finally { InputSystem.RemoveDevice(pad); }
+        }
+
+        [Test]
+        public void SwitchingToChargesRestartsRoundWithThreeCharges()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.SetFuelBoostMode(true);
+            Assert.That(controller.Tuning.Movement.UseFuelBoost, Is.True);
+            string capturePath = Path.Combine(Application.persistentDataPath, "Playtests", "tuning.json");
+            string fuelCapture = File.ReadAllText(capturePath);
+            Assert.That(fuelCapture, Does.Contain("\"boostMode\": \"fuel\""));
+            Assert.That(fuelCapture, Does.Contain("\"fuelCapacitySeconds\""));
+            controller.SetFuelBoostMode(false);
+            Assert.That(controller.Tuning.Movement.UseFuelBoost, Is.False);
+            Assert.That(File.ReadAllText(capturePath), Does.Contain("\"boostMode\": \"charges\""));
+            Assert.That(controller.CaptureSnapshot().Fighter(0).DashCharges, Is.EqualTo(3));
+            Assert.That(controller.CaptureSnapshot().Fighter(1).DashCharges, Is.EqualTo(3));
+            controller.StepOnce(new SimulationInput(controller.Sim.Tick,
+                new FighterInput(new Vec2(1, 0), dashPressed: true), default));
+            Assert.That(controller.CaptureSnapshot().Fighter(0).DashCharges, Is.EqualTo(2));
+            controller.RestartMatch();
+            Assert.That(controller.CaptureSnapshot().Fighter(0).DashCharges, Is.EqualTo(3));
         }
 
         [Test]
@@ -302,6 +404,7 @@ namespace Game.Unity.Tests
             BootstrapPipeline.EnsureBootstrapScene();
             Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
             GameController controller = Find<GameController>(scene);
+            controller.PrototypeFuelBoost = false;
             controller.RestartMatch();
             SimulationState setup = controller.CaptureSnapshot();
             FighterState fighter = setup.Fighter(0);
@@ -359,6 +462,7 @@ namespace Game.Unity.Tests
             BootstrapPipeline.EnsureBootstrapScene();
             Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
             GameController controller = Find<GameController>(scene);
+            controller.PrototypeFuelBoost = false;
             controller.RestartMatch();
             SimulationState before = controller.CaptureSnapshot();
             controller.StepOnce(new SimulationInput(before.Tick,
