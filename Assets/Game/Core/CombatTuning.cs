@@ -80,6 +80,7 @@ namespace Game.Core
         public double AirAccelerationUnitsPerSecondSquared { get; }
         public double GroundFrictionUnitsPerSecondSquared { get; }
         public double DashSpeedUnitsPerSecond { get; }
+        public double MaximumUpwardBoostSpeedUnitsPerSecond { get; }
         public double JumpReleaseGravityMultiplier { get; }
         public double CoyoteTimeSeconds { get; }
         public double JumpBufferSeconds { get; }
@@ -100,7 +101,8 @@ namespace Game.Core
             double jumpReleaseGravityMultiplier = 2.0,
             double coyoteTimeSeconds = 0.08,
             double jumpBufferSeconds = 0.10,
-            double dashCancelAfterSeconds = 0.08)
+            double dashCancelAfterSeconds = 0.08,
+            double maximumUpwardBoostSpeedUnitsPerSecond = 40.0)
         {
             RunSpeedUnitsPerSecond = TuningValidation.InRange(runSpeedUnitsPerSecond, nameof(runSpeedUnitsPerSecond), 0.1, 100.0);
             JumpSpeedUnitsPerSecond = TuningValidation.InRange(jumpSpeedUnitsPerSecond, nameof(jumpSpeedUnitsPerSecond), 0.1, 100.0);
@@ -118,10 +120,16 @@ namespace Game.Core
             AirAccelerationUnitsPerSecondSquared = TuningValidation.InRange(airAccelerationUnitsPerSecondSquared, nameof(airAccelerationUnitsPerSecondSquared), 0.1, 1000.0);
             GroundFrictionUnitsPerSecondSquared = TuningValidation.InRange(groundFrictionUnitsPerSecondSquared, nameof(groundFrictionUnitsPerSecondSquared), 0.1, 1000.0);
             DashSpeedUnitsPerSecond = TuningValidation.InRange(dashSpeedUnitsPerSecond, nameof(dashSpeedUnitsPerSecond), 0.1, 1000.0);
+            MaximumUpwardBoostSpeedUnitsPerSecond = TuningValidation.InRange(maximumUpwardBoostSpeedUnitsPerSecond, nameof(maximumUpwardBoostSpeedUnitsPerSecond), 0.1, 1000.0);
             JumpReleaseGravityMultiplier = TuningValidation.InRange(jumpReleaseGravityMultiplier, nameof(jumpReleaseGravityMultiplier), 1.0, 10.0);
             CoyoteTimeSeconds = TuningValidation.InRange(coyoteTimeSeconds, nameof(coyoteTimeSeconds), 0.0, 1.0);
             JumpBufferSeconds = TuningValidation.InRange(jumpBufferSeconds, nameof(jumpBufferSeconds), 0.0, 1.0);
             DashCancelAfterSeconds = TuningValidation.InRange(dashCancelAfterSeconds, nameof(dashCancelAfterSeconds), 0.0, DashDurationSeconds);
+        }
+        public double BoostSpeedForDirection(Vec2 direction)
+        {
+            return direction.Y > 0 ? Math.Min(DashSpeedUnitsPerSecond,
+                MaximumUpwardBoostSpeedUnitsPerSecond / direction.Y) : DashSpeedUnitsPerSecond;
         }
     }
 
@@ -220,6 +228,7 @@ namespace Game.Core
         public int JumpBodyPostureDamage { get; }
         public int DashBodyPostureDamage { get; }
         public double GuardHoldThresholdSeconds { get; }
+        public double ParryExtraReachUnits { get; }
         public double WalkingBodyPushUnitsPerSecond { get; }
         public double JumpBodyKnockbackUnitsPerSecond { get; }
         public double DashBodyKnockbackUnitsPerSecond { get; }
@@ -236,7 +245,8 @@ namespace Game.Core
             double guardHoldThresholdSeconds = 0.10,
             double walkingBodyPushUnitsPerSecond = 3.0,
             double jumpBodyKnockbackUnitsPerSecond = 14.0,
-            double dashBodyKnockbackUnitsPerSecond = 26.0)
+            double dashBodyKnockbackUnitsPerSecond = 26.0,
+            double parryExtraReachUnits = 1.5)
         {
             MaximumPosture = TuningValidation.InRange(maximumPosture, nameof(maximumPosture), 1.0, 10000.0);
             if (baseBlockPostureDamage < 1 || baseBlockPostureDamage > 10000)
@@ -266,6 +276,7 @@ namespace Game.Core
 
             JumpBodyPostureDamage = jumpBodyPostureDamage;
             DashBodyPostureDamage = dashBodyPostureDamage;
+            ParryExtraReachUnits = TuningValidation.InRange(parryExtraReachUnits, nameof(parryExtraReachUnits), 0.0, 20.0);
             GuardHoldThresholdSeconds = TuningValidation.InRange(guardHoldThresholdSeconds, nameof(guardHoldThresholdSeconds), 0.0, 1.0);
             WalkingBodyPushUnitsPerSecond = TuningValidation.InRange(walkingBodyPushUnitsPerSecond, nameof(walkingBodyPushUnitsPerSecond), 0.0, 100.0);
             JumpBodyKnockbackUnitsPerSecond = TuningValidation.InRange(jumpBodyKnockbackUnitsPerSecond, nameof(jumpBodyKnockbackUnitsPerSecond), 0.0, 100.0);
