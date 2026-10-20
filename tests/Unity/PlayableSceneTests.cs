@@ -65,7 +65,10 @@ namespace Game.Unity.Tests
             Assert.That(capture, Does.Contain("\"projectileLevel3Speed\""));
             Assert.That(capture, Does.Contain("\"projectileSpeedDecay\": 12"));
             Assert.That(capture, Does.Contain("\"projectileRadius\": 0.9"));
+            Assert.That(capture, Does.Contain("\"fighterRadius\": 2.5"));
             Assert.That(controller.Tuning.Arena.ProjectileRadiusUnits, Is.EqualTo(.9));
+            Assert.That(controller.Tuning.Arena.FighterRadiusUnits, Is.EqualTo(2.5));
+            Assert.That(controller.CaptureSnapshot().Fighter(0).Position.Y, Is.EqualTo(2.5));
 
             SimulationState before = controller.CaptureSnapshot();
             Assert.That(before.Fighter(0).DashCharges, Is.EqualTo(3));
@@ -598,13 +601,10 @@ namespace Game.Unity.Tests
         {
             Rect arena = ArenaLayout.Compute(width, height, safe);
             float unit = arena.width / 100f;
-            var center = new Vec2(20, 1.5);
             ArtPresentation.CharacterLayout layout = ArtPresentation.LoadCharacterLayout(out bool loaded);
             Assert.That(loaded, Is.True, "The playable proof must load its reference art layout metadata.");
-            Rect art = ArtPresentation.FighterRect(arena, center, 100f, 56.25f, 1.5f, layout);
             float projectedCenterX = arena.xMin + 20f * unit;
             float groundY = arena.yMax;
-            Assert.That(art.center.x, Is.EqualTo(projectedCenterX).Within(.01f));
             Assert.That(layout.VisibleHeightFraction, Is.GreaterThan(0f));
             Assert.That(layout.VisibleHeightFraction + layout.SoleInsetFraction, Is.LessThanOrEqualTo(1f));
             Assert.That(layout.ArenaBottomCropFraction, Is.GreaterThan(0f).And.LessThanOrEqualTo(.25f));
@@ -615,13 +615,19 @@ namespace Game.Unity.Tests
             Assert.That(arenaUv.yMax, Is.EqualTo(1f).Within(1e-6f));
             Rect fallbackUv = ArtPresentation.FallbackCharacterLayout.ArenaUvRect;
             Assert.That(fallbackUv, Is.EqualTo(new Rect(0f, 0f, 1f, 1f)));
-            Assert.That(art.width, Is.EqualTo(art.height).Within(.01f));
-            float visibleHeight = art.height * layout.VisibleHeightFraction;
-            float soleY = art.yMin + art.height * (1f - layout.SoleInsetFraction);
-            Assert.That(soleY,
-                Is.EqualTo(groundY).Within(.01f));
-            Assert.That(visibleHeight, Is.EqualTo(3f * unit).Within(.01f));
-            Assert.That(soleY - visibleHeight, Is.EqualTo(groundY - 3f * unit).Within(.01f));
+            foreach (float radius in new[] { 1.5f, 2.5f })
+            {
+                var center = new Vec2(20, radius);
+                Rect art = ArtPresentation.FighterRect(arena, center, 100f, 56.25f, radius, layout);
+                Assert.That(art.center.x, Is.EqualTo(projectedCenterX).Within(.01f));
+                Assert.That(art.width, Is.EqualTo(art.height).Within(.01f));
+                float visibleHeight = art.height * layout.VisibleHeightFraction;
+                float soleY = art.yMin + art.height * (1f - layout.SoleInsetFraction);
+                Assert.That(soleY, Is.EqualTo(groundY).Within(.01f));
+                Assert.That(visibleHeight, Is.EqualTo(2f * radius * unit).Within(.01f));
+                Assert.That(soleY - visibleHeight,
+                    Is.EqualTo(groundY - 2f * radius * unit).Within(.01f));
+            }
         }
 
         private static T Find<T>(Scene scene) where T : Component
