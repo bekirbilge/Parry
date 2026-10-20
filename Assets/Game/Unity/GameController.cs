@@ -40,6 +40,8 @@ namespace Game.Unity
         private double _parryExtraReach = CombatTuning.Default.Defense.ParryExtraReachUnits;
         private double _parryWindow = CombatTuning.Default.Movement.PerfectParryWindowSeconds;
         private double _projectileSpeed = CombatTuning.Default.Projectile.BaseSpeedUnitsPerSecond;
+        private double _projectileSpeedDecay = CombatTuning.Default.Projectile.SpeedDecayUnitsPerSecondSquared;
+        private double _projectileRadius = CombatTuning.Default.Arena.ProjectileRadiusUnits;
         private double _spring = CombatTuning.Default.Divider.SpringStrength;
         private double _damping = CombatTuning.Default.Divider.Damping;
         private double _rebound = CombatTuning.Default.Divider.DashReboundSpeedUnitsPerSecond;
@@ -83,7 +85,8 @@ namespace Game.Unity
                 dashDurationSeconds: _boostDuration, perfectParryWindowSeconds: _parryWindow,
                 maximumUpwardBoostSpeedUnitsPerSecond: _upwardBoostSpeed,
                 useFuelBoost: _prototypeFuelBoost);
-            var projectile = new ProjectileTuning(baseSpeedUnitsPerSecond: _projectileSpeed);
+            var projectile = new ProjectileTuning(baseSpeedUnitsPerSecond: _projectileSpeed,
+                speedDecayUnitsPerSecondSquared: _projectileSpeedDecay);
             var divider = new DividerTuning(springStrength: _spring, damping: _damping,
                 dashReboundSpeedUnitsPerSecond: _rebound,
                 boostLoadSeconds: _boostLoadDuration,
@@ -93,7 +96,7 @@ namespace Game.Unity
                 new MatchTuning(roundCountdownSeconds: 0, startImmediatelyForTesting: true) :
                 new MatchTuning();
             _sim = new MatchSimulation(new SimulationConfig(), new CombatTuning(movement, projectile,
-                new DefenseTuning(parryExtraReachUnits: _parryExtraReach), divider, new ArenaTuning(), match));
+                new DefenseTuning(parryExtraReachUnits: _parryExtraReach), divider, new ArenaTuning(projectileRadiusUnits: _projectileRadius), match));
             _inputs[0].Clear(); _inputs[1].Clear();
             _lastEvent = "";
             _hitstopTicks = 0;
@@ -523,6 +526,8 @@ namespace Game.Unity
             Slider("Parry extra reach", ref _parryExtraReach, 0, 4);
             Slider("Parry window", ref _parryWindow, .03f, .3f);
             Slider("Projectile speed", ref _projectileSpeed, 8, 60);
+            Slider("Projectile slowdown (units/s²)", ref _projectileSpeedDecay, 3, 48);
+            Slider("Projectile radius", ref _projectileRadius, .3f, 1.5f);
             Slider("Spring", ref _spring, 0, 80);
             Slider("Damping", ref _damping, 0, 30);
             Slider("Rebound speed", ref _rebound, 10, 85);
@@ -570,6 +575,8 @@ namespace Game.Unity
                     parryExtraReach = Tuning.Defense.ParryExtraReachUnits,
                     projectileSpeed = Tuning.Projectile.BaseSpeedUnitsPerSecond,
                     projectileDecaySecondsPerLevel = Tuning.Projectile.PowerDecaySecondsPerLevel,
+                    projectileSpeedDecay = Tuning.Projectile.SpeedDecayUnitsPerSecondSquared,
+                    projectileRadius = Tuning.Arena.ProjectileRadiusUnits,
                     projectileLevel0Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond,
                     projectileLevel1Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond * Tuning.Projectile.Level1SpeedMultiplier,
                     projectileLevel2Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond * Tuning.Projectile.Level2SpeedMultiplier,
@@ -595,7 +602,7 @@ namespace Game.Unity
         {
             public double runSpeed, jumpSpeed, dashSpeed, boostDuration, boostInvulnerability,
                 parryWindow, upwardBoostSpeed, parryExtraReach, projectileSpeed, spring, damping, rebound, boostLoadDuration,
-                boostLoadSpring, boostLoadDamping, projectileDecaySecondsPerLevel,
+                boostLoadSpring, boostLoadDamping, projectileDecaySecondsPerLevel, projectileSpeedDecay, projectileRadius,
                 projectileLevel0Speed, projectileLevel1Speed, projectileLevel2Speed, projectileLevel3Speed,
                 fuelCapacitySeconds, fuelRegenerationPerSecond, fuelRegenerationDelaySeconds,
                 fuelIgnitionCostSeconds, fuelSteeringAcceleration, fuelInvulnerabilityRearmSeconds;
