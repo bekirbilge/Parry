@@ -209,3 +209,5 @@ Select **SOL Medium** if available; open the project folder with both Markdown d
 
 ## 9. Definition of project completion
 A validated mobile game with fun, approved combat; consistent licensed/provenance-tracked art; reliable two-player online PvP; fair authoritative outcomes; trophy/coin progression; cosmetic-only monetization design; testable release builds; documentation and deployment/runbooks. This is a multi-phase project, not a single uninterrupted Codex turn. **“Execute” means autonomously advance as far as the actual environment and human gates permit, and always leave it resumable.**
+
+Execution priority update (2026-10-20): user requested a physical phone playtest and larger fighters during P3 visual review. Prepare the minimal landscape mobile development build/support route now; this does not complete P7 mobile hardening or authorize release, bulk art, accounts or purchases. Resume animation/art work after phone-size/readability and reference feedback.
