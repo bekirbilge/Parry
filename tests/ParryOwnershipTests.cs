@@ -7,6 +7,8 @@ internal static class ParryOwnershipTests
     public static void Run()
     {
         OwnershipTransfersOnlyOnParry();
+        OwnedShotsPassThroughWithoutAnActiveParry();
+        RedirectKeepsOwnershipSpeedAndNaturalDecay();
         ImmunitySurvivesWallsAndDecay();
         OwnershipSnapshotsAreIndependent();
         ChargedSpeedCoversScreenBeforeDecay();
@@ -47,14 +49,17 @@ internal static class ParryOwnershipTests
         Assert(shot.LastParrierId == 0 && shot.PowerLevel == 1 && state.Fighter(0).DashCharges == 1,
             "A parry claims only that projectile and restores one charge.");
 
-        // Return through the owner while defense is pressed: no free power/charge farming.
+        // Returning an owned shot can be aimed without earning another parry reward.
         shot.Position = new Vec2(27.3, 10);
         shot.Velocity = new Vec2(-36, 0);
         shot.ReflectedContactMask = 0;
         List<SimulationEvent> ownEvents = Step(state, new FighterInput(Vec2.Zero, defensePressed: true));
-        Assert(ownEvents.Count == 0 && shot.LastParrierId == 0 && shot.PowerLevel == 1 &&
-            state.Fighter(0).DashCharges == 1 && !state.Fighter(0).Eliminated,
-            "An owned projectile passes through without harm or repeated parry benefits.");
+        Assert(Count(ownEvents, SimulationEventType.OwnedProjectileRedirected) == 1 &&
+            Count(ownEvents, SimulationEventType.PerfectParry) == 0 &&
+            shot.LastParrierId == 0 && shot.PowerLevel == 1 && shot.Velocity.X > 0 &&
+            shot.DecayTicksRemaining == 239 && state.Fighter(0).DashCharges == 1 &&
+            !state.Fighter(0).Eliminated,
+            "An intentional owned redirect must keep ownership and normal power decay without parry rewards.");
 
         shot.Position = new Vec2(72.7, 10);
         shot.Velocity = new Vec2(36, 0);
@@ -73,6 +78,59 @@ internal static class ParryOwnershipTests
         Step(unclaimed);
         Assert(unclaimed.Fighter(0).Eliminated,
             "Unclaimed projectiles remain lethal to unguarded fighters.");
+    }
+
+    private static void OwnedShotsPassThroughWithoutAnActiveParry()
+    {
+        foreach (bool heldGuard in new[] { false, true })
+        {
+            SimulationState state = Fresh();
+            FighterState owner = state.Fighter(0);
+            ProjectileState shot = state.Projectiles[0];
+            shot.LastParrierId = owner.Id;
+            shot.PowerLevel = 2;
+            shot.DecayTicksRemaining = 100;
+            if (heldGuard)
+            {
+                owner.DefenseHeldPrevious = true;
+                owner.DefenseHoldTicks = 30;
+            }
+            List<SimulationEvent> events = Step(state,
+                heldGuard ? new FighterInput(Vec2.Zero, defenseHeld: true) : default);
+            Assert(events.Count == 0 && shot.Velocity.X < 0 && shot.LastParrierId == owner.Id &&
+                shot.PowerLevel == 2 && shot.DecayTicksRemaining == 99 &&
+                owner.DashCharges == 0 && owner.Posture == 99 && !owner.Eliminated,
+                "An idle or already held guard must let an owned shot pass without effects.");
+        }
+    }
+
+    private static void RedirectKeepsOwnershipSpeedAndNaturalDecay()
+    {
+        SimulationState state = Fresh();
+        FighterState owner = state.Fighter(0);
+        ProjectileState shot = state.Projectiles[0];
+        shot.LastParrierId = owner.Id;
+        shot.PowerLevel = 2;
+        shot.DecayTicksRemaining = 2;
+        shot.Velocity = new Vec2(-84, 0);
+        List<SimulationEvent> events = Step(state,
+            new FighterInput(new Vec2(1, 1), defensePressed: true));
+        Assert(Count(events, SimulationEventType.OwnedProjectileRedirected) == 1 &&
+            Count(events, SimulationEventType.PerfectParry) == 0 &&
+            shot.LastParrierId == owner.Id && shot.PowerLevel == 2 &&
+            shot.DecayTicksRemaining == 1 && Math.Abs(shot.Velocity.Length - 84) < 1e-9 &&
+            shot.Velocity.X > 0 && owner.DashCharges == 0 && owner.Posture == 99,
+            "Steered owned redirect preserves speed, owner and remaining decay time.");
+        Step(state);
+        Assert(shot.PowerLevel == 1 && shot.LastParrierId == owner.Id,
+            "Redirected power must decay on its original schedule.");
+    }
+
+    private static int Count(List<SimulationEvent> events, SimulationEventType type)
+    {
+        int count = 0;
+        foreach (SimulationEvent item in events) if (item.Type == type) count++;
+        return count;
     }
 
     private static void ImmunitySurvivesWallsAndDecay()
