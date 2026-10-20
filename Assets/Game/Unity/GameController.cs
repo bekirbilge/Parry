@@ -15,6 +15,10 @@ namespace Game.Unity
         private MatchSimulation _sim;
         private readonly InputAdapter[] _inputs = { new InputAdapter(0), new InputAdapter(1) };
         private Texture2D _pixel, _circle;
+        private Texture2D _referenceCharacter, _referenceArena;
+        private ArtPresentation.CharacterLayout _referenceCharacterLayout;
+        private bool _referenceCharacterLayoutLoaded;
+        private bool _referenceArtEnabled = true;
         private AudioSource _audio;
         private AudioClip _tone;
         private GUIStyle _label, _large, _small;
@@ -52,6 +56,14 @@ namespace Game.Unity
         public MatchSimulation Sim => _sim;
         public CombatTuning Tuning => _sim?.Tuning;
         public int BotDifficulty => _botDifficulty;
+        public bool ReferenceArtEnabled
+        {
+            get => _referenceArtEnabled;
+            set => _referenceArtEnabled = value;
+        }
+        public bool HasReferenceCharacter => _referenceCharacter != null;
+        public bool HasReferenceArena => _referenceArena != null;
+        public bool HasReferenceCharacterLayout => _referenceCharacterLayoutLoaded;
         public bool RopePreviewSawRebound { get; private set; }
         public double RopePreviewRecoilUnits { get; private set; }
         public bool PrototypeInstantTestingStart
@@ -121,6 +133,9 @@ namespace Game.Unity
             _pixel = new Texture2D(1, 1, TextureFormat.RGBA32, false);
             _pixel.SetPixel(0, 0, Color.white); _pixel.Apply();
             _circle = MakeCircle(64);
+            _referenceCharacter = Resources.Load<Texture2D>(ArtPresentation.CharacterResource);
+            _referenceArena = Resources.Load<Texture2D>(ArtPresentation.ArenaResource);
+            _referenceCharacterLayout = ArtPresentation.LoadCharacterLayout(out _referenceCharacterLayoutLoaded);
             RestartMatch();
         }
 
@@ -154,6 +169,7 @@ namespace Game.Unity
             if (Input.GetKeyDown(KeyCode.R)) RestartMatch();
             if (Input.GetKeyDown(KeyCode.B)) ToggleMode();
             if (Input.GetKeyDown(KeyCode.F3)) _showColliders = !_showColliders;
+            if (Input.GetKeyDown(KeyCode.F6)) _referenceArtEnabled = !_referenceArtEnabled;
             if (Input.GetKeyDown(KeyCode.F4))
             {
                 _showTouchWidgets = !_showTouchWidgets;
@@ -293,11 +309,17 @@ namespace Game.Unity
             _small.fontSize = Mathf.Clamp(Mathf.RoundToInt(arena.height * .018f), 10, 13);
             Box(new Rect(0, 0, Screen.width, Screen.height), new Color(.035f, .045f, .07f));
             Box(arena, new Color(.09f, .12f, .17f));
+            if (_referenceArtEnabled && _referenceArena != null)
+                GUI.DrawTextureWithTexCoords(arena, _referenceArena,
+                    _referenceCharacterLayout.ArenaUvRect, true);
             var state = _smokeRenderState ?? _sim.CaptureSnapshot();
             float unit = arena.width / (float)Tuning.Arena.WidthUnits;
             float floor = Y(arena, Tuning.Arena.FighterRadiusUnits) + (float)Tuning.Arena.FighterRadiusUnits * unit;
-            Box(new Rect(arena.xMin, floor, arena.width, Mathf.Max(2, arena.yMax - floor)), new Color(.17f, .23f, .30f));
-            for (int i = 1; i < 10; i++) Box(new Rect(arena.xMin + arena.width * i / 10f, arena.yMin, 1, arena.height), new Color(1, 1, 1, .045f));
+            if (!_referenceArtEnabled || _referenceArena == null)
+            {
+                Box(new Rect(arena.xMin, floor, arena.width, Mathf.Max(2, arena.yMax - floor)), new Color(.17f, .23f, .30f));
+                for (int i = 1; i < 10; i++) Box(new Rect(arena.xMin + arena.width * i / 10f, arena.yMin, 1, arena.height), new Color(1, 1, 1, .045f));
+            }
             DrawDivider(arena, state, unit);
             DrawPortal(arena, state, unit);
             foreach (ProjectileState p in state.Projectiles) DrawProjectile(arena, p, unit);
@@ -407,9 +429,27 @@ namespace Game.Unity
             else if (f.GuardBreakTicksRemaining == 0 && f.DefenseHeldPrevious &&
                 f.DefenseHoldTicks >= SimMath.SecondsToTicks(Tuning.Defense.GuardHoldThresholdSeconds, _sim.Config.TickRateHz))
                 Circle(new Rect(p.x - 1.5f*r, p.y - 1.5f*r, 3*r, 3*r), new Color(.5f, .8f, 1f, .26f));
-            Circle(new Rect(p.x-r, p.y-r, 2*r, 2*r), new Color(c.r, c.g, c.b, .42f));
-            Box(new Rect(p.x - r*.72f, p.y - r, r*1.44f, r*2f), c);
-            Box(new Rect(p.x + (f.FacingSign > 0 ? r*.18f : -r*.65f), p.y - r*.48f, r*.47f, r*.24f), Color.white);
+            if (_referenceArtEnabled && _referenceCharacter != null)
+            {
+                Circle(new Rect(p.x-r, p.y-r, 2*r, 2*r), new Color(c.r, c.g, c.b, .23f));
+                Rect art = ArtPresentation.FighterRect(a, f.Position,
+                    (float)Tuning.Arena.WidthUnits, (float)Tuning.Arena.HeightUnits,
+                    (float)Tuning.Arena.FighterRadiusUnits, _referenceCharacterLayout);
+                Color old = GUI.color;
+                GUI.color = f.Eliminated ? new Color(.65f, .65f, .65f, .8f) : Color.white;
+                GUI.DrawTextureWithTexCoords(art, _referenceCharacter,
+                    f.FacingSign > 0 ? new Rect(0, 0, 1, 1) : new Rect(1, 0, -1, 1), true);
+                GUI.color = old;
+                Box(new Rect(p.x-r*.75f, p.y+r*.92f, r*1.5f, Mathf.Max(2, u*.12f)), c);
+                Label(new Rect(p.x-r*.65f, p.y-r*1.55f, r*1.3f, Mathf.Max(16, u*.55f)),
+                    "P" + (f.Id + 1), _small);
+            }
+            else
+            {
+                Circle(new Rect(p.x-r, p.y-r, 2*r, 2*r), new Color(c.r, c.g, c.b, .42f));
+                Box(new Rect(p.x - r*.72f, p.y - r, r*1.44f, r*2f), c);
+                Box(new Rect(p.x + (f.FacingSign > 0 ? r*.18f : -r*.65f), p.y - r*.48f, r*.47f, r*.24f), Color.white);
+            }
             if (f.GuardBreakTicksRemaining > 0) Label(new Rect(p.x - 30, p.y - 2.5f*r, 60, 20), "BREAK", _small);
             if (_showColliders) Circle(new Rect(p.x-r, p.y-r, 2*r, 2*r), new Color(1, 0, 0, .28f));
         }
@@ -480,7 +520,7 @@ namespace Game.Unity
             Label(new Rect(footer.xMin+4, footer.yMin+row, footer.width-8, row),
                 (_localTwoPlayer ? "LOCAL 2P" : "P1 VS BOT " + BotDifficultyName.ToUpperInvariant()) +
                 "  |  " + (Tuning.Movement.UseFuelBoost ? "FUEL" : "3 CHARGES") +
-                " · Neutral boost rises · Ring = temporary parry safety  |  B mode  P pause  N step  R restart  F1 fuel/charges  F5 tune  F12 capture", _small);
+                " · Neutral boost rises · Ring = temporary parry safety  |  B mode  P pause  N step  R restart  F1 fuel/charges  F5 tune  F6 art  F12 capture", _small);
         }
 
         private void DrawTouch(Rect a)
@@ -592,6 +632,10 @@ namespace Game.Unity
                     botDifficulty = _botDifficulty,
                     botDifficultyName = BotDifficultyName,
                     immediateTestStart = Tuning.Match.StartImmediatelyForTesting,
+                    referenceArtEnabled = _referenceArtEnabled,
+                    referenceCharacterLoaded = HasReferenceCharacter,
+                    referenceArenaLoaded = HasReferenceArena,
+                    referenceCharacterLayoutLoaded = HasReferenceCharacterLayout,
                     checksum = _sim.CaptureSnapshot().ComputeChecksum().ToString("X16"), tick = _sim.Tick };
                 File.WriteAllText(Path.Combine(dir, "tuning.json"), JsonUtility.ToJson(data, true));
             }
@@ -609,6 +653,8 @@ namespace Game.Unity
             public string mode, boostMode, botDifficultyName;
             public int botDifficulty;
             public bool immediateTestStart;
+            public bool referenceArtEnabled, referenceCharacterLoaded, referenceArenaLoaded,
+                referenceCharacterLayoutLoaded;
             public string checksum;
             public long tick;
         }
@@ -628,6 +674,10 @@ namespace Game.Unity
             public double ropeIntrusion;
             public bool ropeReboundSeen;
             public double ropeRecoilUnits;
+            public bool referenceArtEnabled;
+            public bool referenceCharacterLoaded;
+            public bool referenceArenaLoaded;
+            public bool referenceCharacterLayoutLoaded;
             public string error;
         }
 
@@ -638,6 +688,10 @@ namespace Game.Unity
             Directory.CreateDirectory(dir);
             _capturePath = dir;
             result.initialTick = _sim.Tick;
+            result.referenceArtEnabled = _referenceArtEnabled;
+            result.referenceCharacterLoaded = HasReferenceCharacter;
+            result.referenceArenaLoaded = HasReferenceArena;
+            result.referenceCharacterLayoutLoaded = HasReferenceCharacterLayout;
             long driverStart = _driver.Tick;
             for (int i = 0; i < 16 && _smokeDriverStepsDone < 3 && _smokeError == null; i++)
                 yield return new WaitForFixedUpdate();
