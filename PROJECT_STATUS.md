@@ -1,8 +1,8 @@
 # Project status
 
 Date: 2026-10-20 (Europe/Istanbul)
-Milestone: larger-character feedback + early phone-playtest preparation; phone OS/model pending
-Branch: mobile/phone-playtest-readability (pulled origin/main before work; prior tested work retained; no issue supplied)
+Milestone: iPhone playtest export/native compile complete; physical device/signing gate
+Branch: mobile/iphone-playtest (pulled origin/main before work; prior tested work retained; no issue supplied)
 Remote: https://github.com/bekirbilge/Parry.git
 
 Unity6000.3.26f1 LTS, macOS arm64, .NET10.0.101 and active Unity Personal license. Git/Unity/native execution require sandbox escalation.
@@ -33,12 +33,14 @@ Validation: python3 tools/assets/validate.py; python3 -m unittest discover -s te
 
 Request approval of the ninja and arena appearance/readability in the playable sample. No animation sets or bulk assets approved yet. Current pose is static; pixel-grid/export conventions are proposals. Source/provider provenance is recorded; no blanket commercial clearance or paid service purchase asserted. Real controller/mobile performance and physical-device validation remain unverified.
 
-User explicitly pulled physical phone testing forward before animation. Finish phone-build setup after OS/model selection, collect size/readability feedback and reference approval, then finish the one-character animation/import proof and planP4 effects/audio/HUD polish. PlanP5 networking architecture follows the polished slice; economy and release remain later phases. Preserve current gameplay while working on presentation. A bare continue does not approve reference visuals or bulk generation.
+User explicitly pulled physical phone testing forward before animation. Install the compiled playtest on the selected iPhone17 Pro Max after pairing/signing, collect size/readability feedback and reference approval, then finish the one-character animation/import proof and planP4 effects/audio/HUD polish. PlanP5 networking architecture follows the polished slice; economy and release remain later phases. Preserve current gameplay while working on presentation. A bare continue does not approve reference visuals or bulk generation.
 
 ## Phone build preparation
 
 Larger characters are implemented: radius2.5 shared by both players, art/physical body matched; F5 slider1.5–3.5 and applied capture available. Grounding tests cover old/new sizes. New iOS unsigned Xcode-export and Android debug-APK helpers compile; landscape, IL2CPP/ARM64 and safe settings restoration tests pass. Raw PlayerSettings restoration preserves unset/default signing/maps exactly, and ProjectSettings.asset remains unchanged after tests.
 
-Actual mobile export/device run NOT performed. Only Unity macOS playback engine installed. Xcode27.1/iOS27.1 SDK is available, but0 signing identities/0 connected physical devices. Android SDK/adb absent. CLI module listing verified with elevated access: iOS support449MB; Android1.97GB plus JDK113MB. No module installed before phone selection.
+Selected phone: iPhone17 Pro Max. User says it is not yet connected/trusted. Unity6000.3.26f1 iOS module installed successfully at /Applications/Unity/Hub/Editor/6000.3.26f1/PlaybackEngines/iOSSupport. Actual Unity iOS export and unsigned Xcode27.1/iPhoneOS27.1 native compilation PASS, including the final phone UI changes. Xcode project: artifacts/build/ios/Unity-iPhone.xcodeproj. Unsigned app: artifacts/build/ios-derived/Build/Products/Debug-iphoneos/ElasticArena.app. Bundle com.bekirbilge.parry.playtest, iOS15 minimum, both landscape orientations.
 
-Required next input: iPhone or Android and model (async question pending). Then install only that Unity6000.3.26f1 module and run `bash tools/test-mobile.sh ios|android`. Resolve actual build/device/signing needs after producing the reviewable export; no App Store, TestFlight or production deployment authorized. Visual reference Gate B remains pending.
+Phone HUD/toolbar text scales with arena height, toolbar hit/render geometry agrees, footer uses touch instructions. MOVE/BOOST/DEF retain the existing multitouch behavior. --parry-touch previews phone UI on desktop. Unity validation/macOS build and34/34 EditMode tests pass. Desktop and1280×590 touch-preview native smokes each pass900 steps/3 callbacks with unchanged checksumA8EAD925C985E90B. Synthetic notched/high-density and small-phone safe-area tests pass; preview screenshot inspected. Independent source review passed. TUNE remains a desktop-oriented debug panel; use desktop tuning for this first phone playtest.
+
+Human gate: connect/unlock/trust the phone, enable Developer Mode and sign into Xcode locally to select a Personal Team/automatic signing, then run on the phone. Zero valid local signing identities were found; device-service queries were inconclusive, not evidence of a paired phone. No signing, installation, physical touch/performance validation, App Store or TestFlight deployment performed. Xcode reports stale simulator services, but physical-device SDK compilation succeeds. Exact handoff: PLAYTEST_NOTES.md. Continue after device/account setup; no paid membership needed for local Personal Team testing. Visual reference Gate B remains pending.
