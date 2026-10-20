@@ -81,6 +81,8 @@ internal static class ProjectileTests
             projectile.Position = new Vec2(22.7, 10);
             projectile.Velocity = new Vec2(24, 0);
             projectile.LastParrierId = 1; // Each shot represents a new opponent return.
+            projectile.ParryContactMask = 0; // An opponent reflection clears our prior parry overlap.
+            projectile.ReflectedContactMask = 0;
             List<SimulationEvent> events = Advance(state,
                 new FighterInput(Vec2.Zero, defensePressed: true));
             Assert(Count(events, SimulationEventType.PerfectParry) == 1,
