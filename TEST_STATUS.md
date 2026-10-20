@@ -88,3 +88,10 @@ Projectile readability iteration (2026-10-20):
 - Unity LTS scene validation,23/23 EditMode tests and macOS build PASS. Applied capture confirms radius0.9, slowdown12, level decay4s, fuel mode.
 - Native graphical smoke PASS:900 steps/3 live callbacks, checksumB6D8344A194382A5; rope intrusion5.6126,bend7.3044,recoil18.75 unchanged. Larger-ball screenshot inspected. Independent source review found no material issues after two radius-sensitive fixture updates; diff check clean.
 - Final full core suite PASS:240 fuel bot rounds/1,305,600 ticks and240 legacy rounds/230,912 ticks, including existing fuel/legacy replay and fuzz. New regressions cover bounded monotonic speed loss, final level0 ramp completion, snapshot/hash replay, immediate enemy parry reset and ongoing ramp through owned redirect/guard/wall. Radius-sensitive fixtures preserve expanded-only parry and body-shove collision ordering. Human gameplay/fuel feedback remains required.
+
+Contact-only parry safety iteration (2026-10-20):
+
+- Full core suite PASS:240 fuel bot rounds/683,400 ticks and240 legacy bot rounds/223,598 ticks, plus fuel/legacy replay and fuzz. Snapshot version7 uses LastParrierId only as active contact protection, cleared after separation.
+- Regressions cover immediate overlap without repeated reward, moving boosted pass-through, separation and lethal return, normal return parry reward, unrelated projectile danger, opponent replacement, same-tick safety exit/wall return, exactly two simultaneous overlapping parries, guard/wall/ramp behavior and snapshot/hash state. Existing compound-wall expectation updated to safety expiration.
+- Independent review found and resolved SafetyExit falling through to body collision handling and unsafe zero-time repeated parries. A local contact-fraction map permits later opposite returns while retaining same-time repeat suppression. Final source review and diff check PASS.
+- Final Unity LTS scene validation,23/23 EditMode tests and macOS build PASS. Native smoke PASS:900 steps/3 live callbacks, checksum93367EB12312CE78, rope intrusion5.6126/bend7.3044/recoil18.75 retained. Screenshot inspected; gameplay approval remains required.
