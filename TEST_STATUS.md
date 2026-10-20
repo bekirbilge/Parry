@@ -130,3 +130,11 @@ Phone screen/menu iteration verified on2026-10-20:
 - Desktop and1280×590 full-screen touch smokes PASS900 steps/3 callbacks; unchanged checksumA8EAD925C985E90B. Final screenshot inspected after fixing line-matrix composition, so rope segments and nodes remain aligned under phone aspect scaling.
 - Actual iOS export, device-specific signed Xcode build, codesign verification, device installation and launch PASS. No Core runtime changes; prior core/Python results remain applicable. User device feel/readability/thermal feedback pending.
 - Independent review passed after tuning overlay guards. One interrupted/overlapping validation attempt left a stale licensing connection; stopped only the owned batch editor/helper and reran serial validation successfully. No user player process was terminated for validation. Generated platform-default metadata discarded after export.
+
+Phone control-strip/tuning/parry trial verified on2026-10-20:
+
+- Full core suite PASS,240 fuel rounds/683,400 ticks and240 legacy rounds/223,598 ticks, replay/fuzz. Added trial coverage for radius6 contact beyond prior reach, unchanged one-third boost refund/no posture healing, contact-only safety expiry and lethal return. Core runtime defaults preserved.
+- Unity validation/macOS build and40/40 EditMode tests PASS. Added control-strip safe-area separation, first-touch origin/finger ownership, drag-out/release/cancel/menu clearing, simultaneous actions, actual match-complete restart target, applied radius6/window0.16 and high-density tuning geometry/readability.
+- Desktop, strip and tuning native smokes PASS900 steps/3 callbacks; same checksumA8EAD925C985E90B. Captured extra reach3.5/body2.5/window0.16. Final strip and large tuning screenshots inspected, including explicit movement-state buttons and X close label.
+- Independent source review passed after preserving true joystick origin by clipping and suppressing manual scroll when IMGUI owns the pointer. Actual phone gesture routing/slider scrolling remains a human validation item; synthetic touches cannot prove it.
+- Final iOS export/device-specific Xcode build/codesign verification/install/launch PASS on paired iPhone17 Pro Max. Updated trial is running; subjective approval and sustained performance feedback remain pending.
