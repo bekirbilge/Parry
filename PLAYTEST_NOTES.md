@@ -1,6 +1,6 @@
 # Gameplay playtest
 
-Human gameplay approval: NOT GIVEN. Stay at Gate A until explicit approval; these are feedback iterations, not permission for production work.
+Human gameplay approval: GIVEN on2026-10-20. User accepted the current fuel-based version after projectile size/slowdown and contact-only safety feedback. Gate A passed; art direction/reference approval is the next human checkpoint.
 
 ## Run
 
@@ -24,7 +24,7 @@ Neutral-stick boost goes straight up; aiming boosts immediately at the exact nor
 
 Touch: MOVE joystick plus BOOST and DEF. F4 shows mouse-testable touch controls on desktop. Physical gamepad and mobile behavior still need testing; virtual-device integration is covered automatically.
 
-Debug: B bot/local, R restart, P pause, N step paused, F1 fuel/charges (restarts match), F5 tuning, F2 quarter speed, F3 collisions/FPS, F12 capture. macOS may require Fn for function keys. Tuning changes apply on Apply / reset match. Immediate test start is enabled; movement works while the first ball's three-second warning runs. The F5 tuning panel can restore normal countdown.
+Debug: B bot/local, R restart, P pause, N step paused, F1 fuel/charges (restarts match), F5 tuning, F2 quarter speed, F3 collisions/FPS, F6 reference art on/off, F12 capture. macOS may require Fn for function keys. Tuning changes apply on Apply / reset match. Immediate test start is enabled; movement works while the first ball's three-second warning runs. The F5 tuning panel can restore normal countdown.
 
 F12 saves a PNG and applied `tuning.json` in the chosen output folder; the tuning panel shows the path. Captures include boost/load timings, invulnerability, projectile decay/speeds and parry window.
 
@@ -66,3 +66,7 @@ Latest request: test larger projectiles and gradual speed loss first, then compa
 Latest feedback: permanent ownership immunity removed in favor of contact-only protection. Test fresh wall returns, boosted pass-through and repeated parries. User likes the three-charge movement; F1 retains that comparison. Close old game instances with Command-Q before opening a newly rebuilt app.
 
 2026-10-20 selection: user confirmed the latest tested build used fuel and asked to keep it as-is. Fuel movement and current tuning are selected; larger projectiles, gradual slowdown and contact-only safety retained. Three charges remain available through F1 for comparison. Overall Gate A production approval has not been explicitly given.
+
+Gate A approval (2026-10-20): “ok this is fine now, i think the game is at a good place. whats next??” Current fuel, projectile and parry-contact settings form the approved baseline. Proceed to planP3; visual choices are still pending.
+
+P3 visual proof: directionC selected. The current sample adds one static ninja pose and the dark Rookie Dojo background. F6 switches back to graybox presentation without resetting simulation. Character foot placement uses measured transparent-padding metadata; gameplay/collision/rope/projectile behavior remains the approved baseline. Review character/background contrast, actual small-screen readability, team identification, grounded feet and boost/parry visibility. This is not an animation set. Reference approval is required before more art or animation production.
