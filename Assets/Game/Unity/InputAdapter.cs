@@ -15,8 +15,12 @@ namespace Game.Unity
         private bool _rawJump, _rawDash, _rawDefense;
         private int _stickFinger = -1, _dashFinger = -1, _defenseFinger = -1;
         private Vector2 _stickOrigin, _stickPoint;
-        private int _touchScreenHeight;
+        private float _joystickTravel;
         private bool _mouseStick, _mouseDash, _mouseDefense;
+
+        public bool JoystickActive => _stickFinger >= 0 || _mouseStick;
+        public Vector2 JoystickOrigin => _stickOrigin;
+        public Vector2 JoystickPoint => _stickPoint;
 
         public InputAdapter(int fighterId) { _fighterId = fighterId; }
 
@@ -73,9 +77,9 @@ namespace Game.Unity
             bool jump = _rawJump;
             bool dash = _rawDash || _dashFinger >= 0 || _mouseDash;
             bool defense = _rawDefense || _defenseFinger >= 0 || _mouseDefense;
-            Vector2 touchMove = _stickFinger >= 0 || _mouseStick ?
+            Vector2 touchMove = JoystickActive ?
                 Vector2.ClampMagnitude((_stickPoint - _stickOrigin) /
-                    Mathf.Max(40, (_touchScreenHeight > 0 ? _touchScreenHeight : Screen.height) * .12f), 1) : Vector2.zero;
+                    Mathf.Max(1, _joystickTravel), 1) : Vector2.zero;
             _move = touchMove.sqrMagnitude > .01f ? new Vec2(touchMove.x, touchMove.y) : _rawMove;
             if (jump && !_jumpHeld) _jumpPending = true;
             if (dash && !_dashHeldPrevious) _dashPending = true;
@@ -105,7 +109,7 @@ namespace Game.Unity
             _mouseStick = _mouseDash = _mouseDefense = false;
             _move = new Vec2(0, 0);
             _stickOrigin = _stickPoint = Vector2.zero;
-            _touchScreenHeight = 0;
+            _joystickTravel = 0;
         }
 
         public void SampleTouches(Rect arena, bool mouseWidgets, bool tuningOpen = false,
@@ -113,7 +117,6 @@ namespace Game.Unity
         {
             if (_fighterId != 0) return;
             if (menuOpen || tuningOpen) { Clear(); return; }
-            _touchScreenHeight = Screen.height;
             foreach (Touch touch in Input.touches)
                 SampleTouch(touch.fingerId, touch.phase, touch.position, arena, Screen.height,
                     tuningOpen, mobileUi, menuOpen);
@@ -122,13 +125,23 @@ namespace Game.Unity
             {
                 Vector2 p = Input.mousePosition;
                 int zone = ArenaLayout.TouchAction(arena, p, Screen.height, tuningOpen, mobileUi, menuOpen);
-                _mouseStick = zone == 0; _mouseDash = zone == 1; _mouseDefense = zone == 2;
+                _mouseStick = zone == 0 && _stickFinger < 0;
+                _mouseDash = zone == 1; _mouseDefense = zone == 2;
                 if (_mouseDash) _dashPending = true;
                 if (_mouseDefense) _defensePending = true;
-                if (_mouseStick) _stickOrigin = _stickPoint = p;
+                if (_mouseStick)
+                {
+                    _stickOrigin = _stickPoint = p;
+                    _joystickTravel = mobileUi ? ArenaLayout.JoystickTravel(arena, true) :
+                        Mathf.Max(40, Screen.height * .12f);
+                }
             }
             if (Input.GetMouseButton(0) && _mouseStick) _stickPoint = Input.mousePosition;
-            if (Input.GetMouseButtonUp(0)) _mouseStick = _mouseDash = _mouseDefense = false;
+            if (Input.GetMouseButtonUp(0))
+            {
+                _mouseStick = _mouseDash = _mouseDefense = false;
+                if (_stickFinger < 0) _stickOrigin = _stickPoint = Vector2.zero;
+            }
             UpdateCombined();
         }
 
@@ -138,18 +151,27 @@ namespace Game.Unity
         {
             if (_fighterId != 0) return;
             if (menuOpen || tuningOpen) { Clear(); return; }
-            _touchScreenHeight = screenHeight;
             if (phase == TouchPhase.Began)
             {
                 int action = ArenaLayout.TouchAction(arena, position, screenHeight, tuningOpen, mobileUi, menuOpen);
-                if (action == 0 && _stickFinger < 0) { _stickFinger = fingerId; _stickOrigin = _stickPoint = position; }
+                if (action == 0 && _stickFinger < 0 && !_mouseStick)
+                {
+                    _stickFinger = fingerId;
+                    _stickOrigin = _stickPoint = position;
+                    _joystickTravel = mobileUi ? ArenaLayout.JoystickTravel(arena, true) :
+                        Mathf.Max(40, screenHeight * .12f);
+                }
                 if (action == 1 && _dashFinger < 0) { _dashFinger = fingerId; _dashPending = true; }
                 if (action == 2 && _defenseFinger < 0) { _defenseFinger = fingerId; _defensePending = true; }
             }
             if (fingerId == _stickFinger) _stickPoint = position;
             if (phase == TouchPhase.Ended || phase == TouchPhase.Canceled)
             {
-                if (fingerId == _stickFinger) _stickFinger = -1;
+                if (fingerId == _stickFinger)
+                {
+                    _stickFinger = -1;
+                    if (!_mouseStick) _stickOrigin = _stickPoint = Vector2.zero;
+                }
                 if (fingerId == _dashFinger) _dashFinger = -1;
                 if (fingerId == _defenseFinger) _defenseFinger = -1;
             }
