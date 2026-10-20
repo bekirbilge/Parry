@@ -43,6 +43,8 @@ namespace Game.Core
                     SimMath.SecondsToTicks(tuning.Defense.GuardBreakDurationSeconds, config.TickRateHz));
                 fighter.ParryTicksRemaining = 0;
                 fighter.DashTicksRemaining = 0;
+                fighter.FuelBoostNeedsRelease |= fighter.FuelBoostActive;
+                fighter.FuelBoostActive = false;
                 fighter.DividerLoadTicksRemaining = 0;
                 fighter.DashInvulnerabilityTicksRemaining = 0;
                 events.Add(new SimulationEvent(state.Tick, SimulationEventType.GuardBroken,
