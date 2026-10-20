@@ -361,9 +361,9 @@ internal static class CombatTests
             Count(events, SimulationEventType.PerfectParry) == 0,
             "Owned redirect and wall bounce must both resolve at their shared contact time.");
         Assert(Math.Abs(shot.Velocity.X) < 1e-8 && shot.Velocity.Y > 0 &&
-            shot.LastParrierId == owner.Id && shot.PowerLevel == 1 &&
+            shot.LastParrierId == -1 && shot.PowerLevel == 1 &&
             shot.DecayTicksRemaining == 49 && !owner.Eliminated,
-            "Compound owned redirect must escape along wall without parry rewards.");
+            "Compound owned redirect must escape along wall without parry rewards, then lose safety on clearance.");
     }
 
     private static void FastOpponentProjectileHitsMovingBoostPath()
