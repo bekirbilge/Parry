@@ -40,10 +40,14 @@ namespace Game.Core
 
             // A membrane impact ends the dash on the following tick, after the
             // collision system has had the impact tick to classify body contact.
-            if (fighter.DividerReboundDistanceRemaining > 0) fighter.DashTicksRemaining = 0;
-            else if (fighter.DashTicksRemaining > 0) fighter.DashTicksRemaining--;
-
-            Recharge(fighter, movement, config);
+            if (movement.UseFuelBoost)
+                AdvanceFuel(fighter, input, stick, movement, config);
+            else
+            {
+                if (fighter.DividerReboundDistanceRemaining > 0) fighter.DashTicksRemaining = 0;
+                else if (fighter.DashTicksRemaining > 0) fighter.DashTicksRemaining--;
+                Recharge(fighter, movement, config);
+            }
             if (input.JumpPressed) fighter.JumpBufferTicksRemaining =
                 Math.Max(1, SimMath.SecondsToTicks(movement.JumpBufferSeconds, config.TickRateHz));
 
@@ -62,35 +66,43 @@ namespace Game.Core
                 fighter.AirSequence++;
             }
 
-            int dashDuration = SimMath.SecondsToTicks(movement.DashDurationSeconds, config.TickRateHz);
-            int cancelTicks = SimMath.SecondsToTicks(movement.DashCancelAfterSeconds, config.TickRateHz);
-            Vec2 requestedDashDirection = stick.NormalizedOr(new Vec2(0, 1));
-            int inward = fighter.Id == SimulationState.LeftFighterId ? 1 : -1;
-            // A fresh inward press cannot restart the rope loading clock.
-            // Outward or vertical dashes still let the fighter escape it.
-            bool canCancelLoad = fighter.DividerLoadTicksRemaining <= 0 ||
-                requestedDashDirection.X * inward <= 1e-9;
-            bool canCancelDash = canCancelLoad && (fighter.DashTicksRemaining <= 0 ||
-                dashDuration - fighter.DashTicksRemaining >= cancelTicks);
-            if (input.DashPressed && fighter.DashCharges > 0 &&
-                fighter.GuardBreakTicksRemaining <= 0 && canCancelDash)
+            if (!movement.UseFuelBoost)
             {
-                fighter.DashCharges--;
-                fighter.DashTicksRemaining = dashDuration;
-                fighter.DashInvulnerabilityTicksRemaining =
-                    SimMath.SecondsToTicks(movement.DashInvulnerabilitySeconds, config.TickRateHz);
-                fighter.DashDirection = requestedDashDirection;
-                fighter.DashSequence++;
-                fighter.DividerLoadTicksRemaining = 0;
-                fighter.DividerReboundDistanceRemaining = 0;
-                if (fighter.DashRechargeTicksRemaining <= 0)
-                    fighter.DashRechargeTicksRemaining = SimMath.SecondsToTicks(movement.DashRechargeSeconds, config.TickRateHz);
+                int dashDuration = SimMath.SecondsToTicks(movement.DashDurationSeconds, config.TickRateHz);
+                int cancelTicks = SimMath.SecondsToTicks(movement.DashCancelAfterSeconds, config.TickRateHz);
+                Vec2 requestedDashDirection = stick.NormalizedOr(new Vec2(0, 1));
+                int inward = fighter.Id == SimulationState.LeftFighterId ? 1 : -1;
+                // A fresh inward press cannot restart the rope loading clock.
+                // Outward or vertical dashes still let the fighter escape it.
+                bool canCancelLoad = fighter.DividerLoadTicksRemaining <= 0 ||
+                    requestedDashDirection.X * inward <= 1e-9;
+                bool canCancelDash = canCancelLoad && (fighter.DashTicksRemaining <= 0 ||
+                    dashDuration - fighter.DashTicksRemaining >= cancelTicks);
+                if (input.DashPressed && fighter.DashCharges > 0 &&
+                    fighter.GuardBreakTicksRemaining <= 0 && canCancelDash)
+                {
+                    fighter.DashCharges--;
+                    fighter.DashTicksRemaining = dashDuration;
+                    fighter.DashInvulnerabilityTicksRemaining =
+                        SimMath.SecondsToTicks(movement.DashInvulnerabilitySeconds, config.TickRateHz);
+                    fighter.DashDirection = requestedDashDirection;
+                    fighter.DashSequence++;
+                    fighter.DividerLoadTicksRemaining = 0;
+                    fighter.DividerReboundDistanceRemaining = 0;
+                    if (fighter.DashRechargeTicksRemaining <= 0)
+                        fighter.DashRechargeTicksRemaining = SimMath.SecondsToTicks(movement.DashRechargeSeconds, config.TickRateHz);
+                }
             }
 
-            if ((fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0) &&
+            if ((movement.UseFuelBoost ? fighter.FuelBoostActive :
+                    fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0) &&
                 fighter.DividerReboundDistanceRemaining <= 0)
             {
-                fighter.Velocity = fighter.DashDirection * movement.BoostSpeedForDirection(fighter.DashDirection);
+                Vec2 target = fighter.DashDirection * movement.BoostSpeedForDirection(fighter.DashDirection);
+                fighter.Velocity = movement.UseFuelBoost
+                    ? MoveToward(fighter.Velocity, target,
+                        movement.FuelSteeringAccelerationUnitsPerSecondSquared * dt)
+                    : target;
             }
             else
             {
@@ -151,6 +163,72 @@ namespace Game.Core
             // Dash invulnerability is decremented by CombatSystem after collisions.
         }
 
+        private static void AdvanceFuel(FighterState fighter, FighterInput input, Vec2 stick,
+            MovementTuning movement, SimulationConfig config)
+        {
+            double dt = config.TickDurationSeconds;
+            bool requested = input.DashHeld || input.DashPressed;
+            bool freshPress = input.DashPressed || (input.DashHeld && !fighter.FuelDashHeldPrevious);
+            if (fighter.FuelInvulnerabilityRearmTicksRemaining > 0)
+                fighter.FuelInvulnerabilityRearmTicksRemaining--;
+
+            if (!requested) fighter.FuelBoostNeedsRelease = false;
+            if (fighter.FuelBoostActive && (!requested || fighter.GuardBreakTicksRemaining > 0 ||
+                fighter.DividerReboundDistanceRemaining > 0 || fighter.FuelSeconds <= dt + 1e-9))
+            {
+                bool needsRelease = requested;
+                EndFuelBoost(fighter, needsRelease);
+                if (fighter.FuelSeconds <= dt + 1e-9) fighter.FuelSeconds = 0;
+            }
+
+            if (!fighter.FuelBoostActive && requested && freshPress &&
+                !fighter.FuelBoostNeedsRelease && fighter.GuardBreakTicksRemaining <= 0 &&
+                fighter.DividerReboundDistanceRemaining <= 0 &&
+                fighter.FuelSeconds > movement.FuelIgnitionCostSeconds + dt + 1e-9)
+            {
+                fighter.FuelBoostActive = true;
+                fighter.FuelSeconds -= movement.FuelIgnitionCostSeconds;
+                fighter.DashDirection = stick.NormalizedOr(new Vec2(0, 1));
+                fighter.Velocity = fighter.DashDirection * movement.BoostSpeedForDirection(fighter.DashDirection);
+                fighter.DashSequence++;
+                fighter.DashTicksRemaining = 1;
+                if (fighter.FuelInvulnerabilityRearmTicksRemaining <= 0)
+                {
+                    fighter.DashInvulnerabilityTicksRemaining =
+                        SimMath.SecondsToTicks(movement.DashInvulnerabilitySeconds, config.TickRateHz);
+                    fighter.FuelInvulnerabilityRearmTicksRemaining =
+                        SimMath.SecondsToTicks(movement.FuelInvulnerabilityRearmSeconds, config.TickRateHz);
+                }
+            }
+
+            if (fighter.FuelBoostActive)
+            {
+                fighter.DashDirection = stick.NormalizedOr(new Vec2(0, 1));
+                fighter.DashTicksRemaining = 1;
+                fighter.FuelSeconds = Math.Max(0, fighter.FuelSeconds - dt);
+                fighter.FuelRegenDelayTicksRemaining =
+                    SimMath.SecondsToTicks(movement.FuelRegenerationDelaySeconds, config.TickRateHz);
+            }
+            else
+            {
+                fighter.DashTicksRemaining = 0;
+                if (fighter.FuelRegenDelayTicksRemaining > 0)
+                    fighter.FuelRegenDelayTicksRemaining--;
+                else
+                    fighter.FuelSeconds = Math.Min(movement.FuelCapacitySeconds,
+                        fighter.FuelSeconds + movement.FuelRegenerationPerSecond * dt);
+            }
+            fighter.FuelDashHeldPrevious = input.DashHeld;
+        }
+
+        private static void EndFuelBoost(FighterState fighter, bool needsRelease)
+        {
+            fighter.FuelBoostActive = false;
+            fighter.FuelBoostNeedsRelease = needsRelease;
+            fighter.DashTicksRemaining = 0;
+            fighter.DividerLoadTicksRemaining = 0;
+        }
+
         private static void Recharge(FighterState fighter, MovementTuning movement, SimulationConfig config)
         {
             if (fighter.DashCharges >= MovementTuning.MaximumDashCharges)
@@ -175,6 +253,13 @@ namespace Game.Core
         {
             if (current < target) return Math.Min(current + delta, target);
             return Math.Max(current - delta, target);
+        }
+
+        private static Vec2 MoveToward(Vec2 current, Vec2 target, double delta)
+        {
+            Vec2 difference = target - current;
+            double distance = difference.Length;
+            return distance <= delta ? target : current + difference * (delta / distance);
         }
     }
 }
