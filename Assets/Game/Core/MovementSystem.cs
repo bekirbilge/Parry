@@ -90,7 +90,7 @@ namespace Game.Core
             if ((fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0) &&
                 fighter.DividerReboundDistanceRemaining <= 0)
             {
-                fighter.Velocity = fighter.DashDirection * movement.DashSpeedUnitsPerSecond;
+                fighter.Velocity = fighter.DashDirection * movement.BoostSpeedForDirection(fighter.DashDirection);
             }
             else
             {
