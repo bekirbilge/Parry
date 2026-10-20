@@ -171,6 +171,31 @@ namespace Game.Unity.Tests
         }
 
         [Test]
+        public void ReferenceFighterKeepsCenterAndGroundedSoleAcrossLandscapeViewports()
+        {
+            AssertArtLayout(1920, 1080, new Rect(0, 0, 1920, 1080));
+            AssertArtLayout(2535, 1170, new Rect(120, 30, 2295, 1100));
+            AssertArtLayout(1280, 720, new Rect(0, 0, 1280, 720));
+        }
+
+        [Test]
+        public void ReferenceArtTogglePreservesAuthoritativeSnapshot()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.RestartMatch();
+            MatchSimulation simulation = controller.Sim;
+            ulong checksum = controller.CaptureSnapshot().ComputeChecksum();
+            controller.ReferenceArtEnabled = false;
+            Assert.That(controller.ReferenceArtEnabled, Is.False);
+            controller.ReferenceArtEnabled = true;
+            Assert.That(controller.ReferenceArtEnabled, Is.True);
+            Assert.That(controller.Sim, Is.SameAs(simulation));
+            Assert.That(controller.CaptureSnapshot().ComputeChecksum(), Is.EqualTo(checksum));
+        }
+
+        [Test]
         public void BothInputBackendsAreEnabled()
         {
             BootstrapPipeline.EnsureBootstrapScene();
@@ -567,6 +592,36 @@ namespace Game.Unity.Tests
             Assert.That(footer.width, Is.EqualTo(gui.width).Within(0.01f));
             Assert.That(footer.yMin, Is.GreaterThanOrEqualTo(gui.yMax + 1));
             Assert.That(footer.yMax, Is.LessThanOrEqualTo(height - safe.yMin + 0.01f));
+        }
+
+        private static void AssertArtLayout(int width, int height, Rect safe)
+        {
+            Rect arena = ArenaLayout.Compute(width, height, safe);
+            float unit = arena.width / 100f;
+            var center = new Vec2(20, 1.5);
+            ArtPresentation.CharacterLayout layout = ArtPresentation.LoadCharacterLayout(out bool loaded);
+            Assert.That(loaded, Is.True, "The playable proof must load its reference art layout metadata.");
+            Rect art = ArtPresentation.FighterRect(arena, center, 100f, 56.25f, 1.5f, layout);
+            float projectedCenterX = arena.xMin + 20f * unit;
+            float groundY = arena.yMax;
+            Assert.That(art.center.x, Is.EqualTo(projectedCenterX).Within(.01f));
+            Assert.That(layout.VisibleHeightFraction, Is.GreaterThan(0f));
+            Assert.That(layout.VisibleHeightFraction + layout.SoleInsetFraction, Is.LessThanOrEqualTo(1f));
+            Assert.That(layout.ArenaBottomCropFraction, Is.GreaterThan(0f).And.LessThanOrEqualTo(.25f));
+            Rect arenaUv = layout.ArenaUvRect;
+            Assert.That(arenaUv.xMin, Is.EqualTo(0f));
+            Assert.That(arenaUv.xMax, Is.EqualTo(1f));
+            Assert.That(arenaUv.yMin, Is.EqualTo(layout.ArenaBottomCropFraction).Within(1e-6f));
+            Assert.That(arenaUv.yMax, Is.EqualTo(1f).Within(1e-6f));
+            Rect fallbackUv = ArtPresentation.FallbackCharacterLayout.ArenaUvRect;
+            Assert.That(fallbackUv, Is.EqualTo(new Rect(0f, 0f, 1f, 1f)));
+            Assert.That(art.width, Is.EqualTo(art.height).Within(.01f));
+            float visibleHeight = art.height * layout.VisibleHeightFraction;
+            float soleY = art.yMin + art.height * (1f - layout.SoleInsetFraction);
+            Assert.That(soleY,
+                Is.EqualTo(groundY).Within(.01f));
+            Assert.That(visibleHeight, Is.EqualTo(3f * unit).Within(.01f));
+            Assert.That(soleY - visibleHeight, Is.EqualTo(groundY - 3f * unit).Within(.01f));
         }
 
         private static T Find<T>(Scene scene) where T : Component
