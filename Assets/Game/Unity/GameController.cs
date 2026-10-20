@@ -35,6 +35,8 @@ namespace Game.Unity
         private double _jumpSpeed = CombatTuning.Default.Movement.JumpSpeedUnitsPerSecond;
         private double _dashSpeed = CombatTuning.Default.Movement.DashSpeedUnitsPerSecond;
         private double _boostDuration = CombatTuning.Default.Movement.DashDurationSeconds;
+        private double _upwardBoostSpeed = CombatTuning.Default.Movement.MaximumUpwardBoostSpeedUnitsPerSecond;
+        private double _parryExtraReach = CombatTuning.Default.Defense.ParryExtraReachUnits;
         private double _parryWindow = CombatTuning.Default.Movement.PerfectParryWindowSeconds;
         private double _projectileSpeed = CombatTuning.Default.Projectile.BaseSpeedUnitsPerSecond;
         private double _spring = CombatTuning.Default.Divider.SpringStrength;
@@ -67,7 +69,8 @@ namespace Game.Unity
         {
             var movement = new MovementTuning(runSpeedUnitsPerSecond: _runSpeed,
                 jumpSpeedUnitsPerSecond: _jumpSpeed, dashSpeedUnitsPerSecond: _dashSpeed,
-                dashDurationSeconds: _boostDuration, perfectParryWindowSeconds: _parryWindow);
+                dashDurationSeconds: _boostDuration, perfectParryWindowSeconds: _parryWindow,
+                maximumUpwardBoostSpeedUnitsPerSecond: _upwardBoostSpeed);
             var projectile = new ProjectileTuning(baseSpeedUnitsPerSecond: _projectileSpeed);
             var divider = new DividerTuning(springStrength: _spring, damping: _damping,
                 dashReboundSpeedUnitsPerSecond: _rebound,
@@ -78,7 +81,7 @@ namespace Game.Unity
                 new MatchTuning(roundCountdownSeconds: 0, startImmediatelyForTesting: true) :
                 new MatchTuning();
             _sim = new MatchSimulation(new SimulationConfig(), new CombatTuning(movement, projectile,
-                new DefenseTuning(), divider, new ArenaTuning(), match));
+                new DefenseTuning(parryExtraReachUnits: _parryExtraReach), divider, new ArenaTuning(), match));
             _inputs[0].Clear(); _inputs[1].Clear();
             _lastEvent = "";
             _hitstopTicks = 0;
@@ -376,7 +379,12 @@ namespace Game.Unity
                 Circle(new Rect(tail.x - r * .32f, tail.y - r * .32f, r * .64f, r * .64f),
                     new Color(1f, .95f, .65f, .8f));
             }
-            if (f.ParryTicksRemaining > 0) Circle(new Rect(p.x - 1.8f*r, p.y - 1.8f*r, 3.6f*r, 3.6f*r), new Color(.38f, 1f, .78f, .45f));
+            if (f.ParryTicksRemaining > 0)
+            {
+                float parryRadius = (float)(Tuning.Arena.FighterRadiusUnits + Tuning.Defense.ParryExtraReachUnits) * u;
+                Circle(new Rect(p.x - parryRadius, p.y - parryRadius, parryRadius * 2, parryRadius * 2),
+                    new Color(.38f, 1f, .78f, .45f));
+            }
             else if (f.GuardBreakTicksRemaining == 0 && f.DefenseHeldPrevious &&
                 f.DefenseHoldTicks >= SimMath.SecondsToTicks(Tuning.Defense.GuardHoldThresholdSeconds, _sim.Config.TickRateHz))
                 Circle(new Rect(p.x - 1.5f*r, p.y - 1.5f*r, 3*r, 3*r), new Color(.5f, .8f, 1f, .26f));
@@ -474,6 +482,8 @@ namespace Game.Unity
             Slider("Run speed", ref _runSpeed, 3, 40);
             Slider("Boost speed", ref _dashSpeed, 15, 120);
             Slider("Boost duration", ref _boostDuration, .15f, .5f);
+            Slider("Upward boost cap", ref _upwardBoostSpeed, 20, 80);
+            Slider("Parry extra reach", ref _parryExtraReach, 0, 4);
             Slider("Parry window", ref _parryWindow, .03f, .3f);
             Slider("Projectile speed", ref _projectileSpeed, 8, 60);
             Slider("Spring", ref _spring, 0, 80);
@@ -513,6 +523,8 @@ namespace Game.Unity
                     boostDuration = Tuning.Movement.DashDurationSeconds,
                     boostInvulnerability = Tuning.Movement.DashInvulnerabilitySeconds,
                     parryWindow = Tuning.Movement.PerfectParryWindowSeconds,
+                    upwardBoostSpeed = Tuning.Movement.MaximumUpwardBoostSpeedUnitsPerSecond,
+                    parryExtraReach = Tuning.Defense.ParryExtraReachUnits,
                     projectileSpeed = Tuning.Projectile.BaseSpeedUnitsPerSecond,
                     projectileDecaySecondsPerLevel = Tuning.Projectile.PowerDecaySecondsPerLevel,
                     projectileLevel0Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond,
@@ -538,7 +550,7 @@ namespace Game.Unity
         [Serializable] private sealed class TuningCapture
         {
             public double runSpeed, jumpSpeed, dashSpeed, boostDuration, boostInvulnerability,
-                parryWindow, projectileSpeed, spring, damping, rebound, boostLoadDuration,
+                parryWindow, upwardBoostSpeed, parryExtraReach, projectileSpeed, spring, damping, rebound, boostLoadDuration,
                 boostLoadSpring, boostLoadDamping, projectileDecaySecondsPerLevel,
                 projectileLevel0Speed, projectileLevel1Speed, projectileLevel2Speed, projectileLevel3Speed;
             public string mode, botDifficultyName;
