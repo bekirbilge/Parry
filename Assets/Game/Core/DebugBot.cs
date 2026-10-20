@@ -10,7 +10,8 @@ namespace Game.Core
     {
         private const int DefaultTickRate = 60;
 
-        public static FighterInput Decide(SimulationState state, int fighterId, int difficulty = 0)
+        public static FighterInput Decide(SimulationState state, int fighterId, int difficulty = 0,
+            bool useFuelBoost = false)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
             if (fighterId != SimulationState.LeftFighterId && fighterId != SimulationState.RightFighterId)
@@ -39,13 +40,22 @@ namespace Game.Core
             double moveX = Math.Abs(targetX - self.Position.X) > 1.25
                 ? Math.Sign(targetX - self.Position.X) : 0;
             double moveY = 0;
-            bool hop = self.DashCharges > 0 && self.Grounded && !threat && phase == 176 && (tick / 240 + fighterId) % 2 == 0;
-            bool dash = self.DashCharges > 0 && !self.Eliminated &&
-                (hop || (threat && phase % (difficulty == 0 ? 19 : difficulty == 1 ? 15 : 12) == 0) ||
-                 (!threat && gap < 13.0 && phase % 73 == (fighterId == 0 ? 21 : 53)));
+            bool fuelAvailable = self.FuelSeconds > 0.08;
+            bool hop = (useFuelBoost ? fuelAvailable : self.DashCharges > 0) && self.Grounded && !threat &&
+                (useFuelBoost ? phase >= 176 && phase < 188 : phase == 176) &&
+                (tick / 240 + fighterId) % 2 == 0;
+            bool threatBoost = threat && phase % (difficulty == 0 ? 19 : difficulty == 1 ? 15 : 12) == 0;
+            bool closeBoost = !threat && gap < 13.0 && phase % 73 == (fighterId == 0 ? 21 : 53);
+            bool dash = !self.Eliminated && (useFuelBoost ? fuelAvailable : self.DashCharges > 0) &&
+                (hop || threatBoost || closeBoost);
+            bool fuelHold = useFuelBoost && (hop || threatBoost && fuelAvailable ||
+                closeBoost && fuelAvailable || self.FuelBoostActive &&
+                (threat || phase % 73 < (fighterId == 0 ? 33 : 65)));
+            if (useFuelBoost)
+                dash = fuelHold && !self.FuelDashHeldPrevious;
 
             if (hop) { moveX = 0; moveY = 1; }
-            else if (dash)
+            else if (dash || fuelHold)
             {
                 // Aim toward open space: a threat-side dash is a dodge, while a close-range dash
                 // advances only when it remains within the bot's own half.
@@ -63,7 +73,7 @@ namespace Game.Core
             if (self.DefenseHeldPrevious && parryPulse) defensePressed = false;
 
             return new FighterInput(new Vec2(moveX, moveY), false, false, dash,
-                defensePressed, defenseHeld);
+                defensePressed, defenseHeld, fuelHold);
         }
 
         private static bool IsImmediateThreat(SimulationState state, FighterState self, int difficulty)
