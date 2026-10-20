@@ -8,14 +8,21 @@ namespace Game.Unity.Tests
     {
         [TestCase(2868, 1320, 100, 35, 2668, 1250)]
         [TestCase(640, 360, 20, 0, 600, 350)]
-        public void PhoneArenaFillsSafeAreaAndControlsRemainSeparate(int width, int height,
+        [TestCase(1280, 720, 0, 0, 1280, 720)]
+        public void PhoneArenaAndControlStripPartitionSafeArea(int width, int height,
             int safeX, int safeY, int safeWidth, int safeHeight)
         {
             Rect safe = new Rect(safeX, safeY, safeWidth, safeHeight);
             Rect arena = ArenaLayout.Compute(width, height, safe, true);
             Rect footer = ArenaLayout.Footer(width, height, safe, true);
+            Rect strip = ArenaLayout.ControlStrip(arena);
             Assert.That(arena, Is.EqualTo(new Rect(safeX, height - safeY - safeHeight,
-                safeWidth, safeHeight)));
+                safeWidth, safeHeight * .78f)));
+            Assert.That(strip.xMin, Is.EqualTo(safeX));
+            Assert.That(strip.yMin, Is.EqualTo(arena.yMax));
+            Assert.That(strip.width, Is.EqualTo(safeWidth));
+            Assert.That(strip.height, Is.EqualTo(safeHeight * .22f).Within(.01f));
+            Assert.That(strip.yMax, Is.EqualTo(height - safeY).Within(.01f));
             Assert.That(footer, Is.EqualTo(Rect.zero));
 
             Rect pause = ArenaLayout.PauseButton(arena);
@@ -43,9 +50,10 @@ namespace Game.Unity.Tests
 
             for (int action = 0; action < 3; action++)
             {
-                Rect target = ArenaLayout.TouchControl(arena, action);
-                Assert.That(arena.Contains(target.center), Is.True);
-                Assert.That(target.height, Is.LessThanOrEqualTo(arena.height * .125f + .01f));
+                Rect target = ArenaLayout.TouchControl(arena, action, true);
+                Assert.That(strip.Contains(target.min) && strip.Contains(target.max - Vector2.one), Is.True);
+                Assert.That(target.height, Is.LessThanOrEqualTo(strip.height * .65f + .01f));
+                Assert.That(target.Overlaps(arena), Is.False);
                 Vector2 bottomLeft = new Vector2(target.center.x, height - target.center.y);
                 Assert.That(ArenaLayout.TouchAction(arena, bottomLeft, height, false, true), Is.EqualTo(action));
                 Assert.That(ArenaLayout.TouchAction(arena, bottomLeft, height, false, true, true), Is.EqualTo(-1));
@@ -53,6 +61,19 @@ namespace Game.Unity.Tests
                 for (int i = 0; i < 4; i++)
                     Assert.That(target.Overlaps(ArenaLayout.PauseMenuButton(arena, i)), Is.False);
             }
+            Assert.That(ArenaLayout.TouchAction(arena,
+                new Vector2(strip.xMin + strip.width * .43f, height - strip.center.y),
+                height, false, true), Is.EqualTo(0));
+            Assert.That(ArenaLayout.TouchAction(arena,
+                new Vector2(strip.xMin + strip.width * .60f, height - strip.center.y),
+                height, false, true), Is.EqualTo(-1));
+            Assert.That(ArenaLayout.TouchAction(arena,
+                new Vector2(arena.xMin + arena.width * .15f, height - arena.center.y),
+                height, false, true), Is.EqualTo(-1));
+            Assert.That(ArenaLayout.TouchAction(arena,
+                new Vector2(strip.xMin - 1, height - strip.center.y),
+                height, false, true), Is.EqualTo(-1));
+            Assert.That(ArenaLayout.TuningPanel(arena, true).Overlaps(pause), Is.False);
         }
 
         [Test]
@@ -78,13 +99,13 @@ namespace Game.Unity.Tests
             adapter.SampleTouch(5, TouchPhase.Began, pausePoint, arena, height, false, true);
             Assert.That(adapter.ConsumeTick().DashPressed, Is.False);
 
-            Rect stick = ArenaLayout.TouchControl(arena, 0);
+            Rect stick = ArenaLayout.TouchControl(arena, 0, true);
             Vector2 stickPoint = new Vector2(stick.center.x, height - stick.center.y);
             adapter.SampleTouch(10, TouchPhase.Began, stickPoint, arena, height, false, true);
             adapter.SampleTouch(10, TouchPhase.Moved, stickPoint + new Vector2(60, 0), arena, height, false, true);
             for (int action = 1; action <= 2; action++)
             {
-                Vector2 center = ArenaLayout.TouchControl(arena, action).center;
+                Vector2 center = ArenaLayout.TouchControl(arena, action, true).center;
                 adapter.SampleTouch(action + 10, TouchPhase.Began,
                     new Vector2(center.x, height - center.y), arena, height, false, true);
             }
@@ -99,7 +120,7 @@ namespace Game.Unity.Tests
             Assert.That(menuInput.DashPressed || menuInput.DefensePressed ||
                 menuInput.DashHeld || menuInput.DefenseHeld, Is.False);
 
-            Vector2 dash = ArenaLayout.TouchControl(arena, 1).center;
+            Vector2 dash = ArenaLayout.TouchControl(arena, 1, true).center;
             adapter.SampleTouch(13, TouchPhase.Began, new Vector2(dash.x, height - dash.y),
                 arena, height, false, true, true);
             Assert.That(adapter.ConsumeTick().DashPressed, Is.False);
@@ -107,6 +128,58 @@ namespace Game.Unity.Tests
             adapter.SampleTouch(14, TouchPhase.Began, new Vector2(dash.x, height - dash.y),
                 arena, height, false, true);
             Assert.That(adapter.ConsumeTick().DashPressed, Is.True);
+        }
+
+        [Test]
+        public void FloatingJoystickKeepsItsOriginAndFingerUntilReleased()
+        {
+            const int height = 1320;
+            Rect arena = ArenaLayout.Compute(2868, height, new Rect(100, 35, 2668, 1250), true);
+            Rect strip = ArenaLayout.ControlStrip(arena);
+            var adapter = new InputAdapter(0);
+            Vector2 first = new Vector2(strip.xMin + strip.width * .40f, height - strip.center.y);
+            Vector2 second = new Vector2(strip.xMin + strip.width * .12f, height - strip.center.y);
+            float travel = ArenaLayout.JoystickTravel(arena, true);
+
+            adapter.SampleTouch(1, TouchPhase.Began, first, arena, height, false, true);
+            Assert.That(adapter.JoystickActive, Is.True);
+            Assert.That(adapter.JoystickOrigin, Is.EqualTo(first));
+            adapter.SampleTouch(2, TouchPhase.Began, second, arena, height, false, true);
+            adapter.SampleTouch(2, TouchPhase.Moved, second + new Vector2(0, travel), arena,
+                height, false, true);
+            Assert.That(adapter.JoystickOrigin, Is.EqualTo(first));
+            Assert.That(adapter.JoystickPoint, Is.EqualTo(first));
+
+            Vector2 dragged = first + new Vector2(travel * .6f, travel * .8f);
+            adapter.SampleTouch(1, TouchPhase.Moved, dragged, arena, height, false, true);
+            FighterInput diagonal = adapter.ConsumeTick();
+            Assert.That(adapter.JoystickOrigin, Is.EqualTo(first));
+            Assert.That(adapter.JoystickPoint, Is.EqualTo(dragged));
+            Assert.That(diagonal.Move.X, Is.EqualTo(.6f).Within(.001f));
+            Assert.That(diagonal.Move.Y, Is.EqualTo(.8f).Within(.001f));
+
+            adapter.SampleTouch(1, TouchPhase.Moved, first + new Vector2(travel * 2, 0),
+                arena, height, false, true);
+            Assert.That(adapter.ConsumeTick().Move.X, Is.EqualTo(1).Within(.001f));
+            adapter.SampleTouch(1, TouchPhase.Ended, first, arena, height, false, true);
+            Assert.That(adapter.JoystickActive, Is.False);
+            Assert.That(adapter.JoystickOrigin, Is.EqualTo(Vector2.zero));
+            Assert.That(adapter.ConsumeTick().Move.X, Is.EqualTo(0));
+            adapter.SampleTouch(2, TouchPhase.Moved, second + new Vector2(0, travel), arena,
+                height, false, true);
+            Assert.That(adapter.JoystickActive, Is.False);
+
+            adapter.SampleTouch(3, TouchPhase.Began, second, arena, height, false, true);
+            Assert.That(adapter.JoystickOrigin, Is.EqualTo(second));
+            adapter.SampleTouch(3, TouchPhase.Canceled, second, arena, height, false, true);
+            Assert.That(adapter.JoystickActive, Is.False);
+            Assert.That(adapter.ConsumeTick().Move.Y, Is.EqualTo(0));
+            adapter.SampleTouch(4, TouchPhase.Began, first, arena, height, false, true);
+            adapter.SampleTouch(4, TouchPhase.Moved, first + Vector2.right * travel, arena,
+                height, false, true);
+            adapter.SampleTouch(4, TouchPhase.Stationary, first, arena, height, false, true, true);
+            Assert.That(adapter.JoystickActive, Is.False);
+            Assert.That(adapter.ConsumeTick().Move.X, Is.EqualTo(0));
         }
     }
 }
