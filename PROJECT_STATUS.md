@@ -3,7 +3,7 @@
 Date: 2026-10-20 (Europe/Istanbul)
 Milestone: HUMAN GATE A — core gameplay playtest/approval
 Last verified milestone: P2 playable graybox, with approved feedback iterations
-Branch: playtest/fuel-boost (from pulled origin/main; no issue supplied)
+Branch: playtest/projectile-readability (fuel trial retained; pulled origin/main before work; no issue supplied)
 
 Unity 6000.3.26f1 LTS is installed and pinned per user instruction. macOS arm64, .NET SDK 10.0.101, Xcode 27.1, active Unity Personal license. Remote origin: https://github.com/bekirbilge/Parry.git. Tested checkpoint `3c3efec` pushed to main and playtest/parry-area-upward-height before this experiment. Git metadata and Unity execution require sandbox escalation.
 
@@ -29,3 +29,5 @@ Current fuel trial: hold-to-thrust with continuous steering, neutral upward laun
 Playable defaults to fuel; F1 switches to legacy three charges and resets, F5 opens tuning. Enlarged parry area, timings, lower upward cap, projectile speeds and immunity remain intact. Final validation PASS: full core suite (240 fuel bot rounds / 1,560,360 ticks plus 240 legacy rounds / 212,809 ticks, 60k fuel replay/fuzz and legacy fuzz/replay); Unity scene validation, 23/23 EditMode tests, macOS build; native 900-step smoke / 3 live callbacks, checksum9E2541FD7938FCFA. Independent review passed after recoil-tick body classification and guard-break release-latch fixes; both have regressions. Screenshot inspected, Python5/5 and diff checks passed. Do not merge the trial into main until gameplay feedback. No production approval given.
 
 Blocker: mandatory human gameplay approval. Next: user tests the combined boost/rope/parry/ownership changes and reports feel or explicit approval. A bare continue does not bypass Gate A. Resume from this file, PLAYTEST_NOTES.md and the planning documents; implement feedback, rerun relevant checks, and enter plan P3 only after explicit gameplay approval.
+
+Latest feedback VERIFIED: projectile radius0.6→0.9 (50% larger diameter), matching visuals/collision; speed decays gradually at12 units/s² after each four-second power threshold. Snapshot version6 preserves ramp state. Full core suite PASS:240 fuel rounds/1,305,600 ticks,240 legacy rounds/230,912 ticks plus replay/fuzz. Unity validation,23/23 tests,macOS build,native900 steps/3callbacks PASS; checksumB6D8344A194382A5. Independent source review/diff checks PASS. Capture confirms radius0.9/slowdown12/fuel mode; screenshot inspected. Fuel trial and F1 comparison retained; ready for user playtest.
