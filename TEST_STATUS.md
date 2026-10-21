@@ -167,3 +167,6 @@ Swipe-parry controls verified on2026-10-22:
 - Full core suite PASS:240 fuel rounds/683,400 ticks,240 legacy rounds/223,598 ticks,96 wide-arena rounds/450,686 ticks and replay/bounds checks.
 - Desktop, touch and tuning native smokes PASS900 ticks/3 callbacks. Touch/tuning checksum8547B1A86A2798FF; capture retains1.8-second tank and identifies boost-swipe-right-guard. Phone layout screenshot inspected. Independent read-only review passed after closing the full-simulation test gap. Physical gesture feel remains a human playtest.
 - iOS export, signed Xcode build, signature verification, install and launch PASS. Readback from this app on iPhone17 Pro Max confirms new touchScheme,1.8-second tank and129.5681×56.25 arena.
+
+1.5× initial projectile speed trial (2026-10-22): Unity validation,76/76 EditMode tests and macOS build PASS. Applied capture assertions verify36/72/84/96; independent review verifies spawn/parry/decay use the adjusted tuning. Native desktop smoke PASS900 ticks/3 callbacks. Core defaults and simulation algorithms unchanged; prior full core results remain applicable.
+Phone-profile native smoke PASS900 ticks/3 callbacks, checksum03EF15438A58E0D9 and captured36/72/84/96. iOS export/sign/build/install PASS; launch blocked by phone Locked. New device speed readback pending launch.
