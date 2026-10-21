@@ -180,6 +180,11 @@ namespace Game.Unity.Tests
             Assert.That(capture, Does.Contain("\"arenaWidth\""));
             Assert.That(capture, Does.Contain("\"arenaHeight\": 56.25"));
             Assert.That(capture, Does.Contain("\"projectileSpeedDecay\": 12"));
+            Assert.That(capture, Does.Contain("\"projectileLevel0Speed\": 36"));
+            Assert.That(capture, Does.Contain("\"projectileLevel1Speed\": 72"));
+            Assert.That(capture, Does.Contain("\"projectileLevel2Speed\": 84"));
+            Assert.That(capture, Does.Contain("\"projectileLevel3Speed\": 96"));
+
             Assert.That(capture, Does.Contain("\"projectileRadius\": 0.9"));
             Assert.That(capture, Does.Contain("\"fighterRadius\": 2.5"));
             Assert.That(controller.Tuning.Arena.ProjectileRadiusUnits, Is.EqualTo(.9));
