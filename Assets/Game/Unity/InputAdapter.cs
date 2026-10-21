@@ -24,6 +24,9 @@ namespace Game.Unity
         private float _joystickTravel;
         private bool _mouseStick, _mouseDash, _mouseDefense;
         private BoostSwipeGesture _mouseBoostSwipe;
+        private Vector2 _swipeAim, _pendingSwipeAim, _swipeStickAnchor;
+        private Vec2 _swipeRawAnchor;
+        private bool _swipeAimActive, _pendingSwipeAimActive;
 
         public bool JoystickActive => _stickFinger >= 0 || _mouseStick;
         public Vector2 JoystickOrigin => _stickOrigin;
@@ -69,6 +72,9 @@ namespace Game.Unity
         public void SampleRaw(Vec2 move, bool jump, bool dash, bool defense,
             bool jumpPressed = false, bool dashPressed = false, bool defensePressed = false)
         {
+            if (((move.X - _swipeRawAnchor.X) * (move.X - _swipeRawAnchor.X) +
+                (move.Y - _swipeRawAnchor.Y) * (move.Y - _swipeRawAnchor.Y)) > .01)
+                _swipeAimActive = _pendingSwipeAimActive = false;
             _rawMove = move;
             _rawJump = jump;
             _rawDash = dash;
@@ -90,8 +96,10 @@ namespace Game.Unity
             // Near the bottom edge, only a short downward drag may be possible.
             // Preserve the walking dead zone, but accept small deliberate boost aim.
             float aimDeadZone = dash ? Mathf.Min(.1f, 3f / Mathf.Max(1, _joystickTravel)) : .1f;
-            _move = touchMove.sqrMagnitude > aimDeadZone * aimDeadZone
-                ? new Vec2(touchMove.x, touchMove.y) : _rawMove;
+            _move = _swipeAimActive && dash ?
+                new Vec2(_swipeAim.x, _swipeAim.y) :
+                touchMove.sqrMagnitude > aimDeadZone * aimDeadZone
+                    ? new Vec2(touchMove.x, touchMove.y) : _rawMove;
             if (jump && !_jumpHeld) _jumpPending = true;
             if (dash && !_dashHeldPrevious) _dashPending = true;
             if (defense && !_defenseHeld) _defensePending = true;
@@ -104,9 +112,12 @@ namespace Game.Unity
 
         public FighterInput ConsumeTick()
         {
-            var input = new FighterInput(_move, _jumpPending, _jumpHeld, _dashPending,
+            Vec2 move = _pendingSwipeAimActive && !_swipeAimActive ?
+                new Vec2(_pendingSwipeAim.x, _pendingSwipeAim.y) : _move;
+            var input = new FighterInput(move, _jumpPending, _jumpHeld, _dashPending,
                 _defensePending, _defenseHeld, _dashHeldPrevious);
             _jumpPending = _dashPending = _defensePending = false;
+            _pendingSwipeAimActive = false;
             return input;
         }
 
@@ -121,6 +132,10 @@ namespace Game.Unity
             _defenseFingers.Clear();
             _boostSwipes.Clear();
             _mouseBoostSwipe = null;
+            _swipeAim = _pendingSwipeAim = Vector2.zero;
+            _swipeAimActive = _pendingSwipeAimActive = false;
+            _swipeStickAnchor = Vector2.zero;
+            _swipeRawAnchor = new Vec2(0, 0);
             _mouseStick = _mouseDash = _mouseDefense = false;
             _move = new Vec2(0, 0);
             _stickOrigin = _stickPoint = Vector2.zero;
@@ -132,9 +147,18 @@ namespace Game.Unity
         {
             if (_fighterId != 0) return;
             if (menuOpen || tuningOpen) { Clear(); return; }
-            foreach (Touch touch in Input.touches)
-                SampleTouch(touch.fingerId, touch.phase, touch.position, arena, Screen.height,
-                    tuningOpen, mobileUi, menuOpen);
+            Touch[] touches = Input.touches;
+            Array.Sort(touches, (a, b) => a.fingerId.CompareTo(b.fingerId));
+            // Let deliberate stick movement take effect before same-frame swipes.
+            int stickFinger = _stickFinger;
+            foreach (Touch touch in touches)
+                if (touch.fingerId == stickFinger)
+                    SampleTouch(touch.fingerId, touch.phase, touch.position, arena, Screen.height,
+                        tuningOpen, mobileUi, menuOpen);
+            foreach (Touch touch in touches)
+                if (touch.fingerId != stickFinger)
+                    SampleTouch(touch.fingerId, touch.phase, touch.position, arena, Screen.height,
+                        tuningOpen, mobileUi, menuOpen);
             if (!mouseWidgets) return;
             if (Input.GetMouseButtonDown(0))
             {
@@ -147,6 +171,7 @@ namespace Game.Unity
                 if (_mouseStick)
                 {
                     _stickOrigin = _stickPoint = p;
+                    _swipeStickAnchor = p;
                     _joystickTravel = mobileUi ? ArenaLayout.JoystickTravel(arena, true) :
                         Mathf.Max(40, Screen.height * .12f);
                 }
@@ -154,18 +179,25 @@ namespace Game.Unity
             }
             if (Input.GetMouseButton(0))
             {
-                if (_mouseStick) _stickPoint = Input.mousePosition;
+                if (_mouseStick)
+                {
+                    Vector2 point = Input.mousePosition;
+                    if ((point - _swipeStickAnchor).sqrMagnitude > 9)
+                        _swipeAimActive = _pendingSwipeAimActive = false;
+                    _stickPoint = point;
+                }
                 if (_mouseBoostSwipe != null &&
                     _mouseBoostSwipe.Sample(Input.mousePosition, Time.unscaledTimeAsDouble, Screen.height))
-                    _defensePending = true;
+                    RecognizeSwipe(_mouseBoostSwipe.Direction);
             }
             if (Input.GetMouseButtonUp(0))
             {
                 if (_mouseBoostSwipe != null &&
                     _mouseBoostSwipe.Sample(Input.mousePosition, Time.unscaledTimeAsDouble, Screen.height))
-                    _defensePending = true;
+                    RecognizeSwipe(_mouseBoostSwipe.Direction);
                 _mouseStick = _mouseDash = _mouseDefense = false;
                 _mouseBoostSwipe = null;
+                if (_dashFingers.Count == 0) _swipeAimActive = false;
                 if (_stickFinger < 0) _stickOrigin = _stickPoint = Vector2.zero;
             }
             UpdateCombined();
@@ -189,6 +221,7 @@ namespace Game.Unity
                     {
                         _stickFinger = fingerId;
                         _stickOrigin = _stickPoint = position;
+                        _swipeStickAnchor = position;
                         _joystickTravel = mobileUi ? ArenaLayout.JoystickTravel(arena, true) :
                             Mathf.Max(40, screenHeight * .12f);
                     }
@@ -202,8 +235,13 @@ namespace Game.Unity
             }
             else if (phase != TouchPhase.Canceled && _boostSwipes.TryGetValue(fingerId, out BoostSwipeGesture swipe) &&
                 swipe.Sample(position, sampleTime, screenHeight))
-                _defensePending = true;
-            if (fingerId == _stickFinger) _stickPoint = position;
+                RecognizeSwipe(swipe.Direction);
+            if (fingerId == _stickFinger)
+            {
+                if (phase == TouchPhase.Moved && (position - _swipeStickAnchor).sqrMagnitude > 9)
+                    _swipeAimActive = _pendingSwipeAimActive = false;
+                _stickPoint = position;
+            }
             if (phase == TouchPhase.Ended || phase == TouchPhase.Canceled)
             {
                 if (fingerId == _stickFinger)
@@ -214,8 +252,20 @@ namespace Game.Unity
                 _dashFingers.Remove(fingerId);
                 _defenseFingers.Remove(fingerId);
                 _boostSwipes.Remove(fingerId);
+                if (_dashFingers.Count == 0 && !_mouseDash) _swipeAimActive = false;
+                if (phase == TouchPhase.Canceled && _dashFingers.Count == 0 && !_mouseDash)
+                    _pendingSwipeAimActive = false;
             }
             UpdateCombined();
+        }
+
+        private void RecognizeSwipe(Vector2 direction)
+        {
+            _swipeAim = _pendingSwipeAim = direction;
+            _swipeStickAnchor = _stickPoint;
+            _swipeRawAnchor = _rawMove;
+            _swipeAimActive = _pendingSwipeAimActive = true;
+            _defensePending = true;
         }
 
         /// <summary>Recognizes one quick displacement per burst, then waits for a quiet pause.</summary>
@@ -227,6 +277,7 @@ namespace Game.Unity
             private double _anchorTime, _quietStart;
             private bool _armed = true;
             private bool _moving;
+            public Vector2 Direction { get; private set; }
 
             public BoostSwipeGesture(Vector2 position, double time)
             {
@@ -268,6 +319,7 @@ namespace Game.Unity
                 if (elapsed <= 0 || distance < minimumDistance ||
                     distance / elapsed < screenHeight) return false;
                 _armed = false;
+                Direction = (position - _anchor).normalized;
                 return true;
             }
         }
