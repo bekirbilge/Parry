@@ -160,3 +160,10 @@ Managed2× boost trial verified on2026-10-21:
 - Unity validation/macOS build and63/63 EditMode tests PASS. Applied tank1.8, rates/delay/ignition/invulnerability/parry timing unchanged, both reset tanks1.8, capture1.8, exact capped0.6 refunds. Refund tests isolate passive regeneration from the reward.
 - Desktop native900-step smoke PASS checksumB14368ED060D390C; touch/tuning profiles each PASS900 steps/3 callbacks at width141.8999, checksum8547B1A86A2798FF. Captures show1.8 capacity and0.3/s refill. Independent final code/test review passed after fixtures were aligned with actual fixed-step phase/timer ordering.
 - Actual iOS export/signed device build/codesign verification/install PASS. Launch blocked by iOS Locked; unlock/open and fresh phone tuning readback pending. Physical resource-management feel still needs user playtest.
+
+Swipe-parry controls verified on2026-10-22:
+
+- Unity validation,76/76 EditMode tests and macOS compilation PASS. New tests cover boost without automatic defense, fast/slow/jitter gestures, one-pulse behavior, quiet rearm, late hold, Ended/cancel/menu clearing, multi-finger ownership and safe-area boundaries. Full MatchSimulation contact test proves actual PerfectParry after boost invulnerability ends, continued thrust, unchanged ignition sequence and projectile power increase.
+- Full core suite PASS:240 fuel rounds/683,400 ticks,240 legacy rounds/223,598 ticks,96 wide-arena rounds/450,686 ticks and replay/bounds checks.
+- Desktop, touch and tuning native smokes PASS900 ticks/3 callbacks. Touch/tuning checksum8547B1A86A2798FF; capture retains1.8-second tank and identifies boost-swipe-right-guard. Phone layout screenshot inspected. Independent read-only review passed after closing the full-simulation test gap. Physical gesture feel remains a human playtest.
+- iOS export, signed Xcode build, signature verification, install and launch PASS. Readback from this app on iPhone17 Pro Max confirms new touchScheme,1.8-second tank and129.5681×56.25 arena.
