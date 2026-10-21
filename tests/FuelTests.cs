@@ -15,6 +15,8 @@ internal static class FuelTests
         BurnsAndRefillsAfterDelay();
         ReleaseCoastsAndRequiresNewPress();
         SteeringAndNeutralRiseStayCapped();
+        DownwardBoostWorksInAirAndWhileGrounded();
+        HeldBoostCanSteerFromUpToDown();
         TapCannotChainInvulnerability();
         RopeLoadStopsOnReleaseAndExhaustion();
         RecoilTickBodyHitUsesOneIgnition();
@@ -105,6 +107,39 @@ internal static class FuelTests
         Assert(fighter.DashSequence == 1 && fighter.Velocity.X < 0 &&
             fighter.Velocity.Y <= 40 + 1e-9 && fighter.Velocity.Length <= 80 + 1e-9,
             "Steering must be continuous within one ignition and preserve speed caps.");
+    }
+
+    private static void DownwardBoostWorksInAirAndWhileGrounded()
+    {
+        SimulationState state = Fresh();
+        FighterState fighter = state.Fighter(0);
+        fighter.Grounded = false;
+        fighter.Position = fighter.PreviousPosition = fighter.TickStartPosition = new Vec2(25, 50);
+        Move(state, new FighterInput(new Vec2(0, -1), dashPressed: true, dashHeld: true));
+        Assert(fighter.FuelBoostActive && fighter.Velocity.Y < 0 && fighter.Position.Y < 50,
+            "A downward fuel boost must ignite in midair and move the fighter down.");
+
+        state = Fresh();
+        fighter = state.Fighter(0);
+        double floor = Tuning.Arena.FighterRadiusUnits;
+        Move(state, new FighterInput(new Vec2(0, -1), dashPressed: true, dashHeld: true));
+        Assert(fighter.Grounded && fighter.Position.Y == floor && fighter.Velocity.Y == 0 &&
+            fighter.FuelBoostActive && fighter.FuelSeconds < Tuning.Movement.FuelCapacitySeconds,
+            "The floor must constrain downward motion without canceling the held boost state.");
+    }
+
+    private static void HeldBoostCanSteerFromUpToDown()
+    {
+        SimulationState state = Fresh();
+        FighterState fighter = state.Fighter(0);
+        fighter.Grounded = false;
+        fighter.Position = fighter.PreviousPosition = fighter.TickStartPosition = new Vec2(25, 50);
+        Move(state, new FighterInput(new Vec2(0, 1), dashPressed: true, dashHeld: true));
+        int sequence = fighter.DashSequence;
+        for (int i = 0; i < 30; i++)
+            Move(state, new FighterInput(new Vec2(0, -1), dashHeld: true));
+        Assert(fighter.DashSequence == sequence && fighter.FuelBoostActive && fighter.Velocity.Y < 0,
+            "A held boost must steer from upward to downward after its normal acceleration time.");
     }
 
     private static void TapCannotChainInvulnerability()
