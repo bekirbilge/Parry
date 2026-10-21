@@ -42,12 +42,12 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 | Level | Name | Speed multiplier | Block posture multiplier |
 |---|---|---:|---:|
 | 0 | Normal | 1.00× | 1.00× |
-| 1 | Charged | 3.00× | 1.25× |
-| 2 | Overcharged | 3.50× | 1.50× |
-| 3 | Critical | 4.00× | 2.00× |
+| 1 | Charged | 2.00× | 1.25× |
+| 2 | Overcharged | 2.333…× | 1.50× |
+| 3 | Critical | 2.666…× | 2.00× |
 
 - Parry grants **contact-only safety** against that projectile: enough to pass through the immediate overlap without self-damage. Safety ends as soon as projectile and parrier separate beyond the expanded parry contact distance (fighter radius + parry reach + projectile radius; playable default6.9 units with the larger parry trial). Returning shots are dangerous again, even if the opponent never touched them; a new valid parry grants its normal rewards. No lasting ownership immunity. Safety is evaluated during continuous collision resolution and at tick end, so a same-step wall return after separation is dangerous. Opponent parry replaces protection. Within a still-protected contact, deliberate safe redirect preserves power/speed/decay and grants no reward. Guard, wall bounce and decay never refresh safety. Ring indicates only current contact protection, not permanent ownership.
-- Keep visual states obvious through glow/trail/impact/audio, without obscuring exact hitbox. User-approved readability trial: projectile radius0.9 units (previous0.6, 50% larger diameter), shared by rendering and collision. After each four-second level threshold, speed eases toward the new target at12 units/s² instead of snapping; the72→24 transition takes four additional seconds. Posture/power still change at the threshold. Enemy perfect parry immediately reapplies its new level speed and restarts decay; guard, wall bounces and owned redirects retain ongoing slowdown. These values are **TUNE** and fixed-step deterministic.
+- Keep visual states obvious through glow/trail/impact/audio, without obscuring exact hitbox. User-approved readability trial: projectile radius0.9 units (previous0.6, 50% larger diameter), shared by rendering and collision. After each four-second level threshold, speed eases toward the new target at12 units/s² instead of snapping; the72→36 transition takes three additional seconds. Posture/power still change at the threshold. Enemy perfect parry immediately reapplies its new level speed and restarts decay; guard, wall bounces and owned redirects retain ongoing slowdown. These values are **TUNE** and fixed-step deterministic.
 - Perfect parries **never** reduce posture and remain possible even at 99/100 posture. The guard-break state at exactly 100 must be handled explicitly (see §6).
 
 ## 6. Defense, posture and death
@@ -124,3 +124,5 @@ User playtest selection (2026-10-20): keep the latest fuel-based playable versio
 Core approval and visual direction (2026-10-20): user accepted the current game as being in a good place, passing Gate A, and chose C (dark high-contrast pixel art) for the first ninja/Rookie Dojo proof. Keep current fuel and combat tuning. Character/arena reference appearance and animation production approval remain pending a playable visual review.
 
 Phone playtest priority (2026-10-20): user requested trying the game on a phone now, before finishing animation. Prepare landscape touch-enabled development exports ahead of later full mobile hardening. Playable character radius2.5 is adjustable1.5–3.5 in F5; both players share the applied value and art scales to it. Legacy Core default radius1.5 is retained for regression/comparison, not the new playable default. Physical device testing and visual reference approval remain pending.
+
+2026-10-22 projectile tuning: user requests1.5× initial speed. Playable normal/spawn speed24→36; powered speeds remain72/84/96, with4s level thresholds and12units/s² slowdown unchanged. Core baseline defaults are retained; playable multipliers are adjusted for the new base.
