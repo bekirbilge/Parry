@@ -52,6 +52,77 @@ namespace Game.Unity.Tests
         }
 
         [Test]
+        public void BottomEdgeShortFastDownSwipeOverridesOpposingStickAndRearmsAfterQuietPause()
+        {
+            const int height = 1320;
+            Rect arena = ArenaLayout.Compute(2868, height, new Rect(100, 35, 2668, 1250), true);
+            Rect strip = ArenaLayout.ControlStrip(arena);
+            Vector2 stick = new Vector2(strip.xMin + strip.width * .25f, height - strip.center.y);
+            Vector2 boost = new Vector2(strip.xMin + strip.width * .75f, 43);
+            var adapter = new InputAdapter(0);
+
+            adapter.SampleTouch(1, TouchPhase.Began, stick, arena, height, false, true, false, 0);
+            adapter.SampleTouch(1, TouchPhase.Moved, stick + Vector2.up * 80, arena, height,
+                false, true, false, .01);
+            adapter.SampleTouch(2, TouchPhase.Began, boost, arena, height, false, true, false, .01);
+            FighterInput ignition = adapter.ConsumeTick();
+            Assert.That(ignition.DashPressed && ignition.DashHeld, Is.True);
+            AssertNoDefense(ignition);
+
+            Vector2 bottom = boost + Vector2.down * 30;
+            adapter.SampleTouch(2, TouchPhase.Moved, bottom, arena, height, false, true, false, .04);
+            FighterInput first = adapter.ConsumeTick();
+            Assert.That(first.DefensePressed && first.DashHeld, Is.True);
+            Assert.That(first.DefenseHeld || first.DashPressed, Is.False);
+            Assert.That(first.Move.Y, Is.EqualTo(-1).Within(.001));
+            adapter.SampleTouch(2, TouchPhase.Moved, boost + Vector2.down * 38, arena,
+                height, false, true, false, .05);
+            AssertNoDefense(adapter.ConsumeTick());
+
+            adapter.SampleTouch(2, TouchPhase.Moved, boost, arena, height, false, true, false, .06);
+            AssertNoDefense(adapter.ConsumeTick());
+            adapter.SampleTouch(2, TouchPhase.Stationary, boost, arena, height, false, true, false, .19);
+            AssertNoDefense(adapter.ConsumeTick());
+            adapter.SampleTouch(2, TouchPhase.Moved, bottom, arena, height, false, true, false, .22);
+            FighterInput second = adapter.ConsumeTick();
+            Assert.That(second.DefensePressed && second.DashHeld, Is.True);
+            Assert.That(second.DefenseHeld || second.DashPressed, Is.False);
+            Assert.That(second.Move.Y, Is.EqualTo(-1).Within(.001));
+            AssertNoDefense(adapter.ConsumeTick());
+        }
+
+        [Test]
+        public void BottomEdgeJitterAndSlowDownDragDoNotParryWhileInteriorThresholdStaysFull()
+        {
+            const int height = 1320;
+            Rect arena = ArenaLayout.Compute(2868, height, new Rect(100, 35, 2668, 1250), true);
+            Rect strip = ArenaLayout.ControlStrip(arena);
+            Vector2 edge = new Vector2(strip.xMin + strip.width * .75f, 43);
+            var adapter = new InputAdapter(0);
+            adapter.SampleTouch(1, TouchPhase.Began, edge, arena, height, false, true, false, 0);
+            adapter.ConsumeTick();
+            adapter.SampleTouch(1, TouchPhase.Moved, edge + Vector2.down * 10, arena,
+                height, false, true, false, .02);
+            AssertNoDefense(adapter.ConsumeTick());
+            adapter.SampleTouch(1, TouchPhase.Moved, edge + Vector2.down * 30, arena,
+                height, false, true, false, .10);
+            AssertNoDefense(adapter.ConsumeTick());
+
+            Vector2 interior = new Vector2(edge.x, height - strip.center.y);
+            adapter.SampleTouch(1, TouchPhase.Ended, edge, arena, height, false, true, false, .11);
+            adapter.SampleTouch(2, TouchPhase.Began, interior, arena, height, false, true, false, .20);
+            adapter.ConsumeTick();
+            adapter.SampleTouch(2, TouchPhase.Moved, interior + Vector2.down * 30, arena,
+                height, false, true, false, .23);
+            AssertNoDefense(adapter.ConsumeTick());
+            adapter.SampleTouch(2, TouchPhase.Moved, interior + Vector2.down * 55, arena,
+                height, false, true, false, .24);
+            FighterInput fullSwipe = adapter.ConsumeTick();
+            Assert.That(fullSwipe.DefensePressed, Is.True);
+            Assert.That(fullSwipe.Move.Y, Is.EqualTo(-1).Within(.001));
+        }
+
+        [Test]
         public void FastSwipePressesOnceAndOverridesOppositeStickAimDuringBoost()
         {
             Touch(1, TouchPhase.Began, _stick, 0);
