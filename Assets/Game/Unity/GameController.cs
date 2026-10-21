@@ -784,7 +784,7 @@ namespace Game.Unity
             if (PhoneUi)
             {
                 Label(new Rect(footer.xMin + 4, footer.yMin, footer.width - 8, footer.height),
-                    "MOVE · HOLD BOOST · TAP/HOLD PARRY  |  " +
+                    "MOVE · HOLD BOOST / SWIPE PARRY · RIGHT TAP/HOLD GUARD  |  " +
                     (_localTwoPlayer ? "LOCAL 2P" : "P1 VS BOT " + BotDifficultyName.ToUpperInvariant()), _small);
                 return;
             }
@@ -811,18 +811,14 @@ namespace Game.Unity
                 Rect move = ArenaLayout.TouchControl(a, 0, true);
                 Rect boost = ArenaLayout.TouchControl(a, 1, true);
                 Rect parry = ArenaLayout.TouchControl(a, 2, true);
-                Rect combo = ArenaLayout.ComboZone(a);
                 Box(move, new Color(.045f, .16f, .23f, 1));
                 Box(boost, new Color(.06f, .43f, .53f, 1));
                 Box(parry, new Color(.53f, .22f, .20f, 1));
-                Box(combo, new Color(.38f, .35f, .36f, 1));
                 float divider = Mathf.Max(2f, strip.height * .018f);
                 Box(new Rect(boost.xMin, strip.yMin, divider, strip.height), new Color(.75f, .91f, .94f, .65f));
-                Box(new Rect(combo.xMin, strip.yMin, divider, strip.height), new Color(.75f, .91f, .94f, .65f));
-                Box(new Rect(combo.xMax - divider, strip.yMin, divider, strip.height), new Color(.75f, .91f, .94f, .65f));
-                Label(new Rect(boost.xMin, strip.yMin, combo.xMin - boost.xMin, strip.height), "BOOST", _label);
-                Label(new Rect(combo.xMax, strip.yMin, parry.xMax - combo.xMax, strip.height), "PARRY", _label);
-                Label(combo, "BOTH", _small);
+                Box(new Rect(parry.xMin, strip.yMin, divider, strip.height), new Color(.75f, .91f, .94f, .65f));
+                Label(boost, "BOOST\nSWIPE TO PARRY", _label);
+                Label(parry, "PARRY\nGUARD", _label);
                 if (_inputs[0].JoystickActive)
                 {
                     float travel = ArenaLayout.JoystickTravel(a, true);
@@ -1046,6 +1042,7 @@ namespace Game.Unity
                     boostLoadDamping = Tuning.Divider.BoostLoadDamping,
                     mode = _localTwoPlayer ? "local-2p" : "bot",
                     boostMode = Tuning.Movement.UseFuelBoost ? "fuel" : "charges",
+                    touchScheme = "boost-swipe-right-guard",
                     botDifficulty = _botDifficulty,
                     botDifficultyName = BotDifficultyName,
                     immediateTestStart = Tuning.Match.StartImmediatelyForTesting,
@@ -1069,7 +1066,7 @@ namespace Game.Unity
                 fuelCapacitySeconds, fuelRegenerationPerSecond, fuelRegenerationDelaySeconds,
                 fuelIgnitionCostSeconds, fuelSteeringAcceleration, fuelInvulnerabilityRearmSeconds;
             public double arenaWidth, arenaHeight;
-            public string mode, boostMode, botDifficultyName;
+            public string mode, boostMode, botDifficultyName, touchScheme;
             public int botDifficulty;
             public bool immediateTestStart;
             public bool referenceArtEnabled, referenceCharacterLoaded, referenceArenaLoaded,
