@@ -49,7 +49,7 @@ namespace Game.Unity
         private double _upwardBoostSpeed = CombatTuning.Default.Movement.MaximumUpwardBoostSpeedUnitsPerSecond;
         private double _parryExtraReach = 3.5;
         private double _parryWindow = CombatTuning.Default.Movement.PerfectParryWindowSeconds;
-        private double _projectileSpeed = CombatTuning.Default.Projectile.BaseSpeedUnitsPerSecond;
+        private double _projectileSpeed = CombatTuning.Default.Projectile.BaseSpeedUnitsPerSecond * 1.5;
         private double _projectileSpeedDecay = CombatTuning.Default.Projectile.SpeedDecayUnitsPerSecondSquared;
         private double _projectileRadius = CombatTuning.Default.Arena.ProjectileRadiusUnits;
         private double _fighterRadius = 2.5;
@@ -108,7 +108,11 @@ namespace Game.Unity
                 dashDurationSeconds: _boostDuration, perfectParryWindowSeconds: _parryWindow,
                 maximumUpwardBoostSpeedUnitsPerSecond: _upwardBoostSpeed,
                 useFuelBoost: _prototypeFuelBoost, fuelCapacitySeconds: 1.8);
+            // Raise the normal-speed floor without increasing powered parry speeds.
             var projectile = new ProjectileTuning(baseSpeedUnitsPerSecond: _projectileSpeed,
+                level1SpeedMultiplier: CombatTuning.Default.Projectile.Level1SpeedMultiplier / 1.5,
+                level2SpeedMultiplier: CombatTuning.Default.Projectile.Level2SpeedMultiplier / 1.5,
+                level3SpeedMultiplier: CombatTuning.Default.Projectile.Level3SpeedMultiplier / 1.5,
                 speedDecayUnitsPerSecondSquared: _projectileSpeedDecay);
             var divider = new DividerTuning(springStrength: _spring, damping: _damping,
                 dashReboundSpeedUnitsPerSecond: _rebound,
