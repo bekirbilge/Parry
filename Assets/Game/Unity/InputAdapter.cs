@@ -22,6 +22,7 @@ namespace Game.Unity
             new Dictionary<int, BoostSwipeGesture>();
         private Vector2 _stickOrigin, _stickPoint;
         private float _joystickTravel;
+        private bool _mobileStick;
         private bool _mouseStick, _mouseDash, _mouseDefense;
         private BoostSwipeGesture _mouseBoostSwipe;
         private Vector2 _swipeAim, _pendingSwipeAim, _swipeStickAnchor;
@@ -140,6 +141,7 @@ namespace Game.Unity
             _move = new Vec2(0, 0);
             _stickOrigin = _stickPoint = Vector2.zero;
             _joystickTravel = 0;
+            _mobileStick = false;
         }
 
         public void SampleTouches(Rect arena, bool mouseWidgets, bool tuningOpen = false,
@@ -174,6 +176,7 @@ namespace Game.Unity
                     _swipeStickAnchor = p;
                     _joystickTravel = mobileUi ? ArenaLayout.JoystickTravel(arena, true) :
                         Mathf.Max(40, Screen.height * .12f);
+                    _mobileStick = mobileUi;
                 }
                 UpdateCombined();
             }
@@ -184,7 +187,7 @@ namespace Game.Unity
                     Vector2 point = Input.mousePosition;
                     if ((point - _swipeStickAnchor).sqrMagnitude > 9)
                         _swipeAimActive = _pendingSwipeAimActive = false;
-                    _stickPoint = point;
+                    MoveStick(point);
                 }
                 if (_mouseBoostSwipe != null &&
                     _mouseBoostSwipe.Sample(Input.mousePosition, Time.unscaledTimeAsDouble, Screen.height))
@@ -224,6 +227,7 @@ namespace Game.Unity
                         _swipeStickAnchor = position;
                         _joystickTravel = mobileUi ? ArenaLayout.JoystickTravel(arena, true) :
                             Mathf.Max(40, screenHeight * .12f);
+                        _mobileStick = mobileUi;
                     }
                     if (action == 1)
                     {
@@ -240,7 +244,7 @@ namespace Game.Unity
             {
                 if (phase == TouchPhase.Moved && (position - _swipeStickAnchor).sqrMagnitude > 9)
                     _swipeAimActive = _pendingSwipeAimActive = false;
-                _stickPoint = position;
+                MoveStick(position);
             }
             if (phase == TouchPhase.Ended || phase == TouchPhase.Canceled)
             {
@@ -266,6 +270,16 @@ namespace Game.Unity
             _swipeRawAnchor = _rawMove;
             _swipeAimActive = _pendingSwipeAimActive = true;
             _defensePending = true;
+        }
+
+        private void MoveStick(Vector2 position)
+        {
+            _stickPoint = position;
+            if (!_mobileStick) return;
+            Vector2 displacement = position - _stickOrigin;
+            float travel = Mathf.Max(1, _joystickTravel);
+            if (displacement.sqrMagnitude > travel * travel)
+                _stickOrigin = position - displacement.normalized * travel;
         }
 
         /// <summary>Recognizes one quick displacement per burst, then waits for a quiet pause.</summary>
@@ -316,8 +330,19 @@ namespace Game.Unity
                     return false;
                 }
                 float minimumDistance = Mathf.Clamp(screenHeight * .035f, 12, 96);
+                float minimumSpeed = screenHeight;
+                Vector2 displacement = position - _anchor;
+                // A downward flick starting near the physical bottom has little room.
+                // Keep the normal threshold elsewhere and retain a floor above touch slop.
+                if (displacement.y < 0 && -displacement.y >= Mathf.Abs(displacement.x))
+                {
+                    float edgeDistance = Mathf.Max(12, slop * 1.5f, _anchor.y * .5f);
+                    float adjustedDistance = Mathf.Min(minimumDistance, edgeDistance);
+                    minimumSpeed *= adjustedDistance / minimumDistance;
+                    minimumDistance = adjustedDistance;
+                }
                 if (elapsed <= 0 || distance < minimumDistance ||
-                    distance / elapsed < screenHeight) return false;
+                    distance / elapsed < minimumSpeed) return false;
                 _armed = false;
                 Direction = (position - _anchor).normalized;
                 return true;
