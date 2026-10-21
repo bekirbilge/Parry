@@ -107,3 +107,5 @@ Test taps just above the strip at60%/75%/90% width, and taps above the25% margin
 2026-10-21 arena/rotation iteration supersedes the fitted16:9 phone world: the actual local-playtest world now widens to the phone viewport, with height56.25 and unchanged visual proportions. No internal side rails. Desktop stays width100; phone dimensions are fixed through the current match and recaptured on restart. Both landscape orientations are enabled, portrait remains disabled. Flip left/right during play: the match should continue and held input should clear. Actual phone capture verifies width129.5681.
 
 Downward boost: place the left thumb, drag downward and hold BOOST/BOTH while airborne. Small boost-aim drags now register with a smaller dead zone (walking unchanged). Pressing down on the floor cannot move below it. Test steering an ongoing upward boost into a downward dive as well as a fresh downward boost. No unlimited boost change is included; keep the current meter while discussing a separate trial.
+
+User follow-up: downward boost now seems to be working; skip further investigation. Keep the installed fixes and discuss unlimited boost separately.
