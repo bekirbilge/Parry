@@ -831,7 +831,7 @@ namespace Game.Unity
                     origin.y = Screen.height - origin.y;
                     point.y = Screen.height - point.y;
                     float baseRadius = Mathf.Min(travel, strip.height * .42f);
-                    // Clip at the strip edges instead of moving the first-touch origin.
+                    // Keep the following joystick artwork inside the visible control strip.
                     Rect clip = move;
                     GUI.BeginGroup(clip);
                     origin -= clip.position;
@@ -1046,7 +1046,7 @@ namespace Game.Unity
                     boostLoadDamping = Tuning.Divider.BoostLoadDamping,
                     mode = _localTwoPlayer ? "local-2p" : "bot",
                     boostMode = Tuning.Movement.UseFuelBoost ? "fuel" : "charges",
-                    touchScheme = "directional-boost-swipe-right-guard",
+                    touchScheme = "edge-aware-directional-swipe-follow-stick",
                     botDifficulty = _botDifficulty,
                     botDifficultyName = BotDifficultyName,
                     immediateTestStart = Tuning.Match.StartImmediatelyForTesting,
