@@ -83,7 +83,11 @@ namespace Game.Unity
             Vector2 touchMove = JoystickActive ?
                 Vector2.ClampMagnitude((_stickPoint - _stickOrigin) /
                     Mathf.Max(1, _joystickTravel), 1) : Vector2.zero;
-            _move = touchMove.sqrMagnitude > .01f ? new Vec2(touchMove.x, touchMove.y) : _rawMove;
+            // Near the bottom edge, only a short downward drag may be possible.
+            // Preserve the walking dead zone, but accept small deliberate boost aim.
+            float aimDeadZone = dash ? Mathf.Min(.1f, 3f / Mathf.Max(1, _joystickTravel)) : .1f;
+            _move = touchMove.sqrMagnitude > aimDeadZone * aimDeadZone
+                ? new Vec2(touchMove.x, touchMove.y) : _rawMove;
             if (jump && !_jumpHeld) _jumpPending = true;
             if (dash && !_dashHeldPrevious) _dashPending = true;
             if (defense && !_defenseHeld) _defensePending = true;
