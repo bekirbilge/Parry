@@ -335,5 +335,41 @@ namespace Game.Unity.Tests
             Assert.That(adapter.JoystickActive, Is.False);
             Assert.That(adapter.ConsumeTick().Move.X, Is.EqualTo(0));
         }
+
+        [Test]
+        public void DraggingDownAndBoostingProducesAirborneDescent()
+        {
+            const int width = 2868, height = 1320;
+            Rect arena = ArenaLayout.Compute(width, height, new Rect(100, 35, 2668, 1250), true);
+            Rect strip = ArenaLayout.ControlStrip(arena);
+            var adapter = new InputAdapter(0);
+            Vector2 joystickOrigin = new Vector2(strip.xMin + strip.width * .25f,
+                height - (strip.yMax - 8));
+            Vector2 joystickDown = new Vector2(joystickOrigin.x, joystickOrigin.y - 4);
+            Vector2 boost = new Vector2(strip.xMin + strip.width * .60f,
+                height - strip.center.y);
+
+            adapter.SampleTouch(1, TouchPhase.Began, joystickOrigin, arena, height, false, true);
+            adapter.SampleTouch(1, TouchPhase.Moved, joystickDown, arena, height, false, true);
+            Assert.That(adapter.ConsumeTick().Move.Y, Is.EqualTo(0), "Walking retains the normal dead zone.");
+            adapter.SampleTouch(2, TouchPhase.Began, boost, arena, height, false, true);
+            FighterInput input = adapter.ConsumeTick();
+            Assert.That(input.DashPressed && input.DashHeld, Is.True);
+            Assert.That(input.Move.Y, Is.LessThan(0), "A downward touch drag must remain below the joystick dead zone.");
+
+            var tuning = new CombatTuning(new MovementTuning(useFuelBoost: true),
+                CombatTuning.Default.Projectile, CombatTuning.Default.Defense,
+                CombatTuning.Default.Divider, CombatTuning.Default.Arena, CombatTuning.Default.Match);
+            var config = new SimulationConfig();
+            var state = new SimulationState { Phase = MatchPhase.Active };
+            FighterState fighter = state.Fighter(0);
+            fighter.Position = fighter.PreviousPosition = fighter.TickStartPosition = new Vec2(25, 50);
+            fighter.Grounded = false;
+            fighter.FuelSeconds = tuning.Movement.FuelCapacitySeconds;
+            MovementSystem.AdvanceKinematics(state, new SimulationInput(0, input, default), tuning,
+                config, new System.Collections.Generic.List<SimulationEvent>());
+            Assert.That(fighter.FuelBoostActive, Is.True);
+            Assert.That(fighter.Position.Y, Is.LessThan(50), "Downward touch plus boost must descend while airborne.");
+        }
     }
 }
