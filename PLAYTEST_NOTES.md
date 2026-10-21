@@ -117,3 +117,5 @@ User follow-up: downward boost now seems to be working; skip further investigati
 2026-10-22 faster initial projectile trial: normal/spawn speed36 (1.5× previous24), powered72/84/96 unchanged. Test opening-shot pressure and whether the higher normal-speed floor improves pacing after decay. Swipe controls and1.8-second boost tank remain unchanged.
 
 2026-10-22 directional swipe: flick the BOOST thumb toward the intended boost/parry direction. It steers ongoing thrust and aims the parry; a stationary left thumb does not override it. Move the left thumb again or swipe again to steer elsewhere. Test upward/downward/diagonal flicks, direction changes and lift-flicks. Parry still steers the natural reflection within the existing angle limit.
+
+2026-10-22 downward controls: drag MOVE far upward, then back down; its center now follows long drags so reversing needs only one throw plus deadzone. Try quick downward BOOST swipes starting near the phone bottom edge and after a quiet pause. Check short jitters and slow drags do not parry. Brief upward momentum before reversal remains intentional. Boost/parry speeds and timings are unchanged.
