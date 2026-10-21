@@ -27,6 +27,7 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 ## 4. Mobile input — TUNE layout
 - Left thumb: virtual directional joystick (movement and directional influence; neutral boost is straight up).
 - Right thumb: boost and defense; no separate jump button. Tap defense = timed parry attempt (prototype window 0.16 s, **TUNE**); hold defense = guard after tap window. Perfect-parry window, hold threshold, priority when pressing multiple controls, and gesture forgiveness are **TUNE**.
+- Current phone layout trial: visible control strip occupies14% of safe-area height. Left half starts a floating movement joystick. Nominal right quarters are boost50–75% and PARRY75–100%, with70–80% deliberately triggering both. Boost/parry/combo hit regions extend invisibly upward over the bottom25% of the safe area; movement still starts only in the visible strip. Each finger keeps its initial role until lift/cancel. Additional fingers do not retrigger an already-held action; held combo uses normal boost consumption and parry-then-guard timing.
 - Support simultaneous directional input + boost/parry. Prevent accidental guard toggling and conflicting gestures. Add accessible control sizing and remapping after first prototype.
 - For desktop playtesting, keyboard/gamepad equivalents must expose identical actions.
 
