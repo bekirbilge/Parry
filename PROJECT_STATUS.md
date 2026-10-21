@@ -29,7 +29,7 @@ Device app: artifacts/build/ios-derived/Build/Products/Debug-iphoneos/ElasticAre
 Previews: artifacts/runtime-touch/smoke.png, artifacts/runtime-tuning/smoke.png
 Test report: artifacts/test-results/editmode.xml. Run/control instructions: PLAYTEST_NOTES.md.
 
-Final iOS export and generic signed iPhoneOS Xcode build PASS; signature and provisioning membership verified. Direct device destination was temporarily unavailable to Xcode even though devicectl reports the paired phone ready. Installation PASS via devicectl. Launch was blocked only because iOS reports the phone locked; unlock/open or retry launch after user response. Logs: artifacts/logs/xcode-ios-generic-build.log, iphone-install.log, iphone-launch.log.
+Final iOS export and generic signed iPhoneOS Xcode build PASS; signature and provisioning membership verified. Direct device destination was temporarily unavailable to Xcode even though devicectl reports the paired phone ready. Installation and launch PASS via devicectl. User unlocked the phone after the initial Locked response; the updated playtest launched successfully. Logs: artifacts/logs/xcode-ios-generic-build.log, iphone-install.log, iphone-launch.log.
 
 ## Next human gate
 
