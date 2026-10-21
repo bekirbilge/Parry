@@ -11,6 +11,7 @@ internal static class Program
         BoundsCatchUpAfterStall();
         TuningTests.Run();
         LargeFighterTests.Run();
+        WideArenaTests.Run();
         ContractTests.Run();
         DebugBotTests.Run();
         MovementTests.Run();
