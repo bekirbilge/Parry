@@ -1,15 +1,15 @@
 # Project status
 
 Date: 2026-10-22 (Europe/Istanbul)
-Milestone: swipe-to-parry mobile control trial
-Branch: mobile/swipe-parry-guard (origin/main refreshed; prior tested work retained; no issue supplied)
+Milestone: 1.5× initial projectile speed trial
+Branch: playtest/faster-initial-projectiles (origin/main refreshed; prior tested work retained; no issue supplied)
 Remote: https://github.com/bekirbilge/Parry.git
 
 ## Current playable configuration
 
 Unity6000.3.26f1 LTS, macOS arm64, .NET10.0.101; Unity Personal active. iOS support installed. Xcode27.1/iPhoneOS27.1 SDK available. iPhone17 Pro Max paired, iOS26.6.2, Developer Mode enabled, local development identity/profile trusted. App bundle com.bekirbilge.parry.playtest, minimum iOS15, landscape orientations. Personal Team provisioning expires2026-10-27.
 
-P0/P1/P2 complete; user passed gameplay Gate A. Fuel-based boost remains selected: tank1.8s (2× prior0.9), regeneration0.3/s after0.35s delay, perfect-parry refund one-third (0.6s). Display resource name is now BOOST; internal fuel/config/snapshot names preserved. F1 retains three-charge comparison. Fighter radius2.5; latest explicit feedback increases playable parry radius4→6 (extra reach3.5), projectile radius0.9 =>contact6.9. Window0.16s unchanged. Safety expires on projectile separation. Projectile speeds24/72/84/96, four-second thresholds, gradual12units/s² slowdown; snapshotversion7. GDD governs remaining rules.
+P0/P1/P2 complete; user passed gameplay Gate A. Fuel-based boost remains selected: tank1.8s (2× prior0.9), regeneration0.3/s after0.35s delay, perfect-parry refund one-third (0.6s). Display resource name is now BOOST; internal fuel/config/snapshot names preserved. F1 retains three-charge comparison. Fighter radius2.5; latest explicit feedback increases playable parry radius4→6 (extra reach3.5), projectile radius0.9 =>contact6.9. Window0.16s unchanged. Safety expires on projectile separation. Projectile speeds36/72/84/96, four-second thresholds, gradual12units/s² slowdown; snapshotversion7. GDD governs remaining rules.
 
 ## Phone feedback implementation
 
@@ -25,7 +25,7 @@ Only top-right PAUSE during play. Modal RESUME/MODE/TUNING/RESTART clears held i
 
 Core suite PASS including expanded parry range, exact refund/no posture healing, separation safety expiry and lethal return.240 fuel rounds/683,400 ticks and240 legacy rounds/223,598 ticks plus replay/fuzz PASS. Unity scene validation/macOS build and76/76 EditMode tests PASS. Additional wide-arena suite now exercises1.8-second capacity: PASS96 rounds/450,686 ticks across widths125/150/180, replay/resume, bounds and bot targeting. New trial tests prove powered flight past the old budget, exhaustion/release latch, unchanged short invulnerability, delayed half refill in3s and full refill in6s, exact capped0.6 parry refunds, both-player reset and captured1.8 capacity. Legacy core defaults remain0.9 for baseline tests; applied playable configuration overrides only tank capacity.
 
-Desktop native900-step smoke checksumB14368ED060D390C; wide touch/tuning previews both PASS900 steps/3 callbacks, checksum8547B1A86A2798FF at width141.8999/height56.25. Native captures verify tank1.8 and refill0.3. Independent source/test review passed. Full-width arena, speed, parry timing and invulnerability remain unchanged. New swipe controls passed input and full-simulation projectile-contact regressions, including after boost invulnerability expires. Independent review found no remaining material issue. Native touch/tuning captures identify touchScheme=boost-swipe-right-guard.
+Previous swipe-trial desktop native900-step smoke checksumB14368ED060D390C; previous wide touch/tuning previews both PASS900 steps/3 callbacks, checksum8547B1A86A2798FF at width141.8999/height56.25. Native captures verify tank1.8 and refill0.3. Independent source/test review passed. Full-width arena, speed, parry timing and invulnerability remain unchanged. New swipe controls passed input and full-simulation projectile-contact regressions, including after boost invulnerability expires. Independent review found no remaining material issue. Native touch/tuning captures identify touchScheme=boost-swipe-right-guard.
 
 macOS app: artifacts/build/ElasticArena.app
 Xcode project: artifacts/build/ios/Unity-iPhone.xcodeproj
@@ -33,9 +33,13 @@ Device app: artifacts/build/ios-derived/Build/Products/Debug-iphoneos/ElasticAre
 Previews: artifacts/runtime-touch/smoke.png, artifacts/runtime-tuning/smoke.png
 Test report: artifacts/test-results/editmode.xml. Run/control instructions: PLAYTEST_NOTES.md.
 
-Swipe trial iOS export, signed Xcode build, signature verification, device installation and launch PASS. Actual phone tuning readback confirms touchScheme=boost-swipe-right-guard, tank1.8 and arena129.5681×56.25. Logs: artifacts/logs/xcode-ios-generic-build.log, iphone-install.log, iphone-launch.log, iphone-tuning-copy.log.
+Previous swipe trial iOS export, signed Xcode build, signature verification, device installation and launch PASS. Actual phone tuning readback confirms touchScheme=boost-swipe-right-guard, tank1.8 and arena129.5681×56.25. Logs: artifacts/logs/xcode-ios-generic-build.log, iphone-install.log, iphone-launch.log, iphone-tuning-copy.log.
 
 
 ## Next human gate
 
-Test full-width wall bounces, both landscape flips during a match, invisible action margins, deliberate swipe parries during boost, accidental swipe frequency and the far-right guard strip. Downward boost is now reported working; no further investigation requested. User chose2× boost capacity rather than unlimited. Judge whether longer flight still requires management: empty-to-full takes6s plus0.35s delay, and each enemy perfect parry restores0.6s. Keep this finite trial while awaiting feedback. Actual phone feel/readability/thermals await feedback. User chose dark high-contrast art directionC; current single static ninja and Rookie Dojo references await visual Gate B. No animation set or bulk art approved. Preserve gameplay except explicit tuning feedback; defer networking/economy/release. No App Store/TestFlight authorization or paid service needed here.
+Test faster opening shots and36-speed decay floor, full-width wall bounces, both landscape flips during a match, invisible action margins, deliberate swipe parries during boost, accidental swipe frequency and the far-right guard strip. Downward boost is now reported working; no further investigation requested. User chose2× boost capacity rather than unlimited. Judge whether longer flight still requires management: empty-to-full takes6s plus0.35s delay, and each enemy perfect parry restores0.6s. Keep this finite trial while awaiting feedback. Actual phone feel/readability/thermals await feedback. User chose dark high-contrast art directionC; current single static ninja and Rookie Dojo references await visual Gate B. No animation set or bulk art approved. Preserve gameplay except explicit tuning feedback; defer networking/economy/release. No App Store/TestFlight authorization or paid service needed here.
+
+2026-10-22 speed trial: applied normal/spawn speed24→36; powered72/84/96 unchanged through adjusted multipliers. Window, boost, controls,4-second decay thresholds and12units/s² slowdown unchanged. Unity validation/macOS build and76/76 tests PASS, including effective speed captures. Native desktop smoke PASS900 steps/3 callbacks. Independent review PASS. Core defaults unchanged; full core suite from the preceding swipe milestone remains applicable.
+
+Latest speed-trial phone preview PASS900 ticks/3 callbacks, checksum03EF15438A58E0D9, capture speeds36/72/84/96. iOS export, signed Xcode build, signature verification and installation PASS. Launch blocked by iOS Locked; unlock and open ElasticArena. Fresh on-device speed readback awaits launch; prior readback belongs to the swipe build.
