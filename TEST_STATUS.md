@@ -1,5 +1,18 @@
 # Test status
 
+## Current verified build — 2026-10-22
+
+- Unity validation, **88/88 EditMode tests**, macOS build and independent review passed for the downward-control fixes.
+- Desktop/phone native smoke: 900 ticks and at least three live simulation callbacks each. Phone checksum `03EF15438A58E0D9`.
+- iOS export, signed build, signature verification, wireless installation and launch passed. Reconnecting Wi-Fi resolved earlier device-service timeouts.
+- Actual iPhone readback: `edge-aware-directional-swipe-follow-stick`, boost tank 1.8, projectile speeds 36 / 72 / 84 / 96, arena 129.5681 × 56.25.
+- Latest input coverage includes short downward edge flicks, jitter/slow rejection, quiet rearm, following joystick center and downward airborne movement. Directional parry/contact, steering takeover, release/cancel/menu and ownership regressions remain passing.
+- Last full core suite passed 240 fuel rounds / 683,400 ticks, 240 legacy rounds / 223,598 ticks and 96 wide rounds / 450,686 ticks. Core logic was unchanged by the latest input fixes; that suite was not rerun for documentation updates.
+
+Physical phone feel and visual approval remain pending. The records below describe historical iterations; earlier locked/timeout checkpoints are resolved by the current build.
+
+## Validation history
+
 P0 and P1 verified on 2026-10-18 with Unity 6000.3.26f1 LTS and .NET 10.0.101.
 
 - `bash tools/test-core.sh`: PASS. C# 9 offline source-linked suite covers configuration/math/snapshots; movement, variable jump, coyote/buffer, dash consumption/recharge; divider spring/bounds/symmetric and diagonal rebound; one body hit per dash, body-only guard break and shove-into-projectile; ricochet/continuous sweeps/persistence/ignored pair and divider collisions; parry steering/power/decay/one-charge restoration/zero healing; guard recovery/break and same-time contact legality; spawn warnings/schedule/cap; draw/reset/first-to-two.
