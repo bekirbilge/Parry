@@ -2,6 +2,16 @@
 
 Human gameplay approval: GIVEN on2026-10-20. User accepted the current fuel-based version after projectile size/slowdown and contact-only safety feedback. Gate A passed; art direction/reference approval is the next human checkpoint.
 
+## Current iPhone 17 Pro Max run
+
+The current build is installed and has been launched on the iPhone 17 Pro Max. The installed touch scheme is `edge-aware-directional-swipe-follow-stick`.
+
+Play in landscape. The visible control strip uses the bottom14% of the safe area; right-side controls also accept touches across the bottom25%, including the invisible margin. Left0–50% starts a floating joystick that follows overflow beyond its travel radius. A quick directional swipe in50–90% triggers one parry pulse; keep holding there for boost. In90–100%, tap to parry or hold to guard. No BOTH action exists. The latest swipe direction aims boost and parry until stick movement takes over. A final lift-flick remains available for its buffered parry tick.
+
+Swipe threshold is normally `clamp(3.5% screen height, 12–96 px)`. Near the bottom edge it adapts to `min(normal threshold, max(12 px, 1.5 × touch slop, anchorY / 2))`; speed threshold scales with that distance. Interior speed threshold is1 screen-height/second. Recognition window is0.18 s; quiet rearm is0.12 s. The boost tank is1.8 s, refills at0.3 s/s after0.35 s, and a perfect parry refunds0.6 s.
+
+Quick device check: test both landscape orientations; reverse a long joystick drag; try upward, diagonal and bottom-edge downward swipes; confirm a quick swipe gives one parry and slow/jittery motion does not; test tap-parry versus hold-guard; steer boost, then move the stick to take over; lift during a swipe and confirm its buffered pulse. Check notch/home-indicator clearance, touch comfort, readability and missed inputs.
+
 ## Run
 
 Close any older player instance, then launch:
@@ -22,7 +32,7 @@ Default: blue P1 versus Easy debug bot. B toggles local two-player. Editor: Unit
 
 Neutral-stick boost goes straight up; aiming boosts immediately at the exact normalized stick angle, without eight-way snapping. Fuel mode lets you steer continuously while holding boost; release to coast. F1 switches to the previous three-charge mode, where each burst retains its launch direction. There is no separate jump button; Triangle is unassigned. Xbox equivalents: A boost, X defense. The current managed2× trial starts with a 1.8-second boost tank. Thrust burns fuel; regeneration starts after a 0.35-second pause and fills an empty tank in six seconds. Enemy perfect parry restores one-third tank. Exhaustion or rope recoil requires releasing boost before another ignition. The comparison mode has three charges, sequential one-second recharge, and one charge restored per enemy perfect parry. The debug bot uses these same movement actions.
 
-Touch: floating MOVE joystick in the left half of the black control strip, plus BOOST and DEF on the right. F4 shows mouse-testable touch controls on desktop. Physical gamepad and mobile behavior still need testing; virtual-device integration is covered automatically.
+Desktop touch preview: F4 shows mouse-testable touch controls. The current physical iPhone controls and install are summarized above.
 
 Debug: B bot/local, R restart, P pause, N step paused, F1 fuel/charges (restarts match), F5 tuning, F2 quarter speed, F3 collisions/FPS, F6 reference art on/off, F12 capture. macOS may require Fn for function keys. Tuning changes apply on Apply / reset match. Immediate test start is enabled; movement works while the first ball's three-second warning runs. The F5 tuning panel can restore normal countdown.
 
@@ -32,13 +42,13 @@ F12 saves a PNG and applied `tuning.json` in the chosen output folder; the tunin
 
 - Fuel boost lasts while held and supplied, with continuous steering. Ignition costs 0.04 seconds of fuel; invulnerability remains 0.08 seconds with a 0.35-second rearm cooldown. The legacy comparison uses a 0.30 s powered directional burst with upward speed capped at40 (horizontal/downward80), with only 0.08 s invulnerability. A rope contact loads for ~0.20 s before recoil. Fixed anchors and movable floor/ceiling hinges allow real forward stretch without crossing the rope; maximum bend remains eight units.
 - Playable parry radius is now6 units (fighter body2.5; character diameter5 versus the previous3); its visible halo matches collision. The parry window stays0.16 s, recovery timings stay unchanged, and it works during boost, rope loading and recoil. Hold defense for guard; a fresh press is needed for another parry. Parry never heals posture.
-- Charged projectile speeds are 72 / 84 / 96 units/s versus normal 24. Each power level lasts four seconds before losing one level; a perfect parry resets that timer. Speed now eases toward the next level at12 units/s² rather than snapping. In particular,72→24 takes four additional seconds after the level1→0 threshold; critical power reaches normal after12 seconds and normal speed after16 seconds without another parry. Balls are50% larger in diameter (radius0.9), with visuals matching collision. F5 exposes projectile size and slowdown, plus Fighter radius for the shared character/body size.
+- Current projectile speeds are36 normal and72 / 84 / 96 units/s when powered. Each power level lasts four seconds before losing one level; a perfect parry resets that timer. Speed eases toward the next level at12 units/s². The72→36 transition takes three additional seconds after the level1→0 threshold; critical power reaches zero after12 seconds and normal speed after15 seconds without another parry. Balls are50% larger in diameter (radius0.9), with visuals matching collision. F5 exposes projectile size and slowdown, plus Fighter radius for the shared character/body size.
 - Parry now protects only the immediate contact with that projectile, so passing through it is safe. Once you separate beyond the parry contact area, it can hurt you again on return, even without an opponent parry. The brief player-colored ring indicates contact protection. A new return parry gives normal power/resource rewards. Redirecting a still-protected contact gives no additional rewards. Other projectiles remain dangerous.
 
 ## Five-minute checklist
 
 1. Hold boost upward from neutral and steer while holding. Release, check delayed refill, then exhaust the tank and release before restarting. Press F1 to compare with three charges; it resets the match.
-2. Aim at shallow and steep angles to compare free-angle boosting. Press Cross + Square together, then tap Square midway through a boost. Compare parry timing while still, loading the rope, and recoiling.
+2. Aim at shallow and steep angles to compare free-angle boosting. On desktop, test boost and defense with their assigned inputs, then tap defense midway through a boost. Compare parry timing while still, loading the rope, and recoiling.
 3. Boost into the rope from close range on ground and in air. Expect forward penetration into the opponent's resting half before one rebound. Check diagonal vertical momentum and escape with an outward boost.
 4. Parry while moving through a ball: the immediate overlap should be safe. Let it separate and return from a wall: it must threaten you again. Parry or guard the return; a fresh return parry should restore fuel/one charge normally. Check that another ball remains dangerous.
 5. Judge charged speed, four-second decay, posture pressure, fairness of grazing hits, simultaneous K.O., first-to-two flow, and equal opposing boosts in local mode.
@@ -73,7 +83,7 @@ P3 visual proof: directionC selected. The current sample adds one static ninja p
 
 Mobile/readability feedback: characters are67% larger in both visual height and body collision, with feet still anchored. F5 Fighter radius ranges1.5–3.5 (default2.5). Check closer body contacts, projectile grazing/parry fairness, and rope stretch at the new size. Desktop and phone-sized-window previews are not physical phone tests.
 
-## iPhone17 Pro Max installation
+## iPhone17 Pro Max installation reference
 
 Unity iOS support is installed. The final landscape playtest exported and compiled successfully with Xcode, unsigned. The phone is now paired with Developer Mode enabled. A device-specific signed build is installed. User trusted the developer profile and confirms the game opens; device process listing confirms it running. Physical gameplay feedback remains pending.
 
@@ -90,17 +100,17 @@ open /Users/bekir/Code/Parry/artifacts/build/ios/Unity-iPhone.xcodeproj
 
 Apple: [run on a device](https://developer.apple.com/documentation/Xcode/running-your-app-on-simulated-or-physical-devices), [Developer Mode](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device), [Personal Team limits](https://developer.apple.com/help/account/basics/about-your-developer-account).
 
-Play in landscape. Left MOVE joystick aims movement/boost/parry; hold BOOST for fuel thrust, neutral aim rises; tap PARRY to parry or hold to guard. Boost and defense can be held together with separate fingers. Only PAUSE appears at the top right during play. Tap it for RESUME, MODE (BOT/LOCAL), TUNING and RESTART. Restart closes the menu and resumes a fresh match. Default is P1 versus Easy bot. Combat uses a proportion-preserving view in the upper86% of the safe area; the lower14% is the visible control strip with solid BOOST/PARRY zones. Main HUD text scales for phones. TUNING now has large phone text/sliders, touch scrolling and fixed BACK/APPLY controls. Changes take effect on Apply / reset; Back returns to the pause menu.
+Historical install and menu notes: landscape play, PAUSE at top right, then RESUME, MODE (BOT/LOCAL), TUNING and RESTART; default is P1 versus Easy bot. The control scheme described in older phone trial entries below has been superseded by the current scheme at the top of this file.
 
-First device checklist: try both landscape orientations, check notch/home-indicator clearance, judge the larger characters and projectile visibility, hold MOVE+BOOST+PARRY together, test release/refill, and watch for heat, stutter or missed touches over five minutes. Report touch comfort, readability and unfair misses before more art work. Physical-device behavior is not yet validated.
+Historical first-device checklist, superseded by current iPhone controls above: try both landscape orientations, check notch/home-indicator clearance, judge character/projectile visibility, and watch for heat, stutter or missed touches over five minutes.
 
 Re-export after source changes with `bash tools/test-mobile.sh ios`; generated Xcode signing settings may need selecting again. The compiled unsigned app is under artifacts/build/ios-derived/Build/Products/Debug-iphoneos. Desktop touch preview: launch the macOS app with `--parry-touch`, or press F4. Android helper remains available but its module/export/device run is untested.
 
 Phone feedback iteration: full safe-area playfield replaces the letterboxed arena; the fixed world adapts horizontally to the phone aspect without cropping combat. Desktop layout is unchanged. Test both landscape orientations, Pause → Restart, Resume, and separate-finger MOVE+BOOST+PARRY. No other menu buttons should be visible during active play. Tuning must not trigger hidden menu buttons. Updated build has been installed and launched; subjective approval of these changes is pending.
 
-Latest phone trial: place your left thumb anywhere in the left half of the black strip, then drag relative to that initial touch. The joystick follows that origin until you lift; a second finger cannot steal it. The controls stay below combat. Boost is the displayed resource name (internal captures still use fuel identifiers). Parry radius is50% larger (4→6), timing remains0.16s. After the match ends, tap the visible TAP TO RESTART button, or restart from Pause. Check that tuning sliders drag horizontally without scrolling the list, vertical drags between controls scroll, and BACK/APPLY remain accessible. Use `--parry-tuning-preview` with the desktop player for a tuning screenshot. Physical phone feedback on these changes is pending.
+Historical phone trial, superseded by the current scheme above: left-thumb origin-following, boost resource display, larger parry radius and tuning-panel touch behavior were evaluated in this iteration. Current swipe/joystick control instructions are at the top of this file.
 
-2026-10-21 zone trial supersedes the earlier stretched phone presentation and22% strip: combat now fits its true16:9 proportions within the available viewport, scenery fills the surrounding sides, and subtle rails show ricochet bounds. The visible strip is14% of safe height. MOVE starts anywhere in its left half. Right-side touch zones are nominal BOOST50–75% and PARRY75–100%, with BOTH70–80% taking priority. Those three action regions extend invisibly over the bottom25% of safe height, so pressing slightly above a visible zone still works. MOVE does not gain that invisible extension. Fingers retain their initial role while dragging; lift and press again to switch roles. Holding BOTH gives one parry attempt then guard plus normal boost consumption, not repeated perfect parries.
+Historical 2026-10-21 zone trial (superseded): combat fit its true16:9 proportions; the visible strip was14%, and BOOST/PARRY/BOTH zones used the bottom25% invisible extension. Current zones and gestures are documented at the top of this file.
 
 Test taps just above the strip at60%/75%/90% width, and taps above the25% margin which should do nothing. Test separate boost/parry fingers plus BOTH, releasing them in different orders. Compare projectile roundness and character proportions, wall-rail bounces, and whether the thinner strip is still comfortable.
 
@@ -112,7 +122,7 @@ User follow-up: downward boost now seems to be working; skip further investigati
 
 2026-10-21 managed2× boost trial: user selected double capacity instead of unlimited boost. Tank0.9→1.8 seconds; burn rate,0.04 ignition cost,0.3/s refill and0.35s delay unchanged. A perfect parry still restores one-third, now0.6 seconds. Empty refill takes6 seconds after the delay, so spending the whole tank has a cost. Speed,0.08s invulnerability/0.35s rearm, parry timing and rope-recoil release rules are unchanged. Test longer steering/flight, exhaustion, release before reignition, and parry-assisted refill. Three-charge comparison remains F1; no unlimited mode added.
 
-2026-10-22 swipe-parry control trial: use left0–50% for floating MOVE; hold BOOST in50–90%, and make a quick swipe there for one parry pulse. In90–100%, tap for parry or hold for guard. No BOTH action. The visible strip remains14% of safe height; right-side controls also accept touches in the invisible bottom25% safe-area margin. Touch roles lock until release/cancel; the left stick continuously aims. Swipe tuning is3.5% screen height (clamped12–96 px), minimum speed1 screen-height/s,0.18 s window,0.12 s quiet rearm. The1.8 s boost tank is unchanged. Trial feedback is pending.
+Historical 2026-10-22 swipe-parry control trial: the edge-aware directional swipe-follow-stick scheme recorded here was subsequently verified installed and launched on iPhone; current values and checklist are at the top.
 
 2026-10-22 faster initial projectile trial: normal/spawn speed36 (1.5× previous24), powered72/84/96 unchanged. Test opening-shot pressure and whether the higher normal-speed floor improves pacing after decay. Swipe controls and1.8-second boost tank remain unchanged.
 
