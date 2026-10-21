@@ -11,11 +11,12 @@ namespace Game.Core
         private const int DefaultTickRate = 60;
 
         public static FighterInput Decide(SimulationState state, int fighterId, int difficulty = 0,
-            bool useFuelBoost = false)
+            bool useFuelBoost = false, CombatTuning? tuning = null)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
             if (fighterId != SimulationState.LeftFighterId && fighterId != SimulationState.RightFighterId)
                 throw new ArgumentOutOfRangeException(nameof(fighterId));
+            tuning ??= CombatTuning.Default;
             difficulty = Math.Max(0, Math.Min(2, difficulty));
 
             FighterState self = state.Fighter(fighterId);
@@ -29,8 +30,8 @@ namespace Game.Core
 
             // Keep to the fighter's half, drifting toward its center when pushed too far outward
             // or toward the membrane. Approach the opponent only while safely in the outer half.
-            double centerX = CombatTuning.Default.Arena.WidthUnits * (fighterId == 0 ? 0.25 : 0.75);
-            double dividerX = DividerSystem.CenterXAtHeight(state, CombatTuning.Default, self.Position.Y);
+            double centerX = tuning.Arena.WidthUnits * (fighterId == 0 ? 0.25 : 0.75);
+            double dividerX = DividerSystem.CenterXAtHeight(state, tuning, self.Position.Y);
             double safeEdgeX = fighterId == 0 ? dividerX - 5.0 : dividerX + 5.0;
             double targetX = centerX;
             double gap = Math.Abs(opponent.Position.X - self.Position.X);
