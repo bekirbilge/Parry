@@ -12,7 +12,7 @@ internal static class WideArenaTests
     }
 
     private static CombatTuning Tune(double width) => new CombatTuning(
-        new MovementTuning(useFuelBoost: true), new ProjectileTuning(),
+        new MovementTuning(useFuelBoost: true, fuelCapacitySeconds: 1.8), new ProjectileTuning(),
         new DefenseTuning(parryExtraReachUnits: 3.5), new DividerTuning(),
         new ArenaTuning(widthUnits: width, fighterRadiusUnits: 2.5, projectileRadiusUnits: .9),
         new MatchTuning(roundCountdownSeconds: 0, startImmediatelyForTesting: true));
