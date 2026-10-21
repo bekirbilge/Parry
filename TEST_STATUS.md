@@ -170,3 +170,7 @@ Swipe-parry controls verified on2026-10-22:
 
 1.5× initial projectile speed trial (2026-10-22): Unity validation,76/76 EditMode tests and macOS build PASS. Applied capture assertions verify36/72/84/96; independent review verifies spawn/parry/decay use the adjusted tuning. Native desktop smoke PASS900 ticks/3 callbacks. Core defaults and simulation algorithms unchanged; prior full core results remain applicable.
 Phone-profile native smoke PASS900 ticks/3 callbacks, checksum03EF15438A58E0D9 and captured36/72/84/96. iOS export/sign/build/install PASS; launch blocked by phone Locked. New device speed readback pending launch.
+
+Directional boost swipe (2026-10-22): Unity validation/macOS build and85/85 EditMode tests PASS. Normalized directional aim, stationary-stick persistence, cumulative and same-tick stick takeover, raw takeover, new swipe, final Ended aim buffering, cancel/menu, boost source ownership and actual full-simulation parry direction covered. Independent review PASS after fixing pending aim on takeover. Native desktop and phone smokes PASS900 ticks/3 callbacks; phone checksum03EF15438A58E0D9, directional touchScheme and36/72/84/96 captures verified. Core algorithms/defaults unchanged.
+
+Latest directional build: iOS export, signed Xcode build, signature verification, install and launch PASS. App-only tuning readback on iPhone17 Pro Max confirms touchScheme=directional-boost-swipe-right-guard, tank1.8 and projectile36/72/84/96. This supersedes the previous speed-only build's locked-launch checkpoint.
