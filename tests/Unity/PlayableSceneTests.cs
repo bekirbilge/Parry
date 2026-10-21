@@ -288,6 +288,51 @@ namespace Game.Unity.Tests
         }
 
         [Test]
+        public void PhoneCombatFitsEntireWorldAtUniformScale()
+        {
+            foreach (var screen in new[]
+            {
+                (width: 2535, height: 1170, safe: new Rect(0, 0, 2535, 1170)),
+                (width: 2535, height: 1170, safe: new Rect(120, 30, 2295, 1100)),
+                (width: 1280, height: 720, safe: new Rect(0, 0, 1280, 720))
+            })
+            {
+                Rect viewport = ArenaLayout.Compute(screen.width, screen.height, screen.safe, true);
+                Rect combat = GameController.FitCombat(viewport);
+                Assert.That(combat.width / combat.height, Is.EqualTo(16f / 9f).Within(1e-5f));
+                Assert.That(combat.xMin, Is.GreaterThanOrEqualTo(viewport.xMin - .01f));
+                Assert.That(combat.xMax, Is.LessThanOrEqualTo(viewport.xMax + .01f));
+                Assert.That(combat.yMin, Is.GreaterThanOrEqualTo(viewport.yMin - .01f));
+                Assert.That(combat.yMax, Is.LessThanOrEqualTo(viewport.yMax + .01f));
+                Assert.That(combat.center.x, Is.EqualTo(viewport.center.x).Within(.01f));
+                Assert.That(combat.center.y, Is.EqualTo(viewport.center.y).Within(.01f));
+                Assert.That(combat.width / 100f, Is.EqualTo(combat.height / 56.25f).Within(.0001f));
+            }
+        }
+
+        [Test]
+        public void PhoneSceneryFillsWideBackdropWithoutStretchingSourcePixels()
+        {
+            Texture2D texture = new Texture2D(16, 9);
+            try
+            {
+                Rect source = new Rect(0f, .08f, 1f, .92f);
+                foreach (Rect destination in new[] { new Rect(0, 0, 2535, 1006),
+                    new Rect(0, 0, 1280, 620) })
+                {
+                    Rect uv = GameController.SceneryUv(destination, texture, source);
+                    Assert.That(uv.xMin, Is.GreaterThanOrEqualTo(source.xMin - 1e-5f));
+                    Assert.That(uv.xMax, Is.LessThanOrEqualTo(source.xMax + 1e-5f));
+                    Assert.That(uv.yMin, Is.EqualTo(source.yMin).Within(1e-5f));
+                    Assert.That(uv.yMax, Is.LessThanOrEqualTo(source.yMax + 1e-5f));
+                    Assert.That(texture.width * uv.width / (texture.height * uv.height),
+                        Is.EqualTo(destination.width / destination.height).Within(1e-4f));
+                }
+            }
+            finally { UnityEngine.Object.DestroyImmediate(texture); }
+        }
+
+        [Test]
         public void ReferenceFighterKeepsCenterAndGroundedSoleAcrossLandscapeViewports()
         {
             AssertArtLayout(1920, 1080, new Rect(0, 0, 1920, 1080));
