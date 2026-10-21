@@ -107,7 +107,7 @@ namespace Game.Unity
                 jumpSpeedUnitsPerSecond: _jumpSpeed, dashSpeedUnitsPerSecond: _dashSpeed,
                 dashDurationSeconds: _boostDuration, perfectParryWindowSeconds: _parryWindow,
                 maximumUpwardBoostSpeedUnitsPerSecond: _upwardBoostSpeed,
-                useFuelBoost: _prototypeFuelBoost);
+                useFuelBoost: _prototypeFuelBoost, fuelCapacitySeconds: 1.8);
             var projectile = new ProjectileTuning(baseSpeedUnitsPerSecond: _projectileSpeed,
                 speedDecayUnitsPerSecondSquared: _projectileSpeedDecay);
             var divider = new DividerTuning(springStrength: _spring, damping: _damping,
