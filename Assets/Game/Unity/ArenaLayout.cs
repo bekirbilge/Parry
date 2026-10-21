@@ -14,7 +14,7 @@ namespace Game.Unity
             float availableWidth = right - left;
             float availableHeight = top - bottom;
             if (availableWidth <= 0 || availableHeight <= 0) return new Rect(0, 0, 0, 0);
-            if (mobileUi) return new Rect(left, height - top, availableWidth, availableHeight * .78f);
+            if (mobileUi) return new Rect(left, height - top, availableWidth, availableHeight * .86f);
             float footerHeight = Mathf.Min(Mathf.Clamp(height * .078f, 44, 72), availableHeight * .25f);
             availableHeight -= footerHeight;
             float fittedWidth = Mathf.Min(availableWidth, availableHeight * 16f / 9f);
@@ -36,7 +36,15 @@ namespace Game.Unity
         /// <summary>Dedicated mobile controls below the combat arena, in GUI coordinates.</summary>
         public static Rect ControlStrip(Rect arena)
         {
-            return new Rect(arena.xMin, arena.yMax, arena.width, arena.height * (22f / 78f));
+            return new Rect(arena.xMin, arena.yMax, arena.width, arena.height * (14f / 86f));
+        }
+
+        /// <summary>Full mobile action hit region; its upper part is invisible over the arena.</summary>
+        public static Rect ActionTouchRegion(Rect arena)
+        {
+            float safeHeight = arena.height / .86f;
+            return new Rect(arena.xMin, arena.yMin + safeHeight * .75f,
+                arena.width, safeHeight * .25f);
         }
 
         /// <summary>Distance from a floating joystick origin to full directional input.</summary>
@@ -52,15 +60,23 @@ namespace Game.Unity
             if (mobileUi)
             {
                 Rect strip = ControlStrip(arena);
-                float mobileSize = Mathf.Min(strip.height * .65f, strip.width * .12f);
-                float mobileX = strip.xMin + strip.width * (action == 0 ? .22f : action == 1 ? .76f : .90f);
-                return new Rect(mobileX - mobileSize * .5f, strip.center.y - mobileSize * .5f,
-                    mobileSize, mobileSize);
+                float start = action == 0 ? 0 : action == 1 ? .50f : .75f;
+                float width = action == 0 ? .50f : .25f;
+                return new Rect(strip.xMin + strip.width * start, strip.yMin,
+                    strip.width * width, strip.height);
             }
             float size = Mathf.Min(arena.height * .125f, arena.width * .12f);
             float x = arena.xMin + arena.width * (action == 0 ? .14f : action == 1 ? .76f : .90f);
             float y = arena.yMax - arena.height * .21f;
             return new Rect(x - size * .5f, y - size * .5f, size, size);
+        }
+
+        /// <summary>Shared BOOST and PARRY gesture zone, overlapping their visual regions.</summary>
+        public static Rect ComboZone(Rect arena)
+        {
+            Rect strip = ControlStrip(arena);
+            return new Rect(strip.xMin + strip.width * .70f, strip.yMin,
+                strip.width * .10f, strip.height);
         }
 
         public static Rect ToolbarButton(Rect arena, int index, bool mobileUi = false)
@@ -103,7 +119,7 @@ namespace Game.Unity
         {
             if (mobileUi)
                 return new Rect(arena.xMin + arena.width * .06f, arena.yMin + arena.height * .16f,
-                    arena.width * .88f, arena.height / .78f - arena.height * .21f);
+                    arena.width * .88f, arena.height / .86f - arena.height * .21f);
             float top = Mathf.Max(arena.height * .19f, ToolbarButton(arena, 0, mobileUi).yMax - arena.yMin + 8);
             return new Rect(arena.xMin + arena.width * .22f, arena.yMin + top,
                 arena.width * .56f, Mathf.Max(0, arena.height - top - arena.height * .05f));
@@ -117,10 +133,16 @@ namespace Game.Unity
             if (mobileUi)
             {
                 Rect strip = ControlStrip(arena);
-                if (!strip.Contains(p)) return -1;
-                for (int i = 1; i <= 2; i++)
-                    if (TouchControl(arena, i, true).Contains(p)) return i;
-                return p.x < strip.center.x ? 0 : -1;
+                Rect actionRegion = ActionTouchRegion(arena);
+                if (p.x < strip.xMin || p.x > strip.xMax)
+                    return -1;
+                if (p.x < strip.xMin + strip.width * .50f)
+                    return p.y >= strip.yMin && p.y < strip.yMax ? 0 : -1;
+                if (p.y < actionRegion.yMin || p.y >= actionRegion.yMax) return -1;
+                Rect combo = ComboZone(arena);
+                // Keep inclusive edges stable under subpixel floating-point rounding.
+                if (p.x >= combo.xMin - .01f && p.x <= combo.xMax + .01f) return 3;
+                return p.x < strip.xMin + strip.width * .75f ? 1 : 2;
             }
             if (!arena.Contains(p)) return -1;
             for (int i = 0; i < 4; i++) if (ToolbarButton(arena, i).Contains(p)) return -1;
