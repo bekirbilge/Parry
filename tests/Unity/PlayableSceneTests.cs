@@ -623,6 +623,57 @@ namespace Game.Unity.Tests
         }
 
         [Test]
+        public void PlayableFuelTankIsDoubledAndParryRefundIsOneThirdWithoutOverflow()
+        {
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            controller.SetFuelBoostMode(true);
+            controller.RestartMatch();
+
+            Assert.That(controller.Tuning.Movement.FuelCapacitySeconds, Is.EqualTo(1.8));
+            Assert.That(controller.Tuning.Movement.FuelRegenerationPerSecond, Is.EqualTo(.3));
+            Assert.That(controller.Tuning.Movement.FuelRegenerationDelaySeconds, Is.EqualTo(.35));
+            Assert.That(controller.Tuning.Movement.FuelIgnitionCostSeconds, Is.EqualTo(.04));
+            Assert.That(controller.Tuning.Movement.DashInvulnerabilitySeconds, Is.EqualTo(.08));
+            Assert.That(controller.Tuning.Movement.FuelInvulnerabilityRearmSeconds, Is.EqualTo(.35));
+            Assert.That(controller.Tuning.Movement.PerfectParryWindowSeconds, Is.EqualTo(.16));
+            SimulationState reset = controller.CaptureSnapshot();
+            Assert.That(reset.Fighter(0).FuelSeconds, Is.EqualTo(1.8));
+            Assert.That(reset.Fighter(1).FuelSeconds, Is.EqualTo(1.8));
+            string capturePath = Path.Combine(Application.persistentDataPath, "Playtests", "tuning.json");
+            Assert.That(File.ReadAllText(capturePath), Does.Contain("\"fuelCapacitySeconds\": 1.8"));
+
+            FighterState fighter = reset.Fighter(0);
+            fighter.Position = fighter.PreviousPosition = fighter.TickStartPosition = new Vec2(25, 10);
+            fighter.Grounded = false;
+            fighter.FuelSeconds = .3;
+            reset.NextSpawnTick = reset.Tick + 1000;
+            controller.Sim.RestoreSnapshot(reset);
+            for (int i = 0; i < 3; i++)
+            {
+                controller.Sim.RestoreSnapshot(reset);
+                SimulationState state = controller.CaptureSnapshot();
+                state.Fighter(0).FuelSeconds = i == 0 ? .3 : i == 1 ? .9 : 1.5;
+                state.Fighter(0).FuelRegenDelayTicksRemaining = 1;
+                Vec2 contact = state.Fighter(0).Position + new Vec2(2.3, 0);
+                state.Projectiles.Clear();
+                state.Projectiles.Add(new ProjectileState { Id = 970 + i,
+                    Position = contact, PreviousPosition = contact, Velocity = new Vec2(-24, 0) });
+                controller.Sim.RestoreSnapshot(state);
+                IReadOnlyList<SimulationEvent> events = controller.StepOnce(new SimulationInput(
+                    controller.Sim.Tick, new FighterInput(Vec2.Zero, defensePressed: true), default));
+                bool parried = false;
+                foreach (SimulationEvent item in events)
+                    if (item.Type == SimulationEventType.PerfectParry) parried = true;
+                Assert.That(parried, Is.True);
+                double expected = i == 0 ? .9 : i == 1 ? 1.5 : 1.8;
+                Assert.That(controller.CaptureSnapshot().Fighter(0).FuelSeconds,
+                    Is.EqualTo(expected).Within(1e-9), "Each enemy perfect parry refunds exactly one third, capped at full.");
+            }
+        }
+
+        [Test]
         public void SwitchingToChargesRestartsRoundWithThreeCharges()
         {
             BootstrapPipeline.EnsureBootstrapScene();
