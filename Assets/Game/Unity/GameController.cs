@@ -430,10 +430,16 @@ namespace Game.Unity
                 _small.fontSize = Mathf.Clamp(Mathf.RoundToInt(arena.height * .018f), 10, 13);
             }
             Box(new Rect(0, 0, Screen.width, Screen.height), new Color(.035f, .045f, .07f));
-            // Extend scenery behind device insets; combat and controls stay inside the safe area.
-            if (PhoneUi && _referenceArtEnabled && _referenceArena != null)
-                GUI.DrawTextureWithTexCoords(new Rect(0, 0, Screen.width, Screen.height),
-                    _referenceArena, _referenceCharacterLayout.ArenaUvRect, true);
+            // One aspect-preserving backdrop extends through the top and side insets.
+            // Its bottom follows the combat viewport so the painted floor stays aligned.
+            if (PhoneUi)
+            {
+                Rect scenery = new Rect(0, 0, Screen.width, arena.yMax);
+                if (_referenceArtEnabled && _referenceArena != null)
+                    GUI.DrawTextureWithTexCoords(scenery, _referenceArena,
+                        SceneryUv(scenery, _referenceArena, _referenceCharacterLayout.ArenaUvRect), true);
+                else Box(scenery, new Color(.09f, .12f, .17f));
+            }
             DrawCombat(arena);
             if (PhoneUi)
                 Box(new Rect(0, arena.yMax, Screen.width, Mathf.Max(0, Screen.height - arena.yMax)), Color.black);
@@ -450,18 +456,9 @@ namespace Game.Unity
 
         private void DrawCombat(Rect viewport)
         {
-            Matrix4x4 previousMatrix = GUI.matrix;
-            Rect arena = viewport;
-            if (PhoneUi)
-            {
-                // Map the whole fixed world to the phone aspect without cropping combat.
-                arena.width = arena.height * 16f / 9f;
-                GUI.matrix = previousMatrix * Matrix4x4.Translate(viewport.position) *
-                    Matrix4x4.Scale(new Vector3(viewport.width / arena.width, 1, 1)) *
-                    Matrix4x4.Translate(-viewport.position);
-            }
-            Box(arena, new Color(.09f, .12f, .17f));
-            if (_referenceArtEnabled && _referenceArena != null)
+            Rect arena = FitCombat(viewport);
+            if (!PhoneUi) Box(arena, new Color(.09f, .12f, .17f));
+            if (!PhoneUi && _referenceArtEnabled && _referenceArena != null)
                 GUI.DrawTextureWithTexCoords(arena, _referenceArena,
                     _referenceCharacterLayout.ArenaUvRect, true);
             var state = _smokeRenderState ?? _sim.CaptureSnapshot();
@@ -472,11 +469,43 @@ namespace Game.Unity
                 Box(new Rect(arena.xMin, floor, arena.width, Mathf.Max(2, arena.yMax - floor)), new Color(.17f, .23f, .30f));
                 for (int i = 1; i < 10; i++) Box(new Rect(arena.xMin + arena.width * i / 10f, arena.yMin, 1, arena.height), new Color(1, 1, 1, .045f));
             }
+            if (PhoneUi)
+            {
+                float rail = Mathf.Max(2f, unit * .18f);
+                Box(new Rect(arena.xMin, arena.yMin, rail, arena.height), new Color(.65f, .87f, .92f, .45f));
+                Box(new Rect(arena.xMax - rail, arena.yMin, rail, arena.height), new Color(.65f, .87f, .92f, .45f));
+            }
             DrawDivider(arena, state, unit);
             DrawPortal(arena, state, unit);
             foreach (ProjectileState p in state.Projectiles) DrawProjectile(arena, p, unit);
             foreach (FighterState f in state.Fighters) DrawFighter(arena, f, unit);
-            GUI.matrix = previousMatrix;
+        }
+
+        /// <summary>Fits the entire authoritative 100 x 56.25 world without distortion.</summary>
+        public static Rect FitCombat(Rect viewport)
+        {
+            if (viewport.width <= 0 || viewport.height <= 0) return Rect.zero;
+            const float aspect = 16f / 9f;
+            float width = Mathf.Min(viewport.width, viewport.height * aspect);
+            float height = width / aspect;
+            return new Rect(viewport.center.x - width * .5f,
+                viewport.center.y - height * .5f, width, height);
+        }
+
+        /// <summary>Crops reference scenery to fill a rectangle while keeping source pixels square.</summary>
+        public static Rect SceneryUv(Rect destination, Texture2D texture, Rect sourceUv)
+        {
+            if (texture == null || destination.width <= 0 || destination.height <= 0 ||
+                sourceUv.width <= 0 || sourceUv.height <= 0) return sourceUv;
+            float sourceAspect = texture.width * sourceUv.width / (texture.height * sourceUv.height);
+            float targetAspect = destination.width / destination.height;
+            if (targetAspect > sourceAspect)
+            {
+                float height = sourceUv.height * sourceAspect / targetAspect;
+                return new Rect(sourceUv.x, sourceUv.y, sourceUv.width, height);
+            }
+            float width = sourceUv.width * targetAspect / sourceAspect;
+            return new Rect(sourceUv.center.x - width * .5f, sourceUv.y, width, sourceUv.height);
         }
 
         private void DrawDivider(Rect a, SimulationState s, float u)
@@ -717,7 +746,7 @@ namespace Game.Unity
             if (PhoneUi)
             {
                 Label(new Rect(footer.xMin + 4, footer.yMin, footer.width - 8, footer.height),
-                    "MOVE · HOLD BOOST · TAP/HOLD DEF  |  " +
+                    "MOVE · HOLD BOOST · TAP/HOLD PARRY  |  " +
                     (_localTwoPlayer ? "LOCAL 2P" : "P1 VS BOT " + BotDifficultyName.ToUpperInvariant()), _small);
                 return;
             }
@@ -741,6 +770,21 @@ namespace Game.Unity
             if (PhoneUi)
             {
                 Rect strip = ArenaLayout.ControlStrip(a);
+                Rect move = ArenaLayout.TouchControl(a, 0, true);
+                Rect boost = ArenaLayout.TouchControl(a, 1, true);
+                Rect parry = ArenaLayout.TouchControl(a, 2, true);
+                Rect combo = ArenaLayout.ComboZone(a);
+                Box(move, new Color(.045f, .16f, .23f, 1));
+                Box(boost, new Color(.06f, .43f, .53f, 1));
+                Box(parry, new Color(.53f, .22f, .20f, 1));
+                Box(combo, new Color(.38f, .35f, .36f, 1));
+                float divider = Mathf.Max(2f, strip.height * .018f);
+                Box(new Rect(boost.xMin, strip.yMin, divider, strip.height), new Color(.75f, .91f, .94f, .65f));
+                Box(new Rect(combo.xMin, strip.yMin, divider, strip.height), new Color(.75f, .91f, .94f, .65f));
+                Box(new Rect(combo.xMax - divider, strip.yMin, divider, strip.height), new Color(.75f, .91f, .94f, .65f));
+                Label(new Rect(boost.xMin, strip.yMin, combo.xMin - boost.xMin, strip.height), "BOOST", _label);
+                Label(new Rect(combo.xMax, strip.yMin, parry.xMax - combo.xMax, strip.height), "PARRY", _label);
+                Label(combo, "BOTH", _small);
                 if (_inputs[0].JoystickActive)
                 {
                     float travel = ArenaLayout.JoystickTravel(a, true);
@@ -750,7 +794,7 @@ namespace Game.Unity
                     point.y = Screen.height - point.y;
                     float baseRadius = Mathf.Min(travel, strip.height * .42f);
                     // Clip at the strip edges instead of moving the first-touch origin.
-                    Rect clip = new Rect(strip.xMin, strip.yMin, strip.width * .5f, strip.height);
+                    Rect clip = move;
                     GUI.BeginGroup(clip);
                     origin -= clip.position;
                     Vector2 offset = Vector2.ClampMagnitude(point - new Vector2(_inputs[0].JoystickOrigin.x,
@@ -763,21 +807,19 @@ namespace Game.Unity
                     GUI.EndGroup();
                 }
                 else
-                    Label(ArenaLayout.TouchControl(a, 0, true), "MOVE", _label);
+                    Label(move, "MOVE", _label);
+                return;
             }
-            else
-            {
-                Rect stick = ArenaLayout.TouchControl(a, 0);
-                Circle(stick, new Color(.12f, .25f, .34f, 1f));
-                Label(stick, "MOVE", _small);
-            }
-            string[] names = { "BOOST", "DEF" };
+            Rect stick = ArenaLayout.TouchControl(a, 0);
+            Circle(stick, new Color(.12f, .25f, .34f, 1f));
+            Label(stick, "MOVE", _small);
+            string[] names = { "BOOST", "PARRY" };
             for (int i = 0; i < 2; i++)
             {
-                Rect target = ArenaLayout.TouchControl(a, i + 1, PhoneUi);
+                Rect target = ArenaLayout.TouchControl(a, i + 1);
                 Circle(target, i == 0 ? new Color(.08f, .50f, .62f, 1) :
                     new Color(.62f, .29f, .23f, 1));
-                Label(target, names[i], PhoneUi ? _label : _small);
+                Label(target, names[i], _small);
             }
         }
 
