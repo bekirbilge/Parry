@@ -1,8 +1,8 @@
 # Project status
 
-Date: 2026-10-21 (Europe/Istanbul)
-Milestone: managed double-capacity boost trial
-Branch: playtest/double-boost-capacity (origin/main refreshed; prior tested work retained; no issue supplied)
+Date: 2026-10-22 (Europe/Istanbul)
+Milestone: swipe-to-parry mobile control trial
+Branch: mobile/swipe-parry-guard (origin/main refreshed; prior tested work retained; no issue supplied)
 Remote: https://github.com/bekirbilge/Parry.git
 
 ## Current playable configuration
@@ -15,7 +15,7 @@ P0/P1/P2 complete; user passed gameplay Gate A. Fuel-based boost remains selecte
 
 Upper86% of safe-area height is the combat viewport; lower14% is the visible control strip. Phone world width now derives from viewport aspect at match reset, with height56.25 and minimum width100. Full authoritative combat fills the phone viewport uniformly; internal side rails/padding are removed. Actual phone capture verifies width129.5681/height56.25. Desktop width stays100. Match dimensions remain fixed through landscape flips; geometry changes clear held input without restarting. Future networking must share one authoritative arena configuration.
 
-Mobile controls are full-width zones: left0–50% floating MOVE, nominal50–75% BOOST and75–100% PARRY, overridden by shared70–80% BOTH. BOOST/PARRY/BOTH accept invisible touches across the bottom25% of the safe area; MOVE begins only in the visible14% strip. Initial roles lock until release/cancel. Aggregate finger ownership preserves held actions until all sources release and prevents duplicate press rewards.
+Mobile control trial (2026-10-22): the visible14% strip is full width. Left0–50% starts floating MOVE;50–90% holds BOOST, with a quick swipe producing one parry pulse;90–100% taps for parry or holds guard. There is no BOTH action. BOOST and PARRY/GUARD also accept touches in the invisible bottom25% safe-area margin; MOVE starts only in the visible strip. Touch roles stay fixed until release/cancel, and the left stick continues to aim. Swipe tuning is3.5% of screen height (clamped12–96 px), minimum speed1 screen-height/s,0.18 s recognition window, and0.12 s quiet rearm. Tank1.8 s is unchanged. Implemented and validated below.
 
 Boost touch aiming accepts deliberate drags over3 pixels when that is smaller than the walking dead zone. This fixes short downward drags falling back to neutral/up; walking and raw gamepad/keyboard dead zones stay unchanged. Downward boost remains blocked by the floor when grounded. User now reports it working and asks to skip further investigation. Mobile runtime now uses AutoRotation with both landscape flags enabled and portrait disabled. Physical left/right flip feedback remains pending.
 
@@ -23,9 +23,9 @@ Only top-right PAUSE during play. Modal RESUME/MODE/TUNING/RESTART clears held i
 
 ## Validation and artifacts
 
-Core suite PASS including expanded parry range, exact refund/no posture healing, separation safety expiry and lethal return.240 fuel rounds/683,400 ticks and240 legacy rounds/223,598 ticks plus replay/fuzz PASS. Unity scene validation/macOS build and63/63 EditMode tests PASS. Additional wide-arena suite now exercises1.8-second capacity: PASS96 rounds/450,686 ticks across widths125/150/180, replay/resume, bounds and bot targeting. New trial tests prove powered flight past the old budget, exhaustion/release latch, unchanged short invulnerability, delayed half refill in3s and full refill in6s, exact capped0.6 parry refunds, both-player reset and captured1.8 capacity. Legacy core defaults remain0.9 for baseline tests; applied playable configuration overrides only tank capacity.
+Core suite PASS including expanded parry range, exact refund/no posture healing, separation safety expiry and lethal return.240 fuel rounds/683,400 ticks and240 legacy rounds/223,598 ticks plus replay/fuzz PASS. Unity scene validation/macOS build and76/76 EditMode tests PASS. Additional wide-arena suite now exercises1.8-second capacity: PASS96 rounds/450,686 ticks across widths125/150/180, replay/resume, bounds and bot targeting. New trial tests prove powered flight past the old budget, exhaustion/release latch, unchanged short invulnerability, delayed half refill in3s and full refill in6s, exact capped0.6 parry refunds, both-player reset and captured1.8 capacity. Legacy core defaults remain0.9 for baseline tests; applied playable configuration overrides only tank capacity.
 
-Desktop native900-step smoke checksumB14368ED060D390C; wide touch/tuning previews both PASS900 steps/3 callbacks, checksum8547B1A86A2798FF at width141.8999/height56.25. Native captures verify tank1.8 and refill0.3. Independent source/test review passed. Full-width arena, input layout, speed, parry timing and invulnerability configuration remain unchanged.
+Desktop native900-step smoke checksumB14368ED060D390C; wide touch/tuning previews both PASS900 steps/3 callbacks, checksum8547B1A86A2798FF at width141.8999/height56.25. Native captures verify tank1.8 and refill0.3. Independent source/test review passed. Full-width arena, speed, parry timing and invulnerability remain unchanged. New swipe controls passed input and full-simulation projectile-contact regressions, including after boost invulnerability expires. Independent review found no remaining material issue. Native touch/tuning captures identify touchScheme=boost-swipe-right-guard.
 
 macOS app: artifacts/build/ElasticArena.app
 Xcode project: artifacts/build/ios/Unity-iPhone.xcodeproj
@@ -33,9 +33,9 @@ Device app: artifacts/build/ios-derived/Build/Products/Debug-iphoneos/ElasticAre
 Previews: artifacts/runtime-touch/smoke.png, artifacts/runtime-tuning/smoke.png
 Test report: artifacts/test-results/editmode.xml. Run/control instructions: PLAYTEST_NOTES.md.
 
-Final2× trial iOS export, signed Xcode build, signature verification and device installation PASS. Launch was blocked only because iOS reports the phone Locked; user must unlock/open ElasticArena. Actual phone tuning readback for the new trial is pending launch (the existing device artifact predates this update). Logs: artifacts/logs/xcode-ios-generic-build.log, iphone-install.log, iphone-launch.log, iphone-tuning-copy.log.
+Swipe trial iOS export, signed Xcode build, signature verification, device installation and launch PASS. Actual phone tuning readback confirms touchScheme=boost-swipe-right-guard, tank1.8 and arena129.5681×56.25. Logs: artifacts/logs/xcode-ios-generic-build.log, iphone-install.log, iphone-launch.log, iphone-tuning-copy.log.
 
 
 ## Next human gate
 
-Test full-width wall bounces, both landscape flips during a match, invisible action margins and combo gestures. Downward boost is now reported working; no further investigation requested. User chose2× boost capacity rather than unlimited. Judge whether longer flight still requires management: empty-to-full takes6s plus0.35s delay, and each enemy perfect parry restores0.6s. Keep this finite trial while awaiting feedback. Actual phone feel/readability/thermals await feedback. User chose dark high-contrast art directionC; current single static ninja and Rookie Dojo references await visual Gate B. No animation set or bulk art approved. Preserve gameplay except explicit tuning feedback; defer networking/economy/release. No App Store/TestFlight authorization or paid service needed here.
+Test full-width wall bounces, both landscape flips during a match, invisible action margins, deliberate swipe parries during boost, accidental swipe frequency and the far-right guard strip. Downward boost is now reported working; no further investigation requested. User chose2× boost capacity rather than unlimited. Judge whether longer flight still requires management: empty-to-full takes6s plus0.35s delay, and each enemy perfect parry restores0.6s. Keep this finite trial while awaiting feedback. Actual phone feel/readability/thermals await feedback. User chose dark high-contrast art directionC; current single static ninja and Rookie Dojo references await visual Gate B. No animation set or bulk art approved. Preserve gameplay except explicit tuning feedback; defer networking/economy/release. No App Store/TestFlight authorization or paid service needed here.
