@@ -12,6 +12,7 @@ internal static class FuelTests
 
     public static void Run()
     {
+        DoubledTankBurnsAndRefillsAtTheConfiguredRate();
         BurnsAndRefillsAfterDelay();
         ReleaseCoastsAndRequiresNewPress();
         SteeringAndNeutralRiseStayCapped();
@@ -23,6 +24,54 @@ internal static class FuelTests
         GuardBreakAfterRecoilKeepsReleaseLatch();
         PerfectParryRefundsOnlyEnemyShot();
         ReplayAndFuzzStayDeterministic();
+    }
+
+    private static void DoubledTankBurnsAndRefillsAtTheConfiguredRate()
+    {
+        var tuning = new CombatTuning(new MovementTuning(useFuelBoost: true,
+            fuelCapacitySeconds: 1.8), CombatTuning.Default.Projectile,
+            CombatTuning.Default.Defense, CombatTuning.Default.Divider,
+            CombatTuning.Default.Arena, CombatTuning.Default.Match);
+        SimulationState state = Fresh();
+        FighterState fighter = state.Fighter(0);
+        fighter.Position = fighter.PreviousPosition = fighter.TickStartPosition = new Vec2(25, 25);
+        fighter.Grounded = false;
+        fighter.FuelSeconds = tuning.Movement.FuelCapacitySeconds;
+        var held = new FighterInput(Vec2.Zero, dashHeld: true);
+        void TrialStep(FighterInput input)
+        {
+            var command = new SimulationInput(state.Tick, input, default);
+            var events = new List<SimulationEvent>();
+            MovementSystem.AdvanceKinematics(state, command, tuning, Config, events);
+            CombatSystem.Advance(state, command, tuning, Config, events);
+            state.Tick++;
+        }
+        for (int i = 0; i < Config.TickRateHz; i++)
+            TrialStep(new FighterInput(Vec2.Zero, dashPressed: i == 0, dashHeld: true));
+        Assert(fighter.FuelBoostActive && Math.Abs(fighter.FuelSeconds - .76) < 1e-8,
+            "The doubled tank must stay powered beyond the old budget with normal ignition/burn cost.");
+        Assert(fighter.DashInvulnerabilityTicksRemaining == 0,
+            "A longer powered boost must not extend invulnerability.");
+        for (int i = 0; i < Config.TickRateHz * 2 && fighter.FuelBoostActive; i++)
+            TrialStep(held);
+        Assert(!fighter.FuelBoostActive && fighter.FuelBoostNeedsRelease && fighter.FuelSeconds == 0,
+            "The finite tank must exhaust and require release before another ignition.");
+        int sequence = fighter.DashSequence;
+        int delay = fighter.FuelRegenDelayTicksRemaining;
+        Assert(delay > 0, "Exhaustion must retain the configured refill delay.");
+        for (int i = 0; i < delay; i++) TrialStep(held);
+        Assert(fighter.FuelSeconds == 0, "Refill must wait for the remaining delay.");
+        for (int i = 0; i < Config.TickRateHz * 3; i++) TrialStep(held);
+        Assert(Math.Abs(fighter.FuelSeconds - .9) < 1e-8 && !fighter.FuelBoostActive,
+            "Three seconds at the unchanged refill rate restores half the doubled tank.");
+        for (int i = 0; i < Config.TickRateHz * 3; i++) TrialStep(held);
+        Assert(Math.Abs(fighter.FuelSeconds - 1.8) < 1e-8 &&
+            fighter.DashSequence == sequence && fighter.FuelBoostNeedsRelease,
+            "Six seconds refills the exact cap without reigniting held boost.");
+        TrialStep(default);
+        TrialStep(new FighterInput(Vec2.Zero, dashPressed: true, dashHeld: true));
+        Assert(fighter.FuelBoostActive && fighter.DashSequence == sequence + 1,
+            "Release and a fresh press must enable another finite boost.");
     }
 
     private static SimulationState Fresh()
