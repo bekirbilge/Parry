@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Game.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -13,7 +14,9 @@ namespace Game.Unity
         private bool _jumpHeld, _defenseHeld;
         private Vec2 _move, _rawMove;
         private bool _rawJump, _rawDash, _rawDefense;
-        private int _stickFinger = -1, _dashFinger = -1, _defenseFinger = -1;
+        private int _stickFinger = -1;
+        private readonly HashSet<int> _dashFingers = new HashSet<int>();
+        private readonly HashSet<int> _defenseFingers = new HashSet<int>();
         private Vector2 _stickOrigin, _stickPoint;
         private float _joystickTravel;
         private bool _mouseStick, _mouseDash, _mouseDefense;
@@ -75,8 +78,8 @@ namespace Game.Unity
         private void UpdateCombined()
         {
             bool jump = _rawJump;
-            bool dash = _rawDash || _dashFinger >= 0 || _mouseDash;
-            bool defense = _rawDefense || _defenseFinger >= 0 || _mouseDefense;
+            bool dash = _rawDash || _dashFingers.Count > 0 || _mouseDash;
+            bool defense = _rawDefense || _defenseFingers.Count > 0 || _mouseDefense;
             Vector2 touchMove = JoystickActive ?
                 Vector2.ClampMagnitude((_stickPoint - _stickOrigin) /
                     Mathf.Max(1, _joystickTravel), 1) : Vector2.zero;
@@ -105,7 +108,9 @@ namespace Game.Unity
             _jumpHeld = _dashHeldPrevious = _defenseHeld = false;
             _rawJump = _rawDash = _rawDefense = false;
             _rawMove = new Vec2(0, 0);
-            _stickFinger = _dashFinger = _defenseFinger = -1;
+            _stickFinger = -1;
+            _dashFingers.Clear();
+            _defenseFingers.Clear();
             _mouseStick = _mouseDash = _mouseDefense = false;
             _move = new Vec2(0, 0);
             _stickOrigin = _stickPoint = Vector2.zero;
@@ -126,15 +131,15 @@ namespace Game.Unity
                 Vector2 p = Input.mousePosition;
                 int zone = ArenaLayout.TouchAction(arena, p, Screen.height, tuningOpen, mobileUi, menuOpen);
                 _mouseStick = zone == 0 && _stickFinger < 0;
-                _mouseDash = zone == 1; _mouseDefense = zone == 2;
-                if (_mouseDash) _dashPending = true;
-                if (_mouseDefense) _defensePending = true;
+                _mouseDash = zone == 1 || zone == 3;
+                _mouseDefense = zone == 2 || zone == 3;
                 if (_mouseStick)
                 {
                     _stickOrigin = _stickPoint = p;
                     _joystickTravel = mobileUi ? ArenaLayout.JoystickTravel(arena, true) :
                         Mathf.Max(40, Screen.height * .12f);
                 }
+                UpdateCombined();
             }
             if (Input.GetMouseButton(0) && _mouseStick) _stickPoint = Input.mousePosition;
             if (Input.GetMouseButtonUp(0))
@@ -153,16 +158,20 @@ namespace Game.Unity
             if (menuOpen || tuningOpen) { Clear(); return; }
             if (phase == TouchPhase.Began)
             {
-                int action = ArenaLayout.TouchAction(arena, position, screenHeight, tuningOpen, mobileUi, menuOpen);
-                if (action == 0 && _stickFinger < 0 && !_mouseStick)
+                if (fingerId != _stickFinger && !_dashFingers.Contains(fingerId) &&
+                    !_defenseFingers.Contains(fingerId))
                 {
-                    _stickFinger = fingerId;
-                    _stickOrigin = _stickPoint = position;
-                    _joystickTravel = mobileUi ? ArenaLayout.JoystickTravel(arena, true) :
-                        Mathf.Max(40, screenHeight * .12f);
+                    int action = ArenaLayout.TouchAction(arena, position, screenHeight, tuningOpen, mobileUi, menuOpen);
+                    if (action == 0 && _stickFinger < 0 && !_mouseStick)
+                    {
+                        _stickFinger = fingerId;
+                        _stickOrigin = _stickPoint = position;
+                        _joystickTravel = mobileUi ? ArenaLayout.JoystickTravel(arena, true) :
+                            Mathf.Max(40, screenHeight * .12f);
+                    }
+                    if (action == 1 || action == 3) _dashFingers.Add(fingerId);
+                    if (action == 2 || action == 3) _defenseFingers.Add(fingerId);
                 }
-                if (action == 1 && _dashFinger < 0) { _dashFinger = fingerId; _dashPending = true; }
-                if (action == 2 && _defenseFinger < 0) { _defenseFinger = fingerId; _defensePending = true; }
             }
             if (fingerId == _stickFinger) _stickPoint = position;
             if (phase == TouchPhase.Ended || phase == TouchPhase.Canceled)
@@ -172,8 +181,8 @@ namespace Game.Unity
                     _stickFinger = -1;
                     if (!_mouseStick) _stickOrigin = _stickPoint = Vector2.zero;
                 }
-                if (fingerId == _dashFinger) _dashFinger = -1;
-                if (fingerId == _defenseFinger) _defenseFinger = -1;
+                _dashFingers.Remove(fingerId);
+                _defenseFingers.Remove(fingerId);
             }
             UpdateCombined();
         }
