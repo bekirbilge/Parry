@@ -788,7 +788,7 @@ namespace Game.Unity
             if (PhoneUi)
             {
                 Label(new Rect(footer.xMin + 4, footer.yMin, footer.width - 8, footer.height),
-                    "MOVE · HOLD BOOST / SWIPE PARRY · RIGHT TAP/HOLD GUARD  |  " +
+                    "MOVE · HOLD BOOST / SWIPE AIM + PARRY · RIGHT TAP/HOLD GUARD  |  " +
                     (_localTwoPlayer ? "LOCAL 2P" : "P1 VS BOT " + BotDifficultyName.ToUpperInvariant()), _small);
                 return;
             }
@@ -821,7 +821,7 @@ namespace Game.Unity
                 float divider = Mathf.Max(2f, strip.height * .018f);
                 Box(new Rect(boost.xMin, strip.yMin, divider, strip.height), new Color(.75f, .91f, .94f, .65f));
                 Box(new Rect(parry.xMin, strip.yMin, divider, strip.height), new Color(.75f, .91f, .94f, .65f));
-                Label(boost, "BOOST\nSWIPE TO PARRY", _label);
+                Label(boost, "BOOST\nSWIPE AIM + PARRY", _label);
                 Label(parry, "PARRY\nGUARD", _label);
                 if (_inputs[0].JoystickActive)
                 {
@@ -1046,7 +1046,7 @@ namespace Game.Unity
                     boostLoadDamping = Tuning.Divider.BoostLoadDamping,
                     mode = _localTwoPlayer ? "local-2p" : "bot",
                     boostMode = Tuning.Movement.UseFuelBoost ? "fuel" : "charges",
-                    touchScheme = "boost-swipe-right-guard",
+                    touchScheme = "directional-boost-swipe-right-guard",
                     botDifficulty = _botDifficulty,
                     botDifficultyName = BotDifficultyName,
                     immediateTestStart = Tuning.Match.StartImmediatelyForTesting,
