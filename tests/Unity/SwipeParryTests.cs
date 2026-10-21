@@ -52,10 +52,10 @@ namespace Game.Unity.Tests
         }
 
         [Test]
-        public void FastSwipePressesOnceWhileBoostAndStickAimContinue()
+        public void FastSwipePressesOnceAndOverridesOppositeStickAimDuringBoost()
         {
             Touch(1, TouchPhase.Began, _stick, 0);
-            Touch(1, TouchPhase.Moved, _stick + new Vector2(80, 0), .01);
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-80, 0), .01);
             Touch(2, TouchPhase.Began, _boost, .01);
             FighterInput ignition = _adapter.ConsumeTick();
             Assert.That(ignition.DashPressed && ignition.DashHeld, Is.True);
@@ -63,11 +63,86 @@ namespace Game.Unity.Tests
             FighterInput swipe = _adapter.ConsumeTick();
             Assert.That(swipe.DefensePressed && swipe.DashHeld, Is.True);
             Assert.That(swipe.DefenseHeld || swipe.DashPressed, Is.False);
-            Assert.That(swipe.Move.X, Is.GreaterThan(.5));
+            Assert.That(swipe.Move.X, Is.EqualTo(1).Within(.001));
             Touch(2, TouchPhase.Moved, _boost + new Vector2(120, 0), .06);
             Touch(2, TouchPhase.Moved, _boost + new Vector2(180, 0), .08);
             AssertNoDefense(_adapter.ConsumeTick());
-            AssertNoDefense(_adapter.ConsumeTick());
+            FighterInput sustained = _adapter.ConsumeTick();
+            AssertNoDefense(sustained);
+            Assert.That(sustained.Move.X, Is.EqualTo(1).Within(.001));
+        }
+
+        [TestCase(55, 0, 1, 0)]
+        [TestCase(-55, 0, -1, 0)]
+        [TestCase(0, 55, 0, 1)]
+        [TestCase(0, -55, 0, -1)]
+        [TestCase(55, 55, .7071068, .7071068)]
+        [TestCase(-55, -55, -.7071068, -.7071068)]
+        public void SwipeDirectionBecomesTickAim(float dx, float dy, double x, double y)
+        {
+            Touch(1, TouchPhase.Began, _boost, 0);
+            _adapter.ConsumeTick();
+            Touch(1, TouchPhase.Moved, _boost + new Vector2(dx, dy), .03);
+            FighterInput swipe = _adapter.ConsumeTick();
+            Assert.That(swipe.DefensePressed, Is.True);
+            Assert.That(swipe.Move.X, Is.EqualTo(x).Within(.001));
+            Assert.That(swipe.Move.Y, Is.EqualTo(y).Within(.001));
+        }
+
+        [Test]
+        public void StationaryStickKeepsSwipeAimUntilDeliberateStickMove()
+        {
+            Touch(1, TouchPhase.Began, _stick, 0);
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-80, 0), .01);
+            Touch(2, TouchPhase.Began, _boost, .01);
+            _adapter.ConsumeTick();
+            Touch(2, TouchPhase.Moved, _boost + new Vector2(0, 55), .04);
+            _adapter.ConsumeTick();
+            Touch(1, TouchPhase.Stationary, _stick + new Vector2(-80, 0), .05);
+            Assert.That(_adapter.ConsumeTick().Move.Y, Is.EqualTo(1).Within(.001));
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-81, 0), .06);
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-82, 0), .07);
+            Assert.That(_adapter.ConsumeTick().Move.Y, Is.EqualTo(1).Within(.001));
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-84, 0), .08);
+            FighterInput takenOver = _adapter.ConsumeTick();
+            Assert.That(takenOver.Move.X, Is.LessThan(-.5));
+            Assert.That(takenOver.Move.Y, Is.EqualTo(0).Within(.001));
+        }
+
+        [Test]
+        public void DeliberateStickTakeoverBeforeTickAimsPendingParry()
+        {
+            Touch(1, TouchPhase.Began, _stick, 0);
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-80, 0), .01);
+            Touch(2, TouchPhase.Began, _boost, .01);
+            _adapter.ConsumeTick();
+            Touch(2, TouchPhase.Moved, _boost + new Vector2(0, 55), .04);
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-81, 0), .05);
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-82, 0), .06);
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-84, 0), .07);
+            FighterInput parry = _adapter.ConsumeTick();
+            Assert.That(parry.DefensePressed, Is.True);
+            Assert.That(parry.Move.X, Is.LessThan(-.5));
+            Assert.That(parry.Move.Y, Is.EqualTo(0).Within(.001));
+        }
+
+        [Test]
+        public void RawAimChangeTakesOverUntilAnotherSwipe()
+        {
+            Touch(1, TouchPhase.Began, _boost, 0);
+            _adapter.ConsumeTick();
+            Touch(1, TouchPhase.Moved, _boost + new Vector2(55, 0), .03);
+            _adapter.ConsumeTick();
+            _adapter.SampleRaw(new Vec2(0, 0), false, false, false);
+            Assert.That(_adapter.ConsumeTick().Move.X, Is.EqualTo(1).Within(.001));
+            _adapter.SampleRaw(new Vec2(-1, 0), false, false, false);
+            Assert.That(_adapter.ConsumeTick().Move.X, Is.EqualTo(-1).Within(.001));
+            Touch(1, TouchPhase.Stationary, _boost + new Vector2(55, 0), .20);
+            Touch(1, TouchPhase.Moved, _boost + new Vector2(55, -55), .23);
+            FighterInput rearmed = _adapter.ConsumeTick();
+            Assert.That(rearmed.DefensePressed, Is.True);
+            Assert.That(rearmed.Move.Y, Is.EqualTo(-1).Within(.001));
+            Assert.That(_adapter.ConsumeTick().Move.Y, Is.EqualTo(-1).Within(.001));
         }
 
         [Test]
@@ -80,10 +155,11 @@ namespace Game.Unity.Tests
             Assert.That(_adapter.ConsumeTick().DefensePressed, Is.True);
             Touch(1, TouchPhase.Stationary, _boost + new Vector2(55, 0), .60);
             Touch(1, TouchPhase.Stationary, _boost + new Vector2(55, 0), .73);
-            Touch(1, TouchPhase.Moved, _boost + new Vector2(110, 0), .76);
+            Touch(1, TouchPhase.Moved, _boost + new Vector2(55, -55), .76);
             FighterInput second = _adapter.ConsumeTick();
             Assert.That(second.DefensePressed && second.DashHeld, Is.True);
             Assert.That(second.DashPressed || second.DefenseHeld, Is.False);
+            Assert.That(second.Move.Y, Is.EqualTo(-1).Within(.001));
         }
 
         [Test]
@@ -130,7 +206,9 @@ namespace Game.Unity.Tests
             Assert.That(locked.DefensePressed && locked.DashHeld, Is.True);
             Assert.That(locked.DefenseHeld, Is.False);
             Touch(1, TouchPhase.Canceled, _boost + new Vector2(150, 0), .05);
-            Assert.That(_adapter.ConsumeTick().DashHeld, Is.False);
+            FighterInput canceled = _adapter.ConsumeTick();
+            Assert.That(canceled.DashHeld, Is.False);
+            Assert.That(_adapter.ConsumeTick().Move.X, Is.EqualTo(0).Within(.001));
             Touch(2, TouchPhase.Began, _boost, .1);
             _adapter.ConsumeTick();
             _adapter.SampleTouch(2, TouchPhase.Moved, _boost + new Vector2(60, 0),
@@ -148,11 +226,14 @@ namespace Game.Unity.Tests
             FighterInput edge = _adapter.ConsumeTick();
             Assert.That(edge.DefensePressed, Is.True);
             Assert.That(edge.DashHeld || edge.DefenseHeld, Is.False);
-            AssertNoDefense(_adapter.ConsumeTick());
+            Assert.That(edge.Move.X, Is.EqualTo(1).Within(.001));
+            FighterInput fallback = _adapter.ConsumeTick();
+            AssertNoDefense(fallback);
+            Assert.That(fallback.Move.X, Is.EqualTo(0).Within(.001));
         }
 
         [Test]
-        public void SwipeParryDuringFuelBoostUsesStickAimAndDoesNotRestartIgnition()
+        public void SwipeParryDuringFuelBoostUsesSwipeAimAndDoesNotRestartIgnition()
         {
             var tuning = new CombatTuning(new MovementTuning(useFuelBoost: true),
                 CombatTuning.Default.Projectile, CombatTuning.Default.Defense,
@@ -165,7 +246,7 @@ namespace Game.Unity.Tests
             fighter.FuelSeconds = tuning.Movement.FuelCapacitySeconds;
             var events = new List<SimulationEvent>();
             Touch(1, TouchPhase.Began, _stick, 0);
-            Touch(1, TouchPhase.Moved, _stick + new Vector2(80, 0), .01);
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-80, 0), .01);
             Touch(2, TouchPhase.Began, _boost, .01);
             FighterInput ignition = _adapter.ConsumeTick();
             Advance(ignition);
@@ -208,7 +289,7 @@ namespace Game.Unity.Tests
             fighter.FuelSeconds = tuning.Movement.FuelCapacitySeconds;
             simulation.RestoreSnapshot(setup);
             Touch(1, TouchPhase.Began, _stick, 0);
-            Touch(1, TouchPhase.Moved, _stick + new Vector2(80, 0), .01);
+            Touch(1, TouchPhase.Moved, _stick + new Vector2(-80, -80), .01);
             Touch(2, TouchPhase.Began, _boost, .01);
             simulation.Step(new SimulationInput(simulation.Tick, _adapter.ConsumeTick(), default));
             for (int i = 0; i < 8; i++)
@@ -223,9 +304,11 @@ namespace Game.Unity.Tests
                 PreviousPosition = incoming, Velocity = new Vec2(-24, 0) });
             simulation.RestoreSnapshot(setup);
             Touch(2, TouchPhase.Stationary, _boost, .20);
-            Touch(2, TouchPhase.Moved, _boost + new Vector2(55, 0), .23);
-            var events = simulation.Step(new SimulationInput(simulation.Tick,
-                _adapter.ConsumeTick(), default));
+            Touch(2, TouchPhase.Moved, _boost + new Vector2(55, 55), .23);
+            FighterInput swipe = _adapter.ConsumeTick();
+            Assert.That(swipe.Move.X, Is.GreaterThan(.5));
+            Assert.That(swipe.Move.Y, Is.GreaterThan(.5));
+            var events = simulation.Step(new SimulationInput(simulation.Tick, swipe, default));
             bool parried = false;
             foreach (SimulationEvent item in events)
                 if (item.Type == SimulationEventType.PerfectParry) parried = true;
@@ -235,6 +318,7 @@ namespace Game.Unity.Tests
             Assert.That(result.Fighter(0).FuelBoostActive, Is.True);
             Assert.That(result.Fighter(0).DashSequence, Is.EqualTo(sequence));
             Assert.That(result.Projectiles[0].PowerLevel, Is.EqualTo(1));
+            Assert.That(result.Projectiles[0].Velocity.Y, Is.GreaterThan(0));
         }
 
         [Test]
