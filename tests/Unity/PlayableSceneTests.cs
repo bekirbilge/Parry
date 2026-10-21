@@ -177,6 +177,8 @@ namespace Game.Unity.Tests
             Assert.That(capture, Does.Contain("\"boostLoadDuration\""));
             Assert.That(capture, Does.Contain("\"projectileDecaySecondsPerLevel\""));
             Assert.That(capture, Does.Contain("\"projectileLevel3Speed\""));
+            Assert.That(capture, Does.Contain("\"arenaWidth\""));
+            Assert.That(capture, Does.Contain("\"arenaHeight\": 56.25"));
             Assert.That(capture, Does.Contain("\"projectileSpeedDecay\": 12"));
             Assert.That(capture, Does.Contain("\"projectileRadius\": 0.9"));
             Assert.That(capture, Does.Contain("\"fighterRadius\": 2.5"));
@@ -308,6 +310,62 @@ namespace Game.Unity.Tests
                 Assert.That(combat.center.y, Is.EqualTo(viewport.center.y).Within(.01f));
                 Assert.That(combat.width / 100f, Is.EqualTo(combat.height / 56.25f).Within(.0001f));
             }
+        }
+
+        [Test]
+        public void PhoneArenaUsesFullViewportWidthAndRetainsAppliedWorldOnRoundReset()
+        {
+            Rect viewport = ArenaLayout.Compute(2535, 1170, new Rect(0, 0, 2535, 1170), true);
+            double width = GameController.ArenaWidthForViewport(viewport, true);
+            Assert.That(width, Is.EqualTo(56.25 * viewport.width / viewport.height).Within(.001));
+            Assert.That(GameController.ArenaWidthForViewport(viewport, false), Is.EqualTo(100));
+            Assert.That(GameController.ArenaWidthForViewport(Rect.zero, true), Is.EqualTo(100));
+
+            Rect combat = GameController.FitCombat(viewport, (float)width, 56.25f);
+            Assert.That(combat.xMin, Is.EqualTo(viewport.xMin).Within(.01f));
+            Assert.That(combat.xMax, Is.EqualTo(viewport.xMax).Within(.01f));
+            Assert.That(combat.yMin, Is.EqualTo(viewport.yMin).Within(.01f));
+            Assert.That(combat.yMax, Is.EqualTo(viewport.yMax).Within(.01f));
+            float unitX = combat.width / (float)width;
+            float unitY = combat.height / 56.25f;
+            Assert.That(unitX, Is.EqualTo(unitY).Within(.0001f));
+
+            BootstrapPipeline.EnsureBootstrapScene();
+            Scene scene = EditorSceneManager.OpenScene(BootstrapPipeline.ScenePath, OpenSceneMode.Single);
+            GameController controller = Find<GameController>(scene);
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            typeof(GameController).GetField("_forceTouchPreview", flags).SetValue(controller, true);
+            controller.RestartMatch();
+            Assert.That(controller.Tuning.Arena.WidthUnits,
+                Is.EqualTo(GameController.ArenaWidthForViewport(
+                    ArenaLayout.Compute(Screen.width, Screen.height, Screen.safeArea, true), true)).Within(.001));
+            double appliedWidth = controller.Tuning.Arena.WidthUnits;
+            System.Reflection.MethodInfo point = typeof(GameController).GetMethod("Point", flags);
+            Rect appliedCombat = GameController.FitCombat(
+                ArenaLayout.Compute(Screen.width, Screen.height, Screen.safeArea, true),
+                (float)appliedWidth, (float)controller.Tuning.Arena.HeightUnits);
+            Vector2 worldBottomLeft = (Vector2)point.Invoke(controller,
+                new object[] { appliedCombat, new Vec2(0, 0) });
+            Vector2 worldTopRight = (Vector2)point.Invoke(controller,
+                new object[] { appliedCombat, new Vec2(appliedWidth, controller.Tuning.Arena.HeightUnits) });
+            Assert.That(worldBottomLeft.x, Is.EqualTo(appliedCombat.xMin).Within(.01f));
+            Assert.That(worldBottomLeft.y, Is.EqualTo(appliedCombat.yMax).Within(.01f));
+            Assert.That(worldTopRight.x, Is.EqualTo(appliedCombat.xMax).Within(.01f));
+            Assert.That(worldTopRight.y, Is.EqualTo(appliedCombat.yMin).Within(.01f));
+
+            controller.RestartMatch();
+            Assert.That(controller.Tuning.Arena.WidthUnits, Is.EqualTo(appliedWidth).Within(.001));
+            Assert.That(controller.Tuning.Arena.HeightUnits, Is.EqualTo(56.25));
+        }
+
+        [Test]
+        public void ViewportRotationGeometryCanClearInputWithoutRestartingSimulation()
+        {
+            Rect safe = new Rect(0, 0, 2535, 1170);
+            Assert.That(GameController.ViewportGeometryChanged(2535, 1170, safe,
+                1170, 2535, new Rect(0, 0, 1170, 2535)), Is.True);
+            Assert.That(GameController.ViewportGeometryChanged(2535, 1170, safe,
+                2535, 1170, safe), Is.False);
         }
 
         [Test]
