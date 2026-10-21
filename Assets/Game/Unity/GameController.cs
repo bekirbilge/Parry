@@ -35,6 +35,10 @@ namespace Game.Unity
         private string _lastEvent = "";
         private float _lastEventUntil;
         private int _hitstopTicks;
+        private int _viewportWidth;
+        private int _viewportHeight;
+        private Rect _viewportSafeArea;
+        private double _appliedArenaWidth = 100.0;
         private Vector2 _tuningScroll;
         private GUISkin _phoneTuningSkin;
         private int _tuningScrollFinger = -1;
@@ -114,9 +118,12 @@ namespace Game.Unity
             var match = _prototypeInstantTestingStart ?
                 new MatchTuning(roundCountdownSeconds: 0, startImmediatelyForTesting: true) :
                 new MatchTuning();
+            Rect viewport = ArenaLayout.Compute(Screen.width, Screen.height, Screen.safeArea, PhoneUi);
+            _appliedArenaWidth = ArenaWidthForViewport(viewport, PhoneUi);
             _sim = new MatchSimulation(new SimulationConfig(), new CombatTuning(movement, projectile,
                 new DefenseTuning(parryExtraReachUnits: _parryExtraReach), divider,
-                new ArenaTuning(fighterRadiusUnits: _fighterRadius, projectileRadiusUnits: _projectileRadius), match));
+                new ArenaTuning(widthUnits: _appliedArenaWidth, fighterRadiusUnits: _fighterRadius,
+                    projectileRadiusUnits: _projectileRadius), match));
             _inputs[0].Clear(); _inputs[1].Clear();
             _lastEvent = "";
             _hitstopTicks = 0;
@@ -135,7 +142,16 @@ namespace Game.Unity
             }
             Application.targetFrameRate = 60;
             if (_smoke) Application.runInBackground = true;
-            Screen.orientation = ScreenOrientation.LandscapeLeft;
+            if (Application.isMobilePlatform)
+            {
+                Screen.autorotateToPortrait = false;
+                Screen.autorotateToPortraitUpsideDown = false;
+                Screen.autorotateToLandscapeLeft = true;
+                Screen.autorotateToLandscapeRight = true;
+                Screen.orientation = ScreenOrientation.AutoRotation;
+            }
+            else Screen.orientation = ScreenOrientation.LandscapeLeft;
+            RememberViewportGeometry();
             _driver = GetComponent<FixedTickDriver>();
             _audio = GetComponent<AudioSource>();
             _audio.playOnAwake = false;
@@ -177,6 +193,12 @@ namespace Game.Unity
         private void Update()
         {
             if (_smoke) return;
+            if (ViewportGeometryChanged(Screen.width, Screen.height, Screen.safeArea,
+                _viewportWidth, _viewportHeight, _viewportSafeArea))
+            {
+                _inputs[0].Clear(); _inputs[1].Clear();
+                RememberViewportGeometry();
+            }
             if (Input.GetKeyDown(KeyCode.F1)) SetFuelBoostMode(!_prototypeFuelBoost);
             if (Input.GetKeyDown(KeyCode.F5)) ToggleTuning();
             if (Input.GetKeyDown(KeyCode.F2)) { _slow = !_slow; Time.timeScale = _slow && !_paused ? .25f : _paused ? 0 : 1; }
@@ -357,8 +379,8 @@ namespace Game.Unity
         {
             SimulationState state = _sim.CaptureSnapshot();
             StepOnce(new SimulationInput(_sim.Tick,
-                DebugBot.Decide(state, 0, 0, Tuning.Movement.UseFuelBoost),
-                DebugBot.Decide(state, 1, 0, Tuning.Movement.UseFuelBoost)));
+                DebugBot.Decide(state, 0, 0, Tuning.Movement.UseFuelBoost, Tuning),
+                DebugBot.Decide(state, 1, 0, Tuning.Movement.UseFuelBoost, Tuning)));
             ValidateBounds(_sim.CaptureSnapshot());
         }
 
@@ -368,7 +390,7 @@ namespace Game.Unity
             SimulationState before = _sim.CaptureSnapshot();
             FighterInput left = _inputs[0].ConsumeTick();
             FighterInput right = _localTwoPlayer ? _inputs[1].ConsumeTick() :
-                DebugBot.Decide(before, 1, _botDifficulty, Tuning.Movement.UseFuelBoost);
+                DebugBot.Decide(before, 1, _botDifficulty, Tuning.Movement.UseFuelBoost, Tuning);
             StepOnce(new SimulationInput(_sim.Tick, left, right));
         }
 
@@ -456,7 +478,8 @@ namespace Game.Unity
 
         private void DrawCombat(Rect viewport)
         {
-            Rect arena = FitCombat(viewport);
+            Rect arena = FitCombat(viewport, (float)Tuning.Arena.WidthUnits,
+                (float)Tuning.Arena.HeightUnits);
             if (!PhoneUi) Box(arena, new Color(.09f, .12f, .17f));
             if (!PhoneUi && _referenceArtEnabled && _referenceArena != null)
                 GUI.DrawTextureWithTexCoords(arena, _referenceArena,
@@ -469,27 +492,42 @@ namespace Game.Unity
                 Box(new Rect(arena.xMin, floor, arena.width, Mathf.Max(2, arena.yMax - floor)), new Color(.17f, .23f, .30f));
                 for (int i = 1; i < 10; i++) Box(new Rect(arena.xMin + arena.width * i / 10f, arena.yMin, 1, arena.height), new Color(1, 1, 1, .045f));
             }
-            if (PhoneUi)
-            {
-                float rail = Mathf.Max(2f, unit * .18f);
-                Box(new Rect(arena.xMin, arena.yMin, rail, arena.height), new Color(.65f, .87f, .92f, .45f));
-                Box(new Rect(arena.xMax - rail, arena.yMin, rail, arena.height), new Color(.65f, .87f, .92f, .45f));
-            }
             DrawDivider(arena, state, unit);
             DrawPortal(arena, state, unit);
             foreach (ProjectileState p in state.Projectiles) DrawProjectile(arena, p, unit);
             foreach (FighterState f in state.Fighters) DrawFighter(arena, f, unit);
         }
 
-        /// <summary>Fits the entire authoritative 100 x 56.25 world without distortion.</summary>
-        public static Rect FitCombat(Rect viewport)
+        /// <summary>Chooses a phone world width from the available combat viewport.</summary>
+        public static double ArenaWidthForViewport(Rect viewport, bool phone)
         {
-            if (viewport.width <= 0 || viewport.height <= 0) return Rect.zero;
-            const float aspect = 16f / 9f;
+            if (!phone || viewport.width <= 0 || viewport.height <= 0) return 100.0;
+            return Mathf.Clamp(56.25f * viewport.width / viewport.height, 100f, 1000f);
+        }
+
+        /// <summary>Fits the authoritative world without stretching it.</summary>
+        public static Rect FitCombat(Rect viewport, float worldWidth = 100f, float worldHeight = 56.25f)
+        {
+            if (viewport.width <= 0 || viewport.height <= 0 || worldWidth <= 0 || worldHeight <= 0)
+                return Rect.zero;
+            float aspect = worldWidth / worldHeight;
             float width = Mathf.Min(viewport.width, viewport.height * aspect);
             float height = width / aspect;
             return new Rect(viewport.center.x - width * .5f,
                 viewport.center.y - height * .5f, width, height);
+        }
+
+        public static bool ViewportGeometryChanged(int width, int height, Rect safeArea,
+            int previousWidth, int previousHeight, Rect previousSafeArea)
+        {
+            return width != previousWidth || height != previousHeight || safeArea != previousSafeArea;
+        }
+
+        private void RememberViewportGeometry()
+        {
+            _viewportWidth = Screen.width;
+            _viewportHeight = Screen.height;
+            _viewportSafeArea = Screen.safeArea;
         }
 
         /// <summary>Crops reference scenery to fill a rectangle while keeping source pixels square.</summary>
@@ -994,6 +1032,8 @@ namespace Game.Unity
                     projectileSpeedDecay = Tuning.Projectile.SpeedDecayUnitsPerSecondSquared,
                     projectileRadius = Tuning.Arena.ProjectileRadiusUnits,
                     fighterRadius = Tuning.Arena.FighterRadiusUnits,
+                    arenaWidth = Tuning.Arena.WidthUnits,
+                    arenaHeight = Tuning.Arena.HeightUnits,
                     projectileLevel0Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond,
                     projectileLevel1Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond * Tuning.Projectile.Level1SpeedMultiplier,
                     projectileLevel2Speed = Tuning.Projectile.BaseSpeedUnitsPerSecond * Tuning.Projectile.Level2SpeedMultiplier,
@@ -1028,6 +1068,7 @@ namespace Game.Unity
                 projectileLevel0Speed, projectileLevel1Speed, projectileLevel2Speed, projectileLevel3Speed,
                 fuelCapacitySeconds, fuelRegenerationPerSecond, fuelRegenerationDelaySeconds,
                 fuelIgnitionCostSeconds, fuelSteeringAcceleration, fuelInvulnerabilityRearmSeconds;
+            public double arenaWidth, arenaHeight;
             public string mode, boostMode, botDifficultyName;
             public int botDifficulty;
             public bool immediateTestStart;
@@ -1204,9 +1245,9 @@ namespace Game.Unity
             SaveTuning();
         }
 
-        private static Vector2 Point(Rect a, Vec2 p) => new Vector2(a.xMin + a.width*(float)(p.X/100.0),
-            a.yMax - a.height*(float)(p.Y/56.25));
-        private static float Y(Rect a, double y) => a.yMax - a.height*(float)(y/56.25);
+        private Vector2 Point(Rect a, Vec2 p) => new Vector2(a.xMin + a.width*(float)(p.X/Tuning.Arena.WidthUnits),
+            a.yMax - a.height*(float)(p.Y/Tuning.Arena.HeightUnits));
+        private float Y(Rect a, double y) => a.yMax - a.height*(float)(y/Tuning.Arena.HeightUnits);
         private void Label(Rect r, string s, GUIStyle style) => GUI.Label(r, s, style);
         private void Box(Rect r, Color c) { Color old = GUI.color; GUI.color = c; GUI.DrawTexture(r, _pixel); GUI.color = old; }
         private void Circle(Rect r, Color c) { Color old = GUI.color; GUI.color = c; GUI.DrawTexture(r, _circle); GUI.color = old; }
