@@ -60,8 +60,8 @@ namespace Game.Unity
             if (mobileUi)
             {
                 Rect strip = ControlStrip(arena);
-                float start = action == 0 ? 0 : action == 1 ? .50f : .75f;
-                float width = action == 0 ? .50f : .25f;
+                float start = action == 0 ? 0 : action == 1 ? .50f : .90f;
+                float width = action == 0 ? .50f : action == 1 ? .40f : .10f;
                 return new Rect(strip.xMin + strip.width * start, strip.yMin,
                     strip.width * width, strip.height);
             }
@@ -69,14 +69,6 @@ namespace Game.Unity
             float x = arena.xMin + arena.width * (action == 0 ? .14f : action == 1 ? .76f : .90f);
             float y = arena.yMax - arena.height * .21f;
             return new Rect(x - size * .5f, y - size * .5f, size, size);
-        }
-
-        /// <summary>Shared BOOST and PARRY gesture zone, overlapping their visual regions.</summary>
-        public static Rect ComboZone(Rect arena)
-        {
-            Rect strip = ControlStrip(arena);
-            return new Rect(strip.xMin + strip.width * .70f, strip.yMin,
-                strip.width * .10f, strip.height);
         }
 
         public static Rect ToolbarButton(Rect arena, int index, bool mobileUi = false)
@@ -139,10 +131,7 @@ namespace Game.Unity
                 if (p.x < strip.xMin + strip.width * .50f)
                     return p.y >= strip.yMin && p.y < strip.yMax ? 0 : -1;
                 if (p.y < actionRegion.yMin || p.y >= actionRegion.yMax) return -1;
-                Rect combo = ComboZone(arena);
-                // Keep inclusive edges stable under subpixel floating-point rounding.
-                if (p.x >= combo.xMin - .01f && p.x <= combo.xMax + .01f) return 3;
-                return p.x < strip.xMin + strip.width * .75f ? 1 : 2;
+                return p.x < strip.xMin + strip.width * .90f ? 1 : 2;
             }
             if (!arena.Contains(p)) return -1;
             for (int i = 0; i < 4; i++) if (ToolbarButton(arena, i).Contains(p)) return -1;
