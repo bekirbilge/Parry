@@ -15,7 +15,8 @@ namespace Game.Core
         RoundDraw,
         RoundWon,
         MatchWon,
-        OwnedProjectileRedirected
+        OwnedProjectileRedirected,
+        FloorHazardHit
     }
 
     /// <summary>Transient tick output; events are ordered by the simulation step.</summary>
