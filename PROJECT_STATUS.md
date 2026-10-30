@@ -5,6 +5,14 @@ Milestone: animated ninja and floor-fire trial; physical review pending
 Branch: playtest/animated-ninja-floor-fire
 Remote: https://github.com/bekirbilge/Parry.git
 
+## Paused handoff — 2026-10-30
+
+User is switching to another project. Preserve this tested checkpoint; no further implementation is requested until returning. Latest iPhone build is installed, manually opened and verified by fresh app-only readback. Gameplay feedback for the lethal-fire trial and visual approval for the animated sample have not been received.
+
+On resume, first remind the user to test ElasticArena if they have not already. Ask whether the two fire-warning flashes give enough escape time, whether fire prevents stationary parry camping, and whether animations and equal swipe/tap parry outlines read clearly. Record feedback in PLAYTEST_NOTES.md before changing tuning or proceeding beyond the human gate. No timed notification has been scheduled; this reminder is part of the resume workflow.
+
+Resume from this branch and the current phone controls below. Read IMPLEMENTATION_PLAN.md and the relevant GDD sections before the next implementation. If the installed development app no longer opens after provisioning expires on 2026-11-06, rebuild/sign/install before testing. Build artifacts are local and ignored; tracked source and asset provenance are sufficient to regenerate them.
+
 ## Current build
 
 Unity 6000.3.26f1 LTS; macOS arm64; .NET 10.0.101; Xcode 27.1/iPhoneOS 27.1 SDK. Development app `com.bekirbilge.parry.playtest` (ElasticArena) is installed and launched on the paired iPhone 17 Pro Max, iOS 26.6.2. Developer Mode and developer-profile trust are enabled. Renewed Personal Team provisioning expires 2026-11-06; user trusted the developer profile and confirmed the animation build opens.
