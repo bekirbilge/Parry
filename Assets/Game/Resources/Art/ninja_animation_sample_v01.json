@@ -1,0 +1,153 @@
+{
+  "columns": 4,
+  "rows": 6,
+  "cellWidth": 256,
+  "cellHeight": 256,
+  "referenceHeight": 223.0,
+  "frames": [
+    {
+      "left": 38,
+      "top": 38,
+      "right": 232,
+      "bottom": 261
+    },
+    {
+      "left": 290,
+      "top": 30,
+      "right": 481,
+      "bottom": 261
+    },
+    {
+      "left": 535,
+      "top": 38,
+      "right": 728,
+      "bottom": 261
+    },
+    {
+      "left": 790,
+      "top": 38,
+      "right": 984,
+      "bottom": 261
+    },
+    {
+      "left": 31,
+      "top": 290,
+      "right": 250,
+      "bottom": 511
+    },
+    {
+      "left": 290,
+      "top": 294,
+      "right": 494,
+      "bottom": 512
+    },
+    {
+      "left": 542,
+      "top": 297,
+      "right": 754,
+      "bottom": 511
+    },
+    {
+      "left": 784,
+      "top": 290,
+      "right": 996,
+      "bottom": 512
+    },
+    {
+      "left": 30,
+      "top": 542,
+      "right": 257,
+      "bottom": 740
+    },
+    {
+      "left": 295,
+      "top": 542,
+      "right": 518,
+      "bottom": 720
+    },
+    {
+      "left": 534,
+      "top": 553,
+      "right": 760,
+      "bottom": 722
+    },
+    {
+      "left": 783,
+      "top": 542,
+      "right": 996,
+      "bottom": 718
+    },
+    {
+      "left": 28,
+      "top": 765,
+      "right": 229,
+      "bottom": 987
+    },
+    {
+      "left": 287,
+      "top": 765,
+      "right": 483,
+      "bottom": 987
+    },
+    {
+      "left": 534,
+      "top": 771,
+      "right": 730,
+      "bottom": 987
+    },
+    {
+      "left": 782,
+      "top": 771,
+      "right": 984,
+      "bottom": 987
+    },
+    {
+      "left": 37,
+      "top": 1022,
+      "right": 263,
+      "bottom": 1238
+    },
+    {
+      "left": 279,
+      "top": 1022,
+      "right": 522,
+      "bottom": 1238
+    },
+    {
+      "left": 540,
+      "top": 1018,
+      "right": 769,
+      "bottom": 1238
+    },
+    {
+      "left": 783,
+      "top": 1021,
+      "right": 987,
+      "bottom": 1238
+    },
+    {
+      "left": 28,
+      "top": 1267,
+      "right": 258,
+      "bottom": 1505
+    },
+    {
+      "left": 281,
+      "top": 1268,
+      "right": 512,
+      "bottom": 1505
+    },
+    {
+      "left": 534,
+      "top": 1286,
+      "right": 731,
+      "bottom": 1505
+    },
+    {
+      "left": 781,
+      "top": 1278,
+      "right": 986,
+      "bottom": 1505
+    }
+  ]
+}
