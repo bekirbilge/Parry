@@ -48,6 +48,7 @@ namespace Game.Core
                 state.Fighter(1).GuardBreakTicksRemaining
             };
             DefenseSystem.BeginTick(state, input, tuning, config);
+            FloorHazardSystem.Apply(state, input, tuning, config, events);
             foreach (ProjectileState projectile in state.Projectiles)
             {
                 projectile.PreviousPosition = projectile.Position;
