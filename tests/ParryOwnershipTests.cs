@@ -277,8 +277,8 @@ internal static class ParryOwnershipTests
     {
         SimulationState state = Fresh();
         Step(state, new FighterInput(Vec2.Zero, defensePressed: true));
-        Assert(SimulationState.SnapshotVersion == 7 && state.Projectiles[0].LastParrierId == 0,
-            "Snapshot version 7 must capture active contact safety.");
+        Assert(SimulationState.SnapshotVersion == 8 && state.Projectiles[0].LastParrierId == 0,
+            "Snapshot version 8 must retain active contact safety.");
         SimulationState active = state.Clone();
         ulong activeChecksum = active.ComputeChecksum();
         var resumed = new MatchSimulation();
