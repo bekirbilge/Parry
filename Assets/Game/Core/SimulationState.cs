@@ -92,7 +92,7 @@ namespace Game.Core
     /// <summary>Versioned, deep-clonable state for same-runtime replay comparison.</summary>
     public sealed class SimulationState
     {
-        public const int SnapshotVersion = 7;
+        public const int SnapshotVersion = 8;
         public const int LeftFighterId = 0;
         public const int RightFighterId = 1;
 
@@ -115,6 +115,7 @@ namespace Game.Core
         };
         public List<ProjectileState> Projectiles = new List<ProjectileState>();
         public DividerState Divider = new DividerState();
+        public FloorHazardState FloorHazard = new FloorHazardState();
 
         public FighterState Fighter(int id)
         {
@@ -129,6 +130,7 @@ namespace Game.Core
             clone.Projectiles = new List<ProjectileState>(Projectiles.Count);
             foreach (ProjectileState projectile in Projectiles) clone.Projectiles.Add(projectile.Clone());
             clone.Divider = Divider.Clone();
+            clone.FloorHazard = FloorHazard.Clone();
             return clone;
         }
 
@@ -149,6 +151,9 @@ namespace Game.Core
             hash.Add(SpawnSequence);
             hash.Add(NextProjectileId);
             hash.Add(LastBodyContactTick);
+            hash.Add(FloorHazard.ElapsedActiveTicks);
+            hash.Add(FloorHazard.LastHitCycle.Length);
+            foreach (long cycle in FloorHazard.LastHitCycle) hash.Add(cycle);
             hash.Add(Fighters.Length);
             foreach (FighterState fighter in Fighters)
             {
