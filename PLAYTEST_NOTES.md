@@ -142,3 +142,8 @@ Historical 2026-10-22 swipe-parry control trial: the edge-aware directional swip
 User changed the initial launch/posture proposal to instant elimination. At6 seconds, marked floor patches flash twice over2 seconds; they ignite at8 seconds for1.25 seconds. Warnings repeat every10 seconds at mirrored rotating positions. Leave the marked patch or get fully above the flames before ignition. Guard, parry and boost invulnerability do not protect against fire. Fire does not change posture or launch the player. One burned player loses the round; both burned in the same fixed step draw and replay with no points.
 
 Compare with fire disabled in Pause → Tuning → Floor fire, or F7 on desktop (restarts match). Test the two warning flashes, escaping sideways/upward, corner clearance, guard/parry on fire, both players burned together, score and round reset. Judge whether it prevents stationary parry play without unfair deaths. Visual Gate B for the animation sample remains pending.
+
+
+## Pause / next-session reminder — 2026-10-30
+
+User switched to another project after the final iPhone build opened and lethal-fire/animation readback passed. No subjective verdict on this trial yet. At the next Parry session, remind the user to playtest if not already done: two warning flashes and escape fairness, prevention of stationary parry camping, animated character readability and matching swipe/tap parry circles. Keep current tuning until feedback arrives. No timed reminder is scheduled.
