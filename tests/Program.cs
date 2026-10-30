@@ -21,6 +21,7 @@ internal static class Program
         ProjectileTests.Run();
         ParryOwnershipTests.Run();
         MatchTests.Run();
+        FloorHazardTests.Run();
         ReplayFuzzTests.Run();
         Console.WriteLine("Core smoke tests passed.");
         return 0;
