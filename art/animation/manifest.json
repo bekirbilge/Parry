@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "usage": "single-character-animation-proof",
+  "approval_status": "proof_pending",
+  "created_date": "2026-10-30",
+  "tool": "built-in image_gen",
+  "reference": "Assets/Game/Resources/Art/char_ninja_idle_v01.png",
+  "prompt_path": "art/animation/generation_prompt_v01.txt",
+  "source_path": "art/animation/ninja_animation_source_v01.png",
+  "texture_path": "Assets/Game/Resources/Art/char_ninja_animation_sample_v01.png",
+  "sha256": "60b1a96fd2258cdefd6bfe9a5431cb031bd4e24cb134b1269759d7a1fcf4dca5",
+  "layout_path": "Assets/Game/Resources/Art/ninja_animation_sample_v01.json",
+  "layout_sha256": "196db633541581961c2948a80633d300b4f5f91dcedac646a875aab4d4633bf7",
+  "width": 1024,
+  "height": 1536,
+  "frame_count": 24,
+  "rows": [
+    "idle",
+    "run",
+    "boost",
+    "guard",
+    "parry",
+    "recoil"
+  ],
+  "columns": 4,
+  "frames_per_second": 12,
+  "alpha_threshold": 32,
+  "reference_height": 223.0,
+  "notes": [
+    "Original source pixels preserved; no scripted image edits.",
+    "Frame rectangles measured from24 disconnected alpha>32 components, padded2px; generated figures cross the nominal grid slightly.",
+    "Common pixel scale based on idle height; every frame anchors soles to authoritative fighter floor.",
+    "Ascent/fall reuse boost frames; defeat holds recoil final frame. Dedicated victory/defeat animations deferred.",
+    "Human visual approval pending. No bulk roster/arena generation or commercial clearance claimed."
+  ],
+  "background_edit_prompt_path": "art/animation/background_refinement_prompt_v01.txt",
+  "source_sha256": "dd99b9bb693609702828c905130af64ba168932e0da125e38b779f23f90d5fa2",
+  "background_edit_prompt": "Edit this exact 1024x1536 four-column six-row ninja animation sheet. Remove ALL background completely to true transparent alpha, including all dark navy background, blue glows, soft gradients, shadows and halos BETWEEN AND AROUND the characters. Preserve ONLY the24 ninjas themselves, crisp opaque pixel art including their solid blue scarves, navy clothing, eyes and amber highlights. Preserve the exact4x6 regular cell grid, cell positions, poses, body scale, colors and1024x1536portraitcanvas. No repositioning, no extra details, no cropping. This is technical background removal for sprite use. The transparent regions must have alpha0. Do not render a checkerboard, colored background or soft haze. Preserve solid dark character outlines and genuine opaque clothing; keep each ninja separated with transparent gutters.",
+  "preview_path": "art/animation/ninja_animation_preview_v01.gif",
+  "preview_sha256": "1af6d776e56bda2adf31c5ed3ad4c550ee88739cc7efad2086a74acb4efd050b"
+}
