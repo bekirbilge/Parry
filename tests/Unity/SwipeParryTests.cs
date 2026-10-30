@@ -392,6 +392,82 @@ namespace Game.Unity.Tests
             Assert.That(result.Projectiles[0].Velocity.Y, Is.GreaterThan(0));
         }
 
+        [TestCase(6.8, true)]
+        [TestCase(7.6, false)]
+        public void BoostSwipeAndGuardTapHaveTheSameParryReach(double centerDistance, bool shouldParry)
+        {
+            var tuning = new CombatTuning(
+                new MovementTuning(useFuelBoost: true, fuelCapacitySeconds: 1.8),
+                new ProjectileTuning(baseSpeedUnitsPerSecond: 36,
+                    level1SpeedMultiplier: 2, level2SpeedMultiplier: 7.0 / 3,
+                    level3SpeedMultiplier: 8.0 / 3),
+                new DefenseTuning(parryExtraReachUnits: 3.5),
+                CombatTuning.Default.Divider,
+                new ArenaTuning(fighterRadiusUnits: 2.5, projectileRadiusUnits: .9),
+                CombatTuning.Default.Match);
+            double physicalReach = tuning.Arena.FighterRadiusUnits + tuning.Arena.ProjectileRadiusUnits;
+            double parryReach = physicalReach + tuning.Defense.ParryExtraReachUnits;
+            Assert.That(centerDistance, Is.GreaterThan(physicalReach));
+            Assert.That(centerDistance < parryReach, Is.EqualTo(shouldParry));
+
+            SimulationState swipe = RunBoostParry(true, centerDistance, tuning, out bool swipeParried);
+            SimulationState tap = RunBoostParry(false, centerDistance, tuning, out bool tapParried);
+            Assert.That(swipeParried, Is.EqualTo(shouldParry));
+            Assert.That(tapParried, Is.EqualTo(shouldParry));
+            Assert.That(swipe.Fighter(0).ParryTicksRemaining, Is.EqualTo(tap.Fighter(0).ParryTicksRemaining));
+            Assert.That(swipe.Fighter(0).Position, Is.EqualTo(tap.Fighter(0).Position));
+            Assert.That(swipe.Fighter(0).FuelBoostActive && tap.Fighter(0).FuelBoostActive, Is.True);
+            Assert.That(swipe.Fighter(0).DashSequence, Is.EqualTo(tap.Fighter(0).DashSequence));
+            Assert.That(swipe.Projectiles[0].PowerLevel, Is.EqualTo(tap.Projectiles[0].PowerLevel));
+            Assert.That(swipe.Projectiles[0].Position, Is.EqualTo(tap.Projectiles[0].Position));
+        }
+
+        private SimulationState RunBoostParry(bool swipe, double centerDistance,
+            CombatTuning tuning, out bool parried)
+        {
+            var adapter = new InputAdapter(0);
+            adapter.SampleTouch(1, TouchPhase.Began, _stick, _arena, Height, false, true, false, 0);
+            adapter.SampleTouch(1, TouchPhase.Moved, _stick + new Vector2(80, 0),
+                _arena, Height, false, true, false, .01);
+            adapter.SampleTouch(2, TouchPhase.Began, _boost, _arena, Height, false, true, false, .01);
+            adapter.ConsumeTick(); // The snapshot below is already boosting.
+            if (swipe)
+                adapter.SampleTouch(2, TouchPhase.Moved, _boost + new Vector2(55, 0),
+                    _arena, Height, false, true, false, .04);
+            else
+                adapter.SampleTouch(3, TouchPhase.Began, _guard,
+                    _arena, Height, false, true, false, .04);
+            FighterInput input = adapter.ConsumeTick();
+            Assert.That(input.DefensePressed && input.DashHeld, Is.True);
+            Assert.That(input.DashPressed, Is.False);
+            Assert.That(input.Move.X, Is.EqualTo(1).Within(.001));
+
+            var simulation = new MatchSimulation(tuning: tuning);
+            SimulationState setup = simulation.CaptureSnapshot();
+            setup.Phase = MatchPhase.Active;
+            setup.NextSpawnTick = 1000;
+            FighterState fighter = setup.Fighter(0);
+            fighter.Position = fighter.PreviousPosition = fighter.TickStartPosition = new Vec2(25, 20);
+            fighter.Velocity = new Vec2(36, 0);
+            fighter.Grounded = false;
+            fighter.FuelSeconds = tuning.Movement.FuelCapacitySeconds;
+            fighter.FuelBoostActive = fighter.FuelDashHeldPrevious = true;
+            fighter.DashSequence = 1;
+            fighter.DashInvulnerabilityTicksRemaining = 0;
+            Vec2 shot = new Vec2(fighter.Position.X + centerDistance, fighter.Position.Y);
+            setup.Projectiles.Add(new ProjectileState
+            {
+                Id = 999, Position = shot, PreviousPosition = shot, Velocity = Vec2.Zero
+            });
+            simulation.RestoreSnapshot(setup);
+            IReadOnlyList<SimulationEvent> events = simulation.Step(
+                new SimulationInput(simulation.Tick, input, default));
+            parried = false;
+            foreach (SimulationEvent item in events)
+                if (item.Type == SimulationEventType.PerfectParry && item.TargetId == 0) parried = true;
+            return simulation.CaptureSnapshot();
+        }
+
         [Test]
         public void EmptyFuelDoesNotSuppressSwipeParryInput()
         {
