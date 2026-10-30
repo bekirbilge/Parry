@@ -1,15 +1,14 @@
 # Test status
 
-## Current verified build — 2026-10-22
+## Current validation — 2026-10-30
 
-- Unity validation, **88/88 EditMode tests**, macOS build and independent review passed for the downward-control fixes.
-- Desktop/phone native smoke: 900 ticks and at least three live simulation callbacks each. Phone checksum `03EF15438A58E0D9`.
-- iOS export, signed build, signature verification, wireless installation and launch passed. Reconnecting Wi-Fi resolved earlier device-service timeouts.
-- Actual iPhone readback: `edge-aware-directional-swipe-follow-stick`, boost tank 1.8, projectile speeds 36 / 72 / 84 / 96, arena 129.5681 × 56.25.
-- Latest input coverage includes short downward edge flicks, jitter/slow rejection, quiet rearm, following joystick center and downward airborne movement. Directional parry/contact, steering takeover, release/cancel/menu and ownership regressions remain passing.
-- Last full core suite passed 240 fuel rounds / 683,400 ticks, 240 legacy rounds / 223,598 ticks and 96 wide rounds / 450,686 ticks. Core logic was unchanged by the latest input fixes; that suite was not rerun for documentation updates.
+- Unity validation, **109/109 EditMode tests**, macOS compilation and independent review passed for the animated sample, equal swipe/tap parry reach and lethal floor fire.
+- Reference and animation asset validators passed; **19/19 Python tests** passed. Production validation rejects pending visual approval.
+- Full Core suite passed after lethal-fire changes: schedule, five-position coverage at widths100/125/150/180, circular corner clearance, defense bypass, no posture/velocity penalty, single-fire round award, simultaneous fire and fire-plus-projectile draws, reset/clone/hash/replay. Existing240 fuel/240 legacy and96 wide rounds remain passing.
+- Signed iOS export/build/signature verification and wireless installation passed. First animation build was launched and read back with animationSampleLoaded=true and preserved tuning after developer trust renewal. Final lethal-fire build installed; launch currently blocked by phone lock.
+- Final native checks passed after unlocking the Mac: desktop and1280×590 phone profiles completed900 ticks/3 live callbacks, checksums65F293DF0B895EC3 and3E38AC9276098557. Warning/active-fire captures were inspected and show equal swipe/tap outlines. An earlier timeout was caused by the locked Mac and is resolved.
 
-Physical phone feel and visual approval remain pending. The records below describe historical iterations; earlier locked/timeout checkpoints are resolved by the current build.
+Visual approval and physical lethal-fire feedback are pending. Earlier records below are historical.
 
 ## Validation history
 
@@ -193,3 +192,5 @@ Downward touch correction (2026-10-22): Unity validation,88/88 EditMode tests an
 Latest downward-fix phone-profile native smoke PASS900 ticks/3 callbacks, checksum03EF15438A58E0D9; capture identifies edge-aware-directional-swipe-follow-stick with tank1.8 and speeds36/72/84/96. Unity iOS export, signed Xcode build and signature verification PASS. Two installation attempts timed out after60s each, and a15s device-info query also timed out although paired-device discovery lists available. User confirms unlocked and connected wirelessly; no USB assumed. Wireless transport needs reconnection before installation can finish. Previous launched-app/readback results belong to the preceding directional build.
 
 Wireless reconnect resolved the installation blocker (2026-10-22). Latest downward-control build installed and launched successfully. Readback from this app on iPhone17 Pro Max verifies edge-aware-directional-swipe-follow-stick, boost tank1.8 and projectile36/72/84/96. Physical downward swipe and long-drag reversal feel now await playtest.
+
+Final checkpoint2026-10-30: desktop and phone-profile900-tick native runs passed after unlocking the Mac; warning/fire and equal-radius parry previews inspected. Signed final lethal-fire build installed. Automatic launch later hit iPhone auto-lock; fresh floor-fire device readback remains pending manual open. The older animation-only readback lacks floor-fire fields and is not treated as final-build verification. All source is preserved on playtest/animated-ninja-floor-fire; physical visual/gameplay approval remains the next gate.
