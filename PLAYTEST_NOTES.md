@@ -2,6 +2,10 @@
 
 Human gameplay approval: GIVEN on2026-10-20. User accepted the current fuel-based version after projectile size/slowdown and contact-only safety feedback. Gate A passed; art direction/reference approval is the next human checkpoint.
 
+## Animation sample review — 2026-10-30
+
+User reports the latest phone controls working well. First animated ninja sample is approved for implementation; final visual approval remains pending. Review idle/run/boost/guard/parry/recoil, stable feet and size, team readability, local parry sparks and short projectile trails. Check parry while boosting, rope recoil, pause/resume and restart; the collision halo and gameplay timing must remain unchanged. Nonboost ascent/fall and defeat temporarily reuse existing frames. Toggle F6 on desktop to compare with graybox.
+
 ## Current iPhone 17 Pro Max run
 
 The current build is installed and has been launched on the iPhone 17 Pro Max. The installed touch scheme is `edge-aware-directional-swipe-follow-stick`.
@@ -129,3 +133,12 @@ Historical 2026-10-22 swipe-parry control trial: the edge-aware directional swip
 2026-10-22 directional swipe: flick the BOOST thumb toward the intended boost/parry direction. It steers ongoing thrust and aims the parry; a stationary left thumb does not override it. Move the left thumb again or swipe again to steer elsewhere. Test upward/downward/diagonal flicks, direction changes and lift-flicks. Parry still steers the natural reflection within the existing angle limit.
 
 2026-10-22 downward controls: drag MOVE far upward, then back down; its center now follows long drags so reversing needs only one throw plus deadzone. Try quick downward BOOST swipes starting near the phone bottom edge and after a quiet pause. Check short jitters and slow drags do not parry. Brief upward momentum before reversal remains intentional. Boost/parry speeds and timings are unchanged.
+
+2026-10-30 parry visibility feedback: user clarified that swipe parry looks smaller than regular parry, rather than requesting more reach. Both use effective radius6/contact6.9 and0.16s. Add an identical crisp outer ring above every character pose; keep hitbox/timing unchanged. Compare the green boundary while standing, boosting and swiping.
+
+
+## Floor-fire trial — 2026-10-30, lethal revision
+
+User changed the initial launch/posture proposal to instant elimination. At6 seconds, marked floor patches flash twice over2 seconds; they ignite at8 seconds for1.25 seconds. Warnings repeat every10 seconds at mirrored rotating positions. Leave the marked patch or get fully above the flames before ignition. Guard, parry and boost invulnerability do not protect against fire. Fire does not change posture or launch the player. One burned player loses the round; both burned in the same fixed step draw and replay with no points.
+
+Compare with fire disabled in Pause → Tuning → Floor fire, or F7 on desktop (restarts match). Test the two warning flashes, escaping sideways/upward, corner clearance, guard/parry on fire, both players burned together, score and round reset. Judge whether it prevents stationary parry play without unfair deaths. Visual Gate B for the animation sample remains pending.
