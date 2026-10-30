@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Game.Editor
 {
-    /// <summary>Import settings for the two approved-for-proof reference images.</summary>
+    /// <summary>Pixel import settings for the static references and single-character animation proof.</summary>
     public sealed class ReferenceArtPipeline : AssetPostprocessor
     {
         public const string CharacterPath = "Assets/Game/Resources/Art/char_ninja_idle_v01.png";
@@ -13,7 +13,8 @@ namespace Game.Editor
 
         private void OnPreprocessTexture()
         {
-            if (assetPath != CharacterPath && assetPath != ArenaPath)
+            if (assetPath != CharacterPath && assetPath != ArenaPath &&
+                assetPath != "Assets/Game/Resources/Art/char_ninja_animation_sample_v01.png")
                 return;
 
             var importer = (TextureImporter)assetImporter;
