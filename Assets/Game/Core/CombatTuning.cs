@@ -12,6 +12,7 @@ namespace Game.Core
         public DividerTuning Divider { get; }
         public ArenaTuning Arena { get; }
         public MatchTuning Match { get; }
+        public FloorHazardTuning FloorHazard { get; }
 
         public static CombatTuning Default { get; } = new CombatTuning(
             new MovementTuning(), new ProjectileTuning(), new DefenseTuning(),
@@ -23,7 +24,8 @@ namespace Game.Core
             DefenseTuning defense,
             DividerTuning divider,
             ArenaTuning arena,
-            MatchTuning? match = null)
+            MatchTuning? match = null,
+            FloorHazardTuning? floorHazard = null)
         {
             Movement = movement ?? throw new ArgumentNullException(nameof(movement));
             Projectile = projectile ?? throw new ArgumentNullException(nameof(projectile));
@@ -31,6 +33,7 @@ namespace Game.Core
             Divider = divider ?? throw new ArgumentNullException(nameof(divider));
             Arena = arena ?? throw new ArgumentNullException(nameof(arena));
             Match = match ?? new MatchTuning();
+            FloorHazard = floorHazard ?? new FloorHazardTuning();
 
             if (Divider.MaximumDeflectionUnits > Arena.WidthUnits / 2.0 - 2 * Arena.FighterRadiusUnits)
             {
