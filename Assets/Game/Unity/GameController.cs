@@ -16,6 +16,10 @@ namespace Game.Unity
         private readonly InputAdapter[] _inputs = { new InputAdapter(0), new InputAdapter(1) };
         private Texture2D _pixel, _circle;
         private Texture2D _referenceCharacter, _referenceArena;
+        private NinjaAnimationAtlas _animationAtlas;
+        private readonly FighterAnimationPresentation[] _fighterAnimations =
+            { new FighterAnimationPresentation(0), new FighterAnimationPresentation(1) };
+        private readonly CombatEffectsPresentation _combatEffects = new CombatEffectsPresentation();
         private ArtPresentation.CharacterLayout _referenceCharacterLayout;
         private bool _referenceCharacterLayoutLoaded;
         private bool _referenceArtEnabled = true;
@@ -26,8 +30,9 @@ namespace Game.Unity
         private bool _localTwoPlayer;
         private bool _prototypeInstantTestingStart = true;
         private bool _prototypeFuelBoost = true;
+        private bool _prototypeFloorFire = true;
         private int _botDifficulty;
-        private bool _smoke;
+        private bool _smoke, _animationPreview;
         private SimulationState _smokeRenderState;
         private int _smokeDriverStepsRemaining, _smokeDriverStepsDone;
         private string _smokeError;
@@ -68,6 +73,8 @@ namespace Game.Unity
             get => _referenceArtEnabled;
             set => _referenceArtEnabled = value;
         }
+        public bool HasAnimationSample => _animationAtlas != null;
+        public bool HasCharacterPresentation => _animationAtlas != null || _referenceCharacter != null;
         public bool HasReferenceCharacter => _referenceCharacter != null;
         public bool HasReferenceArena => _referenceArena != null;
         public bool HasReferenceCharacterLayout => _referenceCharacterLayoutLoaded;
@@ -82,6 +89,16 @@ namespace Game.Unity
         {
             get => _prototypeFuelBoost;
             set => _prototypeFuelBoost = value;
+        }
+        public bool PrototypeFloorFire
+        {
+            get => _prototypeFloorFire;
+            set => _prototypeFloorFire = value;
+        }
+        public void SetFloorFireMode(bool enabled)
+        {
+            _prototypeFloorFire = enabled;
+            RestartMatch();
         }
         public void SetFuelBoostMode(bool enabled)
         {
@@ -127,8 +144,11 @@ namespace Game.Unity
             _sim = new MatchSimulation(new SimulationConfig(), new CombatTuning(movement, projectile,
                 new DefenseTuning(parryExtraReachUnits: _parryExtraReach), divider,
                 new ArenaTuning(widthUnits: _appliedArenaWidth, fighterRadiusUnits: _fighterRadius,
-                    projectileRadiusUnits: _projectileRadius), match));
+                    projectileRadiusUnits: _projectileRadius), match,
+                new FloorHazardTuning(enabled: _prototypeFloorFire)));
             _inputs[0].Clear(); _inputs[1].Clear();
+            _combatEffects.Reset();
+            foreach (var animation in _fighterAnimations) animation.Reset();
             _lastEvent = "";
             _hitstopTicks = 0;
             SaveTuning();
@@ -140,6 +160,12 @@ namespace Game.Unity
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "--parry-smoke") _smoke = true;
+                if (args[i] == "--parry-animation-preview")
+                {
+                    _animationPreview = true;
+                    Application.runInBackground = true;
+                    gameObject.AddComponent<AnimationSamplePreview>();
+                }
                 if (args[i] == "--parry-touch") _forceTouchPreview = true;
                 if (args[i] == "--parry-tuning-preview") { _forceTouchPreview = true; _tuningPreview = true; }
                 if (args[i] == "--parry-output" && i + 1 < args.Length) _capturePath = args[++i];
@@ -163,6 +189,7 @@ namespace Game.Unity
             _pixel = new Texture2D(1, 1, TextureFormat.RGBA32, false);
             _pixel.SetPixel(0, 0, Color.white); _pixel.Apply();
             _circle = MakeCircle(64);
+            _animationAtlas = NinjaAnimationAtlas.Load();
             _referenceCharacter = Resources.Load<Texture2D>(ArtPresentation.CharacterResource);
             _referenceArena = Resources.Load<Texture2D>(ArtPresentation.ArenaResource);
             _referenceCharacterLayout = ArtPresentation.LoadCharacterLayout(out _referenceCharacterLayoutLoaded);
@@ -205,6 +232,7 @@ namespace Game.Unity
             }
             if (Input.GetKeyDown(KeyCode.F1)) SetFuelBoostMode(!_prototypeFuelBoost);
             if (Input.GetKeyDown(KeyCode.F5)) ToggleTuning();
+            if (Input.GetKeyDown(KeyCode.F7)) SetFloorFireMode(!_prototypeFloorFire);
             if (Input.GetKeyDown(KeyCode.F2)) { _slow = !_slow; Time.timeScale = _slow && !_paused ? .25f : _paused ? 0 : 1; }
             if (Input.GetKeyDown(KeyCode.P)) TogglePause();
             if (Input.GetKeyDown(KeyCode.N) && _paused) StepOnce();
@@ -403,6 +431,9 @@ namespace Game.Unity
         {
             if (_sim == null) throw new InvalidOperationException("Controller has not initialized.");
             var events = _sim.Step(input);
+            var presentationState = _sim.CaptureSnapshot();
+            _combatEffects.Observe(presentationState, events, _sim.Config.TickRateHz);
+            foreach (var animation in _fighterAnimations) animation.Observe(events, _sim.Config.TickRateHz);
             foreach (SimulationEvent e in events)
             {
                 if (e.Type == SimulationEventType.PerfectParry || e.Type == SimulationEventType.OwnedProjectileRedirected ||
@@ -432,7 +463,7 @@ namespace Game.Unity
 
         private void OnGUI()
         {
-            if (_sim == null || _pixel == null) return;
+            if (_animationPreview || _sim == null || _pixel == null) return;
             Rect arena = ArenaLayout.Compute(Screen.width, Screen.height, Screen.safeArea, PhoneUi);
             if (_label == null)
             {
@@ -496,10 +527,12 @@ namespace Game.Unity
                 Box(new Rect(arena.xMin, floor, arena.width, Mathf.Max(2, arena.yMax - floor)), new Color(.17f, .23f, .30f));
                 for (int i = 1; i < 10; i++) Box(new Rect(arena.xMin + arena.width * i / 10f, arena.yMin, 1, arena.height), new Color(1, 1, 1, .045f));
             }
+            DrawFloorFire(arena, state, unit);
             DrawDivider(arena, state, unit);
             DrawPortal(arena, state, unit);
             foreach (ProjectileState p in state.Projectiles) DrawProjectile(arena, p, unit);
-            foreach (FighterState f in state.Fighters) DrawFighter(arena, f, unit);
+            foreach (FighterState f in state.Fighters) DrawFighter(arena, f, unit, state.Tick);
+            DrawParryFlashes(arena, state.Tick, unit);
         }
 
         /// <summary>Chooses a phone world width from the available combat viewport.</summary>
@@ -595,12 +628,59 @@ namespace Game.Unity
             Label(new Rect(p.x - 55, p.y + r, 110, 22), left.ToString("0.0") + "s", _small);
         }
 
+        private void DrawFloorFire(Rect arena, SimulationState state, float unit)
+        {
+            var fire = FloorFirePresentation.DisplayFrame(state, Tuning, _sim.Config);
+            if (fire.Phase == FloorHazardPhase.Dormant) return;
+            bool warning = fire.Phase == FloorHazardPhase.Warning;
+            for (int side = 0; side < 2; side++)
+            {
+                double centerX = side == 0 ? fire.LeftCenterX : fire.RightCenterX;
+                float x = Point(arena, new Vec2(centerX - fire.HalfWidth, 0)).x;
+                float width = (float)(fire.HalfWidth * 2) * unit;
+                float floor = arena.yMax;
+                bool flashLit = !warning || FloorFirePresentation.WarningFlashLit(fire.TicksRemaining,
+                    SimMath.SecondsToTicks(Tuning.FloorHazard.WarningSeconds, _sim.Config.TickRateHz));
+                Color tint = warning ? new Color(1f, .72f, .22f, flashLit ? .9f : .08f) :
+                    new Color(1f, .28f, .06f, .95f);
+                Box(new Rect(x, floor - Mathf.Max(3, unit * .25f), width, Mathf.Max(3, unit * .25f)), tint);
+                float height = (float)fire.HeightUnits * unit;
+                if (warning)
+                {
+                    Box(new Rect(x, floor - height, width, height), new Color(1f, .58f, .12f, flashLit ? .24f : 0f));
+                    string countdown = (fire.TicksRemaining * _sim.Config.TickDurationSeconds).ToString("0.0");
+                    Label(new Rect(x - 12, floor - height - Mathf.Max(20, unit * 2), width + 24,
+                        Mathf.Max(20, unit * 2)), "FIRE " + countdown + "s", _small);
+                }
+                else
+                {
+                    Box(new Rect(x, floor - height, width, height), new Color(1f, .22f, .04f, .24f));
+                    for (int i = 0; i < 9; i++)
+                    {
+                        float root = x + width * (i + .5f) / 9;
+                        float flicker = .75f + .25f * Mathf.Sin((float)state.Tick * .8f + i * 1.7f);
+                        Vector2 tip = new Vector2(root + Mathf.Sin((float)state.Tick * .3f + i) * unit * .2f,
+                            floor - height * flicker);
+                        Line(new Vector2(root - unit * .2f, floor), tip, tint, Mathf.Max(2, unit * .35f));
+                        Line(new Vector2(root + unit * .2f, floor), tip,
+                            new Color(1f, .85f, .28f, .9f), Mathf.Max(1, unit * .16f));
+                    }
+                }
+            }
+        }
+
         private void DrawProjectile(Rect a, ProjectileState p, float u)
         {
             Vector2 pos = Point(a, p.Position), prev = Point(a, p.PreviousPosition);
             Color[] colors = { new Color(.95f, .95f, .95f), new Color(.2f, .9f, 1),
                 new Color(1, .55f, .16f), new Color(1, .1f, .42f) };
             Color c = colors[Mathf.Clamp(p.PowerLevel, 0, 3)];
+            var trail = _combatEffects.ProjectileTrail(p.Id);
+            if (_smokeRenderState == null)
+                for (int i = 1; i < trail.Count; i++)
+                    Line(Point(a, trail[i - 1]), Point(a, trail[i]),
+                        new Color(c.r, c.g, c.b, .32f * i / trail.Count),
+                        Mathf.Max(1, u * .6f * i / trail.Count));
             Line(prev, pos, new Color(c.r, c.g, c.b, .45f), Mathf.Max(2, u * .65f));
             float r = (float)Tuning.Arena.ProjectileRadiusUnits * u;
             Circle(new Rect(pos.x - r * 1.8f, pos.y - r * 1.8f, r * 3.6f, r * 3.6f), new Color(c.r, c.g, c.b, .18f));
@@ -615,7 +695,7 @@ namespace Game.Unity
             if (_showColliders) Circle(new Rect(pos.x - r, pos.y - r, r * 2, r * 2), new Color(1, 0, 0, .35f));
         }
 
-        private void DrawFighter(Rect a, FighterState f, float u)
+        private void DrawFighter(Rect a, FighterState f, float u, long tick)
         {
             Vector2 p = Point(a, f.Position);
             float r = (float)Tuning.Arena.FighterRadiusUnits * u;
@@ -636,25 +716,42 @@ namespace Game.Unity
                 Circle(new Rect(tail.x - r * .32f, tail.y - r * .32f, r * .64f, r * .64f),
                     new Color(1f, .95f, .65f, .8f));
             }
-            if (f.ParryTicksRemaining > 0)
+            if (!f.Eliminated && f.ParryTicksRemaining > 0)
             {
                 float parryRadius = (float)(Tuning.Arena.FighterRadiusUnits + Tuning.Defense.ParryExtraReachUnits) * u;
                 Circle(new Rect(p.x - parryRadius, p.y - parryRadius, parryRadius * 2, parryRadius * 2),
                     new Color(.38f, 1f, .78f, .45f));
             }
-            else if (f.GuardBreakTicksRemaining == 0 && f.DefenseHeldPrevious &&
+            else if (!f.Eliminated && f.GuardBreakTicksRemaining == 0 && f.DefenseHeldPrevious &&
                 f.DefenseHoldTicks >= SimMath.SecondsToTicks(Tuning.Defense.GuardHoldThresholdSeconds, _sim.Config.TickRateHz))
                 Circle(new Rect(p.x - 1.5f*r, p.y - 1.5f*r, 3*r, 3*r), new Color(.5f, .8f, 1f, .26f));
-            if (_referenceArtEnabled && _referenceCharacter != null)
+            if (_referenceArtEnabled && HasCharacterPresentation)
             {
                 Circle(new Rect(p.x-r, p.y-r, 2*r, 2*r), new Color(c.r, c.g, c.b, .23f));
-                Rect art = ArtPresentation.FighterRect(a, f.Position,
-                    (float)Tuning.Arena.WidthUnits, (float)Tuning.Arena.HeightUnits,
-                    (float)Tuning.Arena.FighterRadiusUnits, _referenceCharacterLayout);
+                Rect art;
+                Rect uv;
+                Texture2D texture;
+                if (_animationAtlas != null)
+                {
+                    var frame = _fighterAnimations[f.Id].Sample(f, tick, _sim.Config.TickRateHz,
+                        Tuning.Movement.UseFuelBoost, Tuning.Defense.GuardHoldThresholdSeconds);
+                    art = _animationAtlas.FighterRect(a, f.Position, (float)Tuning.Arena.WidthUnits,
+                        (float)Tuning.Arena.HeightUnits, (float)Tuning.Arena.FighterRadiusUnits,
+                        frame.Row, frame.Column, f.FacingSign > 0);
+                    uv = _animationAtlas.Uv(frame.Row, frame.Column, f.FacingSign > 0);
+                    texture = _animationAtlas.Texture;
+                }
+                else
+                {
+                    art = ArtPresentation.FighterRect(a, f.Position,
+                        (float)Tuning.Arena.WidthUnits, (float)Tuning.Arena.HeightUnits,
+                        (float)Tuning.Arena.FighterRadiusUnits, _referenceCharacterLayout);
+                    uv = f.FacingSign > 0 ? new Rect(0, 0, 1, 1) : new Rect(1, 0, -1, 1);
+                    texture = _referenceCharacter;
+                }
                 Color old = GUI.color;
                 GUI.color = f.Eliminated ? new Color(.65f, .65f, .65f, .8f) : Color.white;
-                GUI.DrawTextureWithTexCoords(art, _referenceCharacter,
-                    f.FacingSign > 0 ? new Rect(0, 0, 1, 1) : new Rect(1, 0, -1, 1), true);
+                GUI.DrawTextureWithTexCoords(art, texture, uv, true);
                 GUI.color = old;
                 Box(new Rect(p.x-r*.75f, p.y+r*.92f, r*1.5f, Mathf.Max(2, u*.12f)), c);
                 Label(new Rect(p.x-r*.65f, p.y-r*1.55f, r*1.3f, Mathf.Max(16, u*.55f)),
@@ -666,14 +763,48 @@ namespace Game.Unity
                 Box(new Rect(p.x - r*.72f, p.y - r, r*1.44f, r*2f), c);
                 Box(new Rect(p.x + (f.FacingSign > 0 ? r*.18f : -r*.65f), p.y - r*.48f, r*.47f, r*.24f), Color.white);
             }
+            // Draw the same outer collision boundary above every pose, including swipe-boost parries.
+            if (!f.Eliminated && f.ParryTicksRemaining > 0)
+            {
+                float parryRadius = (float)(Tuning.Arena.FighterRadiusUnits + Tuning.Defense.ParryExtraReachUnits) * u;
+                const int segments = 32;
+                for (int i = 0; i < segments; i++)
+                {
+                    float angle0 = i * Mathf.PI * 2f / segments;
+                    float angle1 = (i + 1) * Mathf.PI * 2f / segments;
+                    Line(p + new Vector2(Mathf.Cos(angle0), Mathf.Sin(angle0)) * parryRadius,
+                        p + new Vector2(Mathf.Cos(angle1), Mathf.Sin(angle1)) * parryRadius,
+                        new Color(.38f, 1f, .78f, .95f), Mathf.Max(2, u * .16f));
+                }
+            }
             if (f.GuardBreakTicksRemaining > 0) Label(new Rect(p.x - 30, p.y - 2.5f*r, 60, 20), "BREAK", _small);
             if (_showColliders) Circle(new Rect(p.x-r, p.y-r, 2*r, 2*r), new Color(1, 0, 0, .28f));
         }
 
-        private bool PoweredBoost(FighterState fighter) => Tuning.Movement.UseFuelBoost ?
+        private void DrawParryFlashes(Rect arena, long tick, float unit)
+        {
+            foreach (var flash in _combatEffects.Flashes)
+            {
+                float opacity = _combatEffects.FlashOpacity(flash, tick, _sim.Config.TickRateHz);
+                if (opacity <= 0) continue;
+                Vector2 center = Point(arena, flash.Position);
+                float radius = unit * (1.3f + (1f - opacity) * 2.5f);
+                Color tint = flash.FighterId == 0 ? new Color(.48f, 1f, 1f, opacity * .85f) :
+                    new Color(1f, .65f, .72f, opacity * .85f);
+                for (int i = 0; i < 8; i++)
+                {
+                    float angle = i * Mathf.PI / 4f;
+                    Vector2 ray = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                    Line(center + ray * radius * .45f, center + ray * radius, tint,
+                        Mathf.Max(1, unit * .16f));
+                }
+            }
+        }
+
+        private bool PoweredBoost(FighterState fighter) => !fighter.Eliminated && (Tuning.Movement.UseFuelBoost ?
             fighter.FuelBoostActive :
             (fighter.DashTicksRemaining > 0 || fighter.DividerLoadTicksRemaining > 0) &&
-            fighter.DividerReboundDistanceRemaining <= 0;
+            fighter.DividerReboundDistanceRemaining <= 0);
 
         private void DrawHud(Rect a, SimulationState s)
         {
@@ -900,6 +1031,8 @@ namespace Game.Unity
             GUILayout.Label("TUNING · drag sliders, then Apply / reset match");
             bool fuelMode = GUILayout.Toggle(_prototypeFuelBoost, "Boost prototype (off: three charges)");
             if (fuelMode != _prototypeFuelBoost) SetFuelBoostMode(fuelMode);
+            if (GUILayout.Button("Floor fire: " + (_prototypeFloorFire ? "ON" : "OFF")))
+                SetFloorFireMode(!_prototypeFloorFire);
             Slider("Run speed", ref _runSpeed, 3, 40);
             Slider("Boost speed", ref _dashSpeed, 15, 120);
             Slider("Boost duration", ref _boostDuration, .15f, .5f);
@@ -967,6 +1100,8 @@ namespace Game.Unity
             _tuningScroll = GUILayout.BeginScrollView(_tuningScroll, false, true);
             if (GUILayout.Button("Movement: " + (_prototypeFuelBoost ? "CONTINUOUS BOOST" : "3 CHARGES"),
                 GUILayout.Height(44 * scale))) _prototypeFuelBoost = !_prototypeFuelBoost;
+            if (GUILayout.Button("Floor fire: " + (_prototypeFloorFire ? "ON" : "OFF"), GUILayout.Height(52 * scale)))
+                SetFloorFireMode(!_prototypeFloorFire);
             PhoneSlider("Run speed", ref _runSpeed, 3, 40, scale);
             PhoneSlider("Boost speed", ref _dashSpeed, 15, 120, scale);
             PhoneSlider("Boost duration", ref _boostDuration, .15f, .5f, scale);
@@ -1052,6 +1187,11 @@ namespace Game.Unity
                     immediateTestStart = Tuning.Match.StartImmediatelyForTesting,
                     referenceArtEnabled = _referenceArtEnabled,
                     referenceCharacterLoaded = HasReferenceCharacter,
+                    animationSampleLoaded = HasAnimationSample,
+                    floorFireEnabled = Tuning.FloorHazard.Enabled,
+                    floorFireWarningSeconds = Tuning.FloorHazard.WarningSeconds,
+                    floorFireActiveSeconds = Tuning.FloorHazard.ActiveSeconds,
+                    floorFireLethal = true,
                     referenceArenaLoaded = HasReferenceArena,
                     referenceCharacterLayoutLoaded = HasReferenceCharacterLayout,
                     checksum = _sim.CaptureSnapshot().ComputeChecksum().ToString("X16"), tick = _sim.Tick };
@@ -1073,6 +1213,8 @@ namespace Game.Unity
             public string mode, boostMode, botDifficultyName, touchScheme;
             public int botDifficulty;
             public bool immediateTestStart;
+            public bool animationSampleLoaded, floorFireEnabled, floorFireLethal;
+            public double floorFireWarningSeconds, floorFireActiveSeconds;
             public bool referenceArtEnabled, referenceCharacterLoaded, referenceArenaLoaded,
                 referenceCharacterLayoutLoaded;
             public string checksum;
@@ -1171,6 +1313,41 @@ namespace Game.Unity
                     catch (Exception e) { Debug.LogWarning("Rope smoke screenshot unavailable: " + e.Message); }
                     _smokeRenderState = null;
                 }
+            }
+            if (!Application.isBatchMode && Tuning.FloorHazard.Enabled)
+            {
+                for (int preview = 0; preview < 2; preview++)
+                {
+                    _smokeRenderState = _sim.CaptureSnapshot();
+                    _smokeRenderState.Phase = MatchPhase.Active;
+                    _smokeRenderState.FloorHazard.ElapsedActiveTicks = SimMath.SecondsToTicks(
+                        Tuning.FloorHazard.InitialDelaySeconds + (preview == 0 ?
+                        Tuning.FloorHazard.WarningSeconds * .5 : Tuning.FloorHazard.WarningSeconds + .2),
+                        _sim.Config.TickRateHz);
+                    for (int id = 0; id < 2; id++)
+                    {
+                        var fighter = _smokeRenderState.Fighter(id);
+                        fighter.Position = fighter.PreviousPosition = fighter.TickStartPosition =
+                            new Vec2(Tuning.Arena.WidthUnits * (id == 0 ? .25 : .75), Tuning.Arena.FighterRadiusUnits);
+                        fighter.ParryTicksRemaining = 8;
+                        fighter.GuardBreakTicksRemaining = 0;
+                        fighter.DividerReboundDistanceRemaining = 0;
+                        fighter.Eliminated = false;
+                        fighter.FuelBoostActive = id == 1;
+                        fighter.DashDirection = new Vec2(id == 0 ? 1 : -1, 0);
+                        fighter.Velocity = fighter.DashDirection * 24;
+                    }
+                    yield return new WaitForEndOfFrame();
+                    try
+                    {
+                        Texture2D image = ScreenCapture.CaptureScreenshotAsTexture();
+                        File.WriteAllBytes(Path.Combine(dir, preview == 0 ? "smoke-fire-warning.png" :
+                            "smoke-fire-active.png"), image.EncodeToPNG());
+                        Destroy(image);
+                    }
+                    catch (Exception e) { Debug.LogWarning("Floor-fire preview unavailable: " + e.Message); }
+                }
+                _smokeRenderState = null;
             }
             File.WriteAllText(Path.Combine(dir, "smoke.json"), JsonUtility.ToJson(result, true));
             Application.Quit(result.completed ? 0 : 1);
