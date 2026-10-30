@@ -31,6 +31,9 @@ namespace Game.Core
                 snapshot.Fighters[0] == null || snapshot.Fighters[1] == null ||
                 snapshot.Fighters[0].Id != 0 || snapshot.Fighters[1].Id != 1 ||
                 snapshot.Projectiles == null || snapshot.Divider == null ||
+                snapshot.FloorHazard == null || snapshot.FloorHazard.ElapsedActiveTicks < 0 ||
+                snapshot.FloorHazard.LastHitCycle == null || snapshot.FloorHazard.LastHitCycle.Length != 2 ||
+                snapshot.FloorHazard.LastHitCycle[0] < -1 || snapshot.FloorHazard.LastHitCycle[1] < -1 ||
                 snapshot.Divider.NodeDeflections == null ||
                 snapshot.Divider.NodeVelocities == null ||
                 snapshot.Divider.NodeDeflections.Length != DividerSystem.RopePointCount ||
@@ -101,6 +104,7 @@ namespace Game.Core
             }
             MovementSystem.AdvanceKinematics(_state, input, Tuning, Config, events);
             CombatSystem.Advance(_state, input, Tuning, Config, events);
+            _state.FloorHazard.ElapsedActiveTicks++;
             ResolveRound(events);
         }
 
@@ -174,6 +178,7 @@ namespace Game.Core
             _state.Fighters = new[] { CreateFighter(0, leftWins), CreateFighter(1, rightWins) };
             _state.Projectiles.Clear();
             _state.Divider = new DividerState();
+            _state.FloorHazard = new FloorHazardState();
             _state.Phase = Tuning.Match.StartImmediatelyForTesting ? MatchPhase.Active : MatchPhase.Countdown;
             // Active rounds use this value only to defer RoundStarted to the first playable step.
             _state.PhaseTicksRemaining = Tuning.Match.StartImmediatelyForTesting ? 1 : Ticks(Tuning.Match.RoundCountdownSeconds);
