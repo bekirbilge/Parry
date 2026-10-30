@@ -214,3 +214,6 @@ Execution priority update (2026-10-20): user requested a physical phone playtest
 
 
 Current execution checkpoint (2026-10-22): P0/P1/P2 and gameplay Gate A remain complete. Approved phone feedback iterations now include 1.8-second boost, directional swipe parry, following joystick center and edge-aware downward swipes. Latest build passed 88 EditMode tests, native checks and signed iPhone installation/launch. Physical downward-control feedback and P3 reference-art Gate B remain pending. Continue from PROJECT_STATUS.md; TEST_STATUS.md and PLAYTEST_NOTES.md hold validation and run instructions. Maintain the existing root documentation files; older Docs/ examples above do not authorize creating a docs folder.
+
+
+2026-10-30 checkpoint: user accepts phone controls and authorizes one animated ninja sample with local parry flashes/trails. Visual Gate B remains pending; no bulk art. During review the user also authorizes a configurable floor-fire gameplay trial (final user revision: two warning flashes, then instant elimination; same-step double victims draw/replay) to disrupt ground camping. Complete deterministic core, presentation, tests and device playtest before expanding scope. Preserve core parry reach6 and0.16s; feedback requested matching visible swipe/tap boundaries, not a reach increase.
