@@ -11,7 +11,7 @@ A landscape, fixed-camera, side-view, two-player 2D pixel-art arcade duel. Ninja
 
 ## 2. Game loop and rules — LOCKED
 - Two fighters spawn on opposite halves of a symmetrical arena; full-height center membrane prevents crossing but permits stretching toward the other side. Camera fixed; landscape mobile-first.
-- A match is first to **two round wins**. No conventional health. An **unguarded projectile impact kills instantly**. A blocked impact increases posture; a perfect parry safely reflects it.
+- A match is first to **two round wins**. No conventional health. An **unguarded projectile impact kills instantly**. A blocked impact increases posture; a perfect parry safely reflects it. The user-approved floor-fire trial also eliminates on active contact after two warning flashes (see final trial section).
 - If both fighters are eliminated in the **same simulation tick**, declare **DOUBLE K.O. / DRAW**, award neither a round point, reset and replay. Resolve all collisions for both fighters before declaring outcome; never let iteration order pick the winner. Elimination in different ticks follows the simulation ordering; the survivor of the first lethal tick wins.
 - Each new round resets positions, velocities, posture, dash charges/fuel, projectile count/power, timers, and divider deformation. Draws do not individually grant match rewards. Winning a best-of-three match triggers a short, skippable cosmetic victory sequence.
 - No conventional match timer in initial design; once projectile cap is reached, continue until a round resolves. A **TUNE** anti-stall fallback may be introduced only with explicit approval and fairness testing.
@@ -124,3 +124,12 @@ User playtest selection (2026-10-20): keep the latest fuel-based playable versio
 Core approval and visual direction (2026-10-20): user accepted the current game as being in a good place, passing Gate A, and chose C (dark high-contrast pixel art) for the first ninja/Rookie Dojo proof. Keep current fuel and combat tuning. Character/arena reference appearance and animation production approval remain pending a playable visual review.
 
 Phone playtest priority (2026-10-20): user requested trying the game on a phone now, before finishing animation. Prepare landscape touch-enabled development exports ahead of later full mobile hardening. Playable character radius2.5 is adjustable1.5–3.5 in F5; both players share the applied value and art scales to it. Legacy Core default radius1.5 is retained for regression/comparison, not the new playable default. Visual reference approval remains pending.
+
+
+## Floor-fire gameplay trial — lethal revision approved 2026-10-30
+
+User explicitly replaced the earlier launch/posture proposal with instant elimination. Marked floor patches flash twice during a two-second warning, then ignite. Any fighter whose circular body touches active fire is eliminated, regardless of guard, parry or boost invulnerability. Fire changes no posture and gives no launch impulse. A single victim awards the opponent the round; both eliminated in the same fixed step produce the existing draw/replay with no points.
+
+Trial tuning: first warning after6 seconds of active round time; warning2 seconds, fire1.25 seconds, warning-start interval10 seconds. One patch per half; mirrored centers rotate through50%,12%,88%,32%,68% of each half, covering every legal ground position over a full cycle. Full width is24% of a half; flame height1.5 units. Circle-versus-rectangle contact respects corner/airborne clearance. Both patches affect either player, including rope intrusion. Hazard effects resolve before projectile contacts; dead fighters cannot attack or parry. Shared environmental rules apply independently of cosmetic arena themes.
+
+Clock and hit ledger reset each round, including draws; pause/countdown/results do not advance active hazard time. Snapshot version8 includes the hazard clock and per-fighter burst ledger. Core defaults keep fire disabled; the playable trial enables it. Tuning menu and desktop F7 toggle fire with a match restart for comparison. Timing, dimensions and pattern remain tunable and require physical feedback. No bulk content is approved by this trial.
